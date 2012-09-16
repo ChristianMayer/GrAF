@@ -17,17 +17,20 @@
  */
 
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <string>
+#include <map>
 
 #include "zmq.hpp"
 
-#include "eibclient.h"
 
 #include "message.hpp"
 #include "hexdump.hpp"
+#include "knx.hpp"
 
 using namespace std;
+using namespace KNX;
 
 void showHelp( void )
 {
@@ -39,58 +42,11 @@ void showHelp( void )
   << "    -n, --namespace [nsp]   Set namespace to use for messages" << endl
   << "    -h, --help              This help message" << endl
   << "    -u, --url [url]         Set connection URL for eibd" << endl
+  << "    -g, --GAconf [url]      Set file for GA configuration" << endl
   << "    -v, --vebose            Verbose output - repeatable" << endl;
 }
 
-/**
- * Simple wrapper class for handling the eibd connection.
- * It offers RAII functionality.
- */
-struct ConnectKNX
-{
-  EIBConnection *con;
   
-  ConnectKNX( const string& url ) : con( EIBSocketURL( url.c_str() ) )
-  {}
-  
-  ~ConnectKNX()
-  {
-    if( con )
-      EIBClose( con );
-  }
-};
-  
-/**
- * Convert a string to a KNX address.
- * (Based on eibd code)
- */
-int parseKNXAddr( const string& addr )
-{
-  int a, b, c;
-  unsigned int d;
-  if( sscanf( addr.c_str(), "%d/%d/%d", &a, &b, &c ) == 3 )
-    return ((a & 0x01f) << 11) | ((b & 0x07) << 8) | ((c & 0xff));
-  if( sscanf( addr.c_str(), "%d/%d", &a, &b ) == 2 )
-    return ((a & 0x01f) << 11) | ((b & 0x7FF));
-  if( sscanf( addr.c_str(), "%x", &d ) == 1 )
-    return d & 0xffff;
-  return -1; // invalid group address format
-}
-
-string printKNXAddr( const eibaddr_t& addr )
-{
-  ostringstream out;
-  out << ((addr >> 11) & 0x1f) <<"/"<< ((addr >> 8) & 0x07) << "/" << ((addr) & 0xff);
-  return out.str();
-}
-
-string printKNXIndividualAddr( const eibaddr_t& addr )
-{
-  ostringstream out;
-  out << ((addr >> 12) & 0x0f) << "." << ((addr >> 8) & 0x0f) << "." << ((addr) & 0xff);
-  return out.str();
-}
-
 int main( int argc, char *argv[] )
 {
   ///////////////////////////////////////////////////////////////////////////
@@ -99,6 +55,8 @@ int main( int argc, char *argv[] )
   //
   string logicNamespace = "KNX";
   string knxURL = "ip:wiregate";
+  string confGA = "/etc/wiregate/eibga.conf";
+  
   for( int i = 1; i < argc; i++ )
   {
     string parameter( argv[ i ] );
@@ -120,6 +78,15 @@ int main( int argc, char *argv[] )
       }
       knxURL = argv[ i ];
     } 
+    else if ( parameter == "-g" || parameter == "--GAconf" ) 
+    {
+      if( ++i == argc )
+      {
+        cout << "Error: path not specified!" << endl;
+        return -1;
+      }
+      confGA = argv[ i ];
+    } 
     else if ( parameter == "-h" || parameter == "--help" ) 
     {
       showHelp();
@@ -128,13 +95,13 @@ int main( int argc, char *argv[] )
   }
   
   // Setup KNX
-  ConnectKNX knx( "ip:wiregate" );
+  ConnectKNX knx( knxURL, confGA );
   if( EIBOpen_GroupSocket( knx.con, 0 ) == -1 )
   {
     cerr << "KNX opening failed" << endl;
     return -1;
   }
-  
+
   // Setup ZMQ
   zmq::context_t context( 1 );
   zmq::socket_t subscriber( context, ZMQ_SUB );
@@ -164,7 +131,7 @@ int main( int argc, char *argv[] )
     
     if( items[0].revents ) // we recieced a ZMQ message
     {
-      LogicMessage msg   = recieveMessage ( subscriber );
+      LogicMessage msg   = recieveMessage( subscriber );
 
       // prevent echo loops by ignoring all packets originating form our namespace
       if( logicNamespace + ":" == msg.getSource().substr( 0, logicNamespace.length()+1 ) )
@@ -221,8 +188,8 @@ int main( int argc, char *argv[] )
       }
       else if( buf[0] & 0x3 || ( buf[1] & 0xC0 ) == 0xC0 )
       {
-        cerr << "Unknown APDU from " << printKNXAddr( src )
-             << " to " << printKNXAddr( dest ) 
+        cerr << "Unknown APDU from " << printKNXGroupAddr( src )
+             << " to " << printKNXGroupAddr( dest ) 
              << ": " << hexdump( buf, len ) << endl;
       }
       else
@@ -231,11 +198,9 @@ int main( int argc, char *argv[] )
         {
           case 0x00: // read
             {
-              // FIXME: this is just sending the KNX packes as a string, but it
-              // should read the DPTs, convert it, ...
-              LogicMessage msg( logicNamespace + ">" + printKNXAddr( dest ), 
-                                logicNamespace + ":" + printKNXIndividualAddr( src ),
-                                hexdump( buf, len, false ) );
+              LogicMessage msg( logicNamespace + ">" + printKNXGroupAddr( dest ), 
+                                logicNamespace + ":" + printKNXPhysicalAddr( src ),
+                                knx.getDPT( dest ).getVariable( len, buf ) );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }
@@ -243,11 +208,9 @@ int main( int argc, char *argv[] )
             
           case 0x40: // response
             {
-              // FIXME: this is just sending the KNX packes as a string, but it
-              // should read the DPTs, convert it, ...
-              LogicMessage msg( logicNamespace + "<" + printKNXAddr( dest ), 
-                                logicNamespace + ":" + printKNXIndividualAddr( src ),
-                                hexdump( buf, len, false ) );
+              LogicMessage msg( logicNamespace + "<" + printKNXGroupAddr( dest ), 
+                                logicNamespace + ":" + printKNXPhysicalAddr( src ),
+                                knx.getDPT( dest ).getVariable( len, buf ) );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }
@@ -255,11 +218,9 @@ int main( int argc, char *argv[] )
             
           case 0x80: // write
             {
-              // FIXME: this is just sending the KNX packes as a string, but it
-              // should read the DPTs, convert it, ...
-              LogicMessage msg( logicNamespace + ":" + printKNXAddr( dest ), 
-                                logicNamespace + ":" + printKNXIndividualAddr( src ),
-                                hexdump( buf, len, false ) );
+              LogicMessage msg( logicNamespace + ":" + printKNXGroupAddr( dest ), 
+                                logicNamespace + ":" + printKNXPhysicalAddr( src ),
+                                knx.getDPT( dest ).getVariable( len, buf ) );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }
