@@ -34,6 +34,7 @@ add_executable( logicd src/main.cpp )
 add_executable( client src/testclient.cpp )
 add_executable( send2logic src/send2logic.cpp )
 add_executable( logicspy src/logicspy.cpp )
+add_executable( knx2logic src/knx2logic.cpp )
 
 find_library( 
   ZEROMQ_LIBRARY
@@ -46,6 +47,7 @@ TARGET_LINK_LIBRARIES( logicd ${ZEROMQ_LIBRARIES} )
 TARGET_LINK_LIBRARIES( client ${ZEROMQ_LIBRARIES} )
 TARGET_LINK_LIBRARIES( send2logic ${ZEROMQ_LIBRARIES} )
 TARGET_LINK_LIBRARIES( logicspy ${ZEROMQ_LIBRARIES} )
+TARGET_LINK_LIBRARIES( knx2logic ${ZEROMQ_LIBRARIES} eibclient )
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

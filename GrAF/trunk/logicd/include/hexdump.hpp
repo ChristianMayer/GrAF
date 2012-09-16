@@ -25,7 +25,7 @@
 /**
  * Return a string containing a hexdump of data with the given length.
  */
-inline std::string hexdump( const void* const data, const size_t& length )
+inline std::string hexdump( const void* const data, const size_t& length, bool multipleLines = true )
 {
   std::stringstream sstr;
  
@@ -40,11 +40,11 @@ inline std::string hexdump( const void* const data, const size_t& length )
     if( i % 8 == 7 )      // every 8 numbers an extra space
       sstr << " ";
     
-    if( i % 16 == 15 )
+    if( i % 16 == 15 && multipleLines )
       sstr << std::endl;  // after 16 numbers the next line
   }
   
-  if( i % 16 != 0 )
+  if( i % 16 != 0 && multipleLines )
     sstr << std::endl;    // add endl if not already done in loop
   
   sstr << std::dec;       // clean up, switch to decimal again

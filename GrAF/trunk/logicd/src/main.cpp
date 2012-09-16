@@ -55,17 +55,17 @@ int main ( int argc, const char *argv[] )
   while( running )
   {
     LogicMessage msg = recieveMessage( socket );
-    std::cout << "Received [" << msg.getAddress() << "] '" << msg.getType() << "' " << msg.getSize() << std::endl;
+    std::cout << "Received [" << msg.getSource() << " -> " << msg.getDestination() << "] '" << msg.getType() << "' " << msg.getSize() << std::endl;
     std::cout << hexdump( msg.getRaw(), msg.getSize() );
     switch( msg.getType() )
     {
-      case LogicMessage::INT:
+      case variableType::INT:
         std::cout << "INT: " << msg.getInt() << " 0x" << std::hex << msg.getInt() << std::dec << std::endl;
         break;
-      case LogicMessage::FLOAT:
+      case variableType::FLOAT:
         std::cout << "FLOAT: " << msg.getFloat() << std::endl;
         break;
-      case LogicMessage::STRING:
+      case variableType::STRING:
         std::cout << "STRING: " << msg.getString() << std::endl;
         break;
       default:

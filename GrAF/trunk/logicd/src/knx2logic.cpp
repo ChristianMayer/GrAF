@@ -84,6 +84,13 @@ string printKNXAddr( const eibaddr_t& addr )
   return out.str();
 }
 
+string printKNXIndividualAddr( const eibaddr_t& addr )
+{
+  ostringstream out;
+  out << ((addr >> 12) & 0x0f) << "." << ((addr >> 8) & 0x0f) << "." << ((addr) & 0xff);
+  return out.str();
+}
+
 int main( int argc, char *argv[] )
 {
   ///////////////////////////////////////////////////////////////////////////
@@ -158,7 +165,12 @@ int main( int argc, char *argv[] )
     if( items[0].revents ) // we recieced a ZMQ message
     {
       LogicMessage msg   = recieveMessage ( subscriber );
-      string fullAddress = msg.getAddress();
+
+      // prevent echo loops by ignoring all packets originating form our namespace
+      if( logicNamespace + ":" == msg.getSource().substr( 0, logicNamespace.length()+1 ) )
+        continue;
+
+      string fullAddress = msg.getDestination();
       char type          = fullAddress[ logicNamespace.length() ];
       int knxAddr        = parseKNXAddr( fullAddress.substr( logicNamespace.length()+1 ) );
 
@@ -170,10 +182,10 @@ int main( int argc, char *argv[] )
       switch( type )
       {
         case ':': // write
-        case '<': // response
-          break;  // -> ignore
+          cout << "write not implemented yet...\n";
+          break;
           
-        case '!': // send
+        case '<': // response
           cout << "send not implemented yet...\n";
           break;
 
@@ -189,7 +201,7 @@ int main( int argc, char *argv[] )
           break;
           
         default:
-          cerr << "Bad message - expected '!' or '>' but found '" << type << "'" << endl;
+          cerr << "Bad message - expected ':', '<' or '>' but found '" << type << "'" << endl;
       }
     } // end: if( items[0].revents )
 
@@ -218,16 +230,36 @@ int main( int argc, char *argv[] )
         switch( buf[1] & 0xC0 )
         {
           case 0x00: // read
+            {
+              // FIXME: this is just sending the KNX packes as a string, but it
+              // should read the DPTs, convert it, ...
+              LogicMessage msg( logicNamespace + ">" + printKNXAddr( dest ), 
+                                logicNamespace + ":" + printKNXIndividualAddr( src ),
+                                hexdump( buf, len, false ) );
+              msg.send( sender );
+              LogicMessage reply = recieveMessage( sender );
+            }
             break;
             
           case 0x40: // response
+            {
+              // FIXME: this is just sending the KNX packes as a string, but it
+              // should read the DPTs, convert it, ...
+              LogicMessage msg( logicNamespace + "<" + printKNXAddr( dest ), 
+                                logicNamespace + ":" + printKNXIndividualAddr( src ),
+                                hexdump( buf, len, false ) );
+              msg.send( sender );
+              LogicMessage reply = recieveMessage( sender );
+            }
             break;
             
           case 0x80: // write
             {
               // FIXME: this is just sending the KNX packes as a string, but it
               // should read the DPTs, convert it, ...
-              LogicMessage msg( logicNamespace + ":" + printKNXAddr( dest ), hexdump( buf, len ) );
+              LogicMessage msg( logicNamespace + ":" + printKNXAddr( dest ), 
+                                logicNamespace + ":" + printKNXIndividualAddr( src ),
+                                hexdump( buf, len, false ) );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }

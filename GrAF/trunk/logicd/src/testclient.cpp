@@ -40,17 +40,17 @@ int main( int argc, char *argv[] )
   for( int update_nbr = 0; update_nbr < 10; update_nbr++ ) 
   {
     LogicMessage msg = recieveMessage( subscriber );
-    std::cout << "Received [" << msg.getAddress() << "] '" << msg.getType() << "' " << msg.getSize() << std::endl;
+    std::cout << "Received [" << msg.getDestination() << "] '" << msg.getType() << "' " << msg.getSize() << std::endl;
     std::cout << hexdump( msg.getRaw(), msg.getSize() );
     switch( msg.getType() )
     {
-      case LogicMessage::INT:
+      case variableType::INT:
         std::cout << "INT: " << msg.getInt() << " 0x" << std::hex << msg.getInt() << std::dec << std::endl;
         break;
-      case LogicMessage::FLOAT:
+      case variableType::FLOAT:
         std::cout << "FLOAT: " << msg.getFloat() << std::endl;
         break;
-      case LogicMessage::STRING:
+      case variableType::STRING:
         std::cout << "STRING: " << msg.getString() << std::endl;
         break;
       default:

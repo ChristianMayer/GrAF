@@ -22,47 +22,119 @@
 
 #include "zmq.hpp"
 
+#include "variabletype.hpp"
+
 class LogicMessage
 {
 public:
-  enum message_t
+  LogicMessage( const std::string& destination_,
+                const std::string& source_,
+                const zmq::message_t& message )
+    : destination( destination_ ),
+      source( source_ ),
+      size( message.size() ),
+      data( new char[size] )
   {
-    UNKOWN = 0,
-    INT    = 1,
-    FLOAT  = 2,
-    STRING = 3
-  };
-  
-  LogicMessage( const std::string& address_, const zmq::message_t& message ) : address( address_ ), size( message.size() ), data( new char[size] )
+    memcpy( data, message.data(), size );
+  }
+
+  LogicMessage( const std::string& destination_,
+                const zmq::message_t& message )
+    : destination( destination_ ),
+      source( "NoSrc" ),
+      size( message.size() ),
+      data( new char[size] )
   {
     memcpy( data, message.data(), size );
   }
   
-  explicit LogicMessage( const std::string& address_, const int& value ) : address( address_ ), size( metaSize + sizeof( int ) ), data( new char[size] )
+  template<typename T>
+  explicit LogicMessage( const std::string& destination_,
+                         const std::string& source_,
+                         const T& value )
+    : destination( destination_ ),
+      source( source_ ),
+      size( metaSize + sizeof( T ) ),
+      data( new char[size] )
+  {
+    reinterpret_cast<messageType*>( data )->flags = 0;
+    reinterpret_cast<messageType*>( data )->_rows = 0;
+    reinterpret_cast<messageType*>( data )->_cols = 0;
+    reinterpret_cast<messageType*>( data )->type = variableType::getType<T>();
+    *reinterpret_cast<T*>( reinterpret_cast<char*>( data ) + metaSize ) = value;
+  }
+
+  template<typename T>
+  explicit LogicMessage( const std::string& destination_,
+                         const T& value )
+    : destination( destination_ ),
+      source( "NoSrc" ),
+      size( metaSize + sizeof( T ) ),
+      data( new char[size] )
   {
     reinterpret_cast<messageType*>(data)->flags = 0;
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
-    reinterpret_cast<messageType*>(data)->type = INT;
-    *reinterpret_cast<int*>( reinterpret_cast<char*>(data) + metaSize ) = value;
+    reinterpret_cast<messageType*>(data)->type = variableType::getType<T>();
+    *reinterpret_cast<T*>( reinterpret_cast<char*>(data) + metaSize ) = value;
   }
   
-  explicit LogicMessage( const std::string& address_, const float& value ) : address( address_ ), size( metaSize + sizeof( float ) ), data( new char[size] )
+  explicit LogicMessage( const std::string& destination_,
+                         const std::string& source_,
+                         const std::string& value )
+    : destination( destination_ ),
+      source( source_ ),
+      size( metaSize + value.length() + 1 ),
+      data( new char[size] )
   {
-    reinterpret_cast<messageType*>(data)->flags = 0;
-    reinterpret_cast<messageType*>(data)->_rows = 0;
-    reinterpret_cast<messageType*>(data)->_cols = 0;
-    reinterpret_cast<messageType*>(data)->type = FLOAT;
-    *reinterpret_cast<float*>( reinterpret_cast<char*>(data) + metaSize ) = value;
+    reinterpret_cast<messageType*>( data )->flags = 0;
+    reinterpret_cast<messageType*>( data )->_rows = 0;
+    reinterpret_cast<messageType*>( data )->_cols = 0;
+    reinterpret_cast<messageType*>( data )->type = variableType::STRING;
+    memcpy( reinterpret_cast<char*>( data ) + metaSize, value.c_str(), size - metaSize );
   }
-  
-  explicit LogicMessage( const std::string& address_, std::string value ) : address( address_ ), size( metaSize + value.length()+1 ), data( new char[size] )
+
+  explicit LogicMessage( const std::string& destination_,
+                         const std::string& value )
+    : destination( destination_ ),
+      source( "NoSrc" ),
+      size( metaSize + value.length() + 1 ),
+      data( new char[size] )
   {
     reinterpret_cast<messageType*>(data)->flags = 0;
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
-    reinterpret_cast<messageType*>(data)->type = STRING;
-    memcpy( reinterpret_cast<char*>(data) + metaSize, value.c_str(), value.length()+1 );
+    reinterpret_cast<messageType*>(data)->type = variableType::STRING;
+    memcpy( reinterpret_cast<char*>(data) + metaSize, value.c_str(), size - metaSize );
+  }
+
+  explicit LogicMessage( const std::string& destination_,
+                         const std::string& source_,
+                         const char* value )
+    : destination( destination_ ),
+      source( source_ ),
+      size( metaSize + std::string( value ).length() + 1 ),
+      data( new char[size] )
+  {
+    reinterpret_cast<messageType*>( data )->flags = 0;
+    reinterpret_cast<messageType*>( data )->_rows = 0;
+    reinterpret_cast<messageType*>( data )->_cols = 0;
+    reinterpret_cast<messageType*>( data )->type = variableType::STRING;
+    memcpy( reinterpret_cast<char*>( data ) + metaSize, value, size - metaSize );
+  }
+
+  explicit LogicMessage( const std::string& destination_,
+                         const char* value )
+    : destination( destination_ ),
+      source( "NoSrc" ),
+      size( metaSize + std::string( value ).length() + 1 ),
+      data( new char[size] )
+  {
+    reinterpret_cast<messageType*>(data)->flags = 0;
+    reinterpret_cast<messageType*>(data)->_rows = 0;
+    reinterpret_cast<messageType*>(data)->_cols = 0;
+    reinterpret_cast<messageType*>(data)->type = variableType::STRING;
+    memcpy( reinterpret_cast<char*>(data) + metaSize, value, size - metaSize );
   }
   
   ~LogicMessage()
@@ -73,20 +145,33 @@ public:
   
   void send( zmq::socket_t& socket ) const
   {
-    zmq::message_t addr( address.length()+1 );
-    memcpy((void *) addr.data(), address.c_str(), address.length()+1 );
-    socket.send( addr, ZMQ_SNDMORE );
+    zmq::message_t dst( destination.length()+1 );
+    memcpy((void *) dst.data(), destination.c_str(), destination.length()+1 );
+    
+    socket.send( dst, ZMQ_SNDMORE );
+    
+    zmq::message_t src( source.length()+1 );
+    memcpy((void *) src.data(), source.c_str(), source.length()+1 );
+    
+    socket.send( src, ZMQ_SNDMORE );
+    
     zmq::message_t request( size );
     memcpy((void *) request.data(), data, size );
+    
     socket.send( request );
   }
   
-  std::string getAddress( void ) const
+  std::string getDestination( void ) const
   {
-    return address;
+    return destination;
   }
   
-  message_t getType( void ) const
+  std::string getSource( void ) const
+  {
+    return source;
+  }
+  
+  variableType::type getType( void ) const
   {
     return reinterpret_cast<const messageType*>(data)->type;
   }
@@ -98,7 +183,7 @@ public:
   
   int getInt( void ) const
   {
-    if( INT == getType() )
+    if( variableType::INT == getType() )
       return *reinterpret_cast<int*>( reinterpret_cast<char*>(data) + metaSize );
     
     return 0;
@@ -106,7 +191,7 @@ public:
   
   float getFloat( void ) const
   {
-    if( FLOAT == getType() )
+    if( variableType::FLOAT == getType() )
       return *reinterpret_cast<float*>( reinterpret_cast<char*>(data) + metaSize );
     
     return 0.0f;
@@ -114,7 +199,7 @@ public:
   
   std::string getString( void ) const
   {
-    if( STRING == getType() )
+    if( variableType::STRING == getType() )
       return std::string( reinterpret_cast<char*>(data) + metaSize );
     
     return "";
@@ -126,12 +211,13 @@ public:
   }
   
 private:
-  std::string address;
+  std::string destination;
+  std::string source;
   struct messageType {
     int flags : 8;
     int _rows : 8; // currently unused
     int _cols : 8; // currently unused
-    message_t type : 8;
+    variableType::type type : 8;
   };
   const static size_t metaSize = 8; // 64bit align to content
   
@@ -141,20 +227,30 @@ private:
 
 LogicMessage recieveMessage( zmq::socket_t& socket )
 {
-  zmq::message_t request;
-  
-  // Wait for next request from client
-  socket.recv( &request );
-  
-  std::string address = (const char*)request.data();
-  int64_t more;
+  int more;
   size_t more_size = sizeof( more );
-  zmq_getsockopt( socket, ZMQ_RCVMORE, &more, &more_size );
-  assert( more );
   
-  zmq::message_t request2;
-  socket.recv( &request2 );
-  return LogicMessage( address, request2 );
+  zmq::message_t destination;
+  socket.recv( &destination ); // Wait for next request from client
+  std::string dst = (const char*)destination.data();
+
+  zmq_getsockopt( socket, ZMQ_RCVMORE, &more, &more_size );
+  assert( 1 == more );
+
+  zmq::message_t source;
+  socket.recv( &source );
+  std::string src = (const char*)source.data();
+  
+  zmq_getsockopt( socket, ZMQ_RCVMORE, &more, &more_size );
+  assert( 1 == more );
+
+  zmq::message_t content;
+  socket.recv( &content );
+ 
+  zmq_getsockopt( socket, ZMQ_RCVMORE, &more, &more_size );
+  assert( 0 == more );
+
+  return LogicMessage( dst, src, content );
 }
   
 #endif // MESSAGE_HPP
