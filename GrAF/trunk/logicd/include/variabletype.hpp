@@ -50,4 +50,57 @@ namespace variableType {
   }
 }
 
+class variable_t
+{
+  variableType::type type;
+  union 
+  {
+    int intValue;
+    float floatValue;
+    std::string* stringValue;
+  };
+  
+public:
+  
+  variable_t() : type( variableType::UNKNOWN ), intValue( 0 )
+  {}
+  ~variable_t()
+  {
+    if( variableType::STRING == type )
+      delete stringValue;
+  }
+  
+  variable_t( int i ) : type( variableType::INT ), intValue( i )
+  {}
+  variable_t( float f ) : type( variableType::FLOAT ), floatValue( f )
+  {}
+  variable_t( const std::string& s ) : type( variableType::STRING ), stringValue( new std::string( s ) )
+  {}
+  
+  variableType::type getType( void ) const { return type; }
+  std::string getTypeName( void ) const { return variableType::getTypeName( type ); }
+  size_t getSize( void ) const
+  {
+    switch( type )
+    {
+      case variableType::UNKNOWN:
+      default:
+        return 0;
+        
+      case variableType::INT:
+        return sizeof( int );
+        
+      case variableType::FLOAT:
+        return sizeof( float );
+        
+      case variableType::STRING:
+        return stringValue->length();
+    }
+  }
+  
+  int         getInt   ( void ) const { return intValue;     }
+  float       getFloat ( void ) const { return floatValue;   }
+  std::string getString( void ) const { return *stringValue; }
+};
+
 #endif // VARIABLETYPE_HPP

@@ -33,7 +33,7 @@ public:
     : destination( destination_ ),
       source( source_ ),
       size( message.size() ),
-      data( new char[size] )
+      data( new uint8_t[size] )
   {
     memcpy( data, message.data(), size );
   }
@@ -43,7 +43,7 @@ public:
     : destination( destination_ ),
       source( "NoSrc" ),
       size( message.size() ),
-      data( new char[size] )
+      data( new uint8_t[size] )
   {
     memcpy( data, message.data(), size );
   }
@@ -55,13 +55,13 @@ public:
     : destination( destination_ ),
       source( source_ ),
       size( metaSize + sizeof( T ) ),
-      data( new char[size] )
+      data( new uint8_t[size] )
   {
     reinterpret_cast<messageType*>( data )->flags = 0;
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
     reinterpret_cast<messageType*>( data )->type = variableType::getType<T>();
-    *reinterpret_cast<T*>( reinterpret_cast<char*>( data ) + metaSize ) = value;
+    *reinterpret_cast<T*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = value;
   }
 
   template<typename T>
@@ -70,13 +70,13 @@ public:
     : destination( destination_ ),
       source( "NoSrc" ),
       size( metaSize + sizeof( T ) ),
-      data( new char[size] )
+      data( new uint8_t[size] )
   {
     reinterpret_cast<messageType*>(data)->flags = 0;
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
     reinterpret_cast<messageType*>(data)->type = variableType::getType<T>();
-    *reinterpret_cast<T*>( reinterpret_cast<char*>(data) + metaSize ) = value;
+    *reinterpret_cast<T*>( reinterpret_cast<uint8_t*>(data) + metaSize ) = value;
   }
   
   explicit LogicMessage( const std::string& destination_,
@@ -85,13 +85,13 @@ public:
     : destination( destination_ ),
       source( source_ ),
       size( metaSize + value.length() + 1 ),
-      data( new char[size] )
+      data( new uint8_t[size] )
   {
     reinterpret_cast<messageType*>( data )->flags = 0;
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
     reinterpret_cast<messageType*>( data )->type = variableType::STRING;
-    memcpy( reinterpret_cast<char*>( data ) + metaSize, value.c_str(), size - metaSize );
+    memcpy( reinterpret_cast<uint8_t*>( data ) + metaSize, value.c_str(), size - metaSize );
   }
 
   explicit LogicMessage( const std::string& destination_,
@@ -99,13 +99,13 @@ public:
     : destination( destination_ ),
       source( "NoSrc" ),
       size( metaSize + value.length() + 1 ),
-      data( new char[size] )
+      data( new uint8_t[size] )
   {
     reinterpret_cast<messageType*>(data)->flags = 0;
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
     reinterpret_cast<messageType*>(data)->type = variableType::STRING;
-    memcpy( reinterpret_cast<char*>(data) + metaSize, value.c_str(), size - metaSize );
+    memcpy( reinterpret_cast<uint8_t*>(data) + metaSize, value.c_str(), size - metaSize );
   }
 
   explicit LogicMessage( const std::string& destination_,
@@ -114,13 +114,13 @@ public:
     : destination( destination_ ),
       source( source_ ),
       size( metaSize + std::string( value ).length() + 1 ),
-      data( new char[size] )
+      data( new uint8_t[size] )
   {
     reinterpret_cast<messageType*>( data )->flags = 0;
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
     reinterpret_cast<messageType*>( data )->type = variableType::STRING;
-    memcpy( reinterpret_cast<char*>( data ) + metaSize, value, size - metaSize );
+    memcpy( reinterpret_cast<uint8_t*>( data ) + metaSize, value, size - metaSize );
   }
 
   explicit LogicMessage( const std::string& destination_,
@@ -128,18 +128,51 @@ public:
     : destination( destination_ ),
       source( "NoSrc" ),
       size( metaSize + std::string( value ).length() + 1 ),
-      data( new char[size] )
+      data( new uint8_t[size] )
   {
     reinterpret_cast<messageType*>(data)->flags = 0;
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
     reinterpret_cast<messageType*>(data)->type = variableType::STRING;
-    memcpy( reinterpret_cast<char*>(data) + metaSize, value, size - metaSize );
+    memcpy( reinterpret_cast<uint8_t*>(data) + metaSize, value, size - metaSize );
+  }
+
+  explicit LogicMessage( const std::string& destination_,
+                         const std::string& source_,
+                         const variable_t& value )
+    : destination( destination_ ),
+      source( source_ ),
+      size( metaSize + value.getSize () ),
+      data( new uint8_t[size] )
+  {
+    reinterpret_cast<messageType*>( data )->flags = 0;
+    reinterpret_cast<messageType*>( data )->_rows = 0;
+    reinterpret_cast<messageType*>( data )->_cols = 0;
+    reinterpret_cast<messageType*>( data )->type = value.getType();
+    switch( value.getType() )
+    {
+      case variableType::INT:
+        *reinterpret_cast<int*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = value.getInt();
+        break;
+        
+      case variableType::FLOAT:
+        *reinterpret_cast<float*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = value.getFloat();
+        break;
+        
+      case variableType::STRING:
+        memcpy( reinterpret_cast<uint8_t*>( data ) + metaSize, value.getString().c_str(), size - metaSize );
+        break;
+        
+      case variableType::UNKNOWN:
+      default:
+        *reinterpret_cast<int*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = 0;
+        break;
+    }
   }
   
   ~LogicMessage()
   {
-    delete [] (char*)data;
+    delete [] (uint8_t*)data;
     data = nullptr;
   }
   
