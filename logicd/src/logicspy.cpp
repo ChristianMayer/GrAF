@@ -123,7 +123,9 @@ int main( int argc, char *argv[] )
     if( showTime ) printTimestamp();
     
     if( showColor ) cout << colorDefault;
-    cout << msg.getAddress();
+    cout << msg.getDestination();
+    cout << " (<- " << msg.getSource() << ")";
+    
     if( verbose )
       cout << " [" << msg.getSize() << "]: ";
     else
@@ -131,13 +133,13 @@ int main( int argc, char *argv[] )
     
     switch( msg.getType() )
     {
-      case LogicMessage::INT:
+      case variableType::INT:
         cout << "INT: " << msg.getInt() << " 0x" << hex << msg.getInt() << dec << endl;
         break;
-      case LogicMessage::FLOAT:
+      case variableType::FLOAT:
         cout << "FLOAT: " << msg.getFloat() << endl;
         break;
-      case LogicMessage::STRING:
+      case variableType::STRING:
         cout << "STRING: " << msg.getString() << endl;
         break;
       default:

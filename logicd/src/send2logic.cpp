@@ -18,66 +18,75 @@
 
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #include "zmq.hpp"
 
 #include "message.hpp"
-#include "hexdump.hpp"
+
+using namespace std;
+
+void showHelp( void )
+{
+  cout << "Usage: send2logic address type value" << endl
+  << endl
+  << "Send a message as defined by the parameters." << endl
+  << endl
+  << "Parameters:" << endl
+  << "    address              The address (including namespace) to send to" << endl
+  << "    type                 One of INT, FLOAT or STRING" << endl
+  << "    value                The value to send (represented as a string)" << endl;
+}
 
 int main( int argc, const char *argv[] )
 {
+  if( argc != 4 )
+  {
+    showHelp();
+    return 0;
+  }
+
+  string address( argv[1] );
+  string type   ( argv[2] );
+  
   // Prepare our context and socket
   zmq::context_t context( 1 );
   zmq::socket_t socket( context, ZMQ_REQ );
   
-  std::cout << "Connecting to loigc server..." << std::endl;
   socket.connect( "ipc:///tmp/logicd.ipc" );
   
+  if( type == "INT" )
   {
-    LogicMessage msg( "s2l:1", 0x4711 );
-    std::cout << "Sending INT " << std::endl << hexdump( msg.getRaw(), msg.getSize() );
-    msg.send( socket );
-    // Get the reply.
-    std::cout << "..." << std::endl;
-    LogicMessage reply = recieveMessage( socket );
-    std::cout << "Received reply " << std::endl;
-  }
-  
-  {
-    LogicMessage msg( "s2l:2", 0.4711f );
-    std::cout << "Sending FLOAT…" << std::endl << hexdump( msg.getRaw(), msg.getSize() );
-    msg.send( socket );
-    std::cout << "..." << std::endl;
-    LogicMessage reply = recieveMessage( socket );
-    std::cout << "Received reply " << std::endl;
-  }
-  
-  {
-    LogicMessage msg( "s2l:30", "abc" );
-    std::cout << "Sending STRING…" << std::endl << hexdump( msg.getRaw(), msg.getSize() );
-    msg.send( socket );
-    std::cout << "..." << std::endl;
-    LogicMessage reply = recieveMessage( socket );
-    std::cout << "Received reply " << std::endl;
-  }
-  
-  {
-    LogicMessage msg( "s2l:31", "abc345" );
-    std::cout << "Sending STRING…" << std::endl << hexdump( msg.getRaw(), msg.getSize() );
-    msg.send( socket );
-    std::cout << "..." << std::endl;
-    LogicMessage reply = recieveMessage( socket );
-    std::cout << "Received reply " << std::endl;
-  }
-  
-  {
-    LogicMessage msg( "s2l:32", "abc345d7abc345d7" );
-    std::cout << "Sending STRING…" << std::endl << hexdump( msg.getRaw(), msg.getSize() );
-    msg.send( socket );
-    std::cout << "..." << std::endl;
-    LogicMessage reply = recieveMessage( socket );
-    std::cout << "Received reply " << std::endl;
-  }
+    int value;
+    istringstream istr( argv[3] );
+    if( argv[3][0] == '0' && (argv[3][1] == 'x' || argv[3][1] == 'X') )
+      istr >> hex;
 
+    istr >> value;
+    LogicMessage msg( address, value );
+    msg.send( socket );
+  } 
+  else if( type == "FLOAT" )
+  {
+    float value;
+    istringstream istr( argv[3] );
+    istr >> value;
+    LogicMessage msg( address, value );
+    msg.send( socket );
+  } 
+  else if( type == "STRING" )
+  {
+    LogicMessage msg( address, argv[3] );
+    msg.send( socket );
+  } 
+  else
+  {
+    cerr << "Unknown type '" << type << "' - should be INT, FLOAT or STRING" << endl;
+    return -1;
+  }
+  
+  // clean up - catch the reply
+  LogicMessage reply = recieveMessage( socket );
+  
   return 0;
 }
