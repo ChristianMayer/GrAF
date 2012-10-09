@@ -23,25 +23,12 @@
 #include <map>
 
 #include "variabletype.hpp"
+#include "knx_dpt.hpp"
 
 namespace KNX
 {
   #include "eibclient.h"
   
-  struct DPT
-  {
-    int major;
-    int minor;
-    
-    std::string toString( void ) const;
-    float toFloat( void ) const
-    {
-      return major + 0.001 * minor;
-    }
-    variable_t getVariable( const size_t len, const uint8_t* data ) const;
-    std::string getVariableAsString( const size_t len, const uint8_t* data ) const;
-  };
-
   /**
    * Convert a string to a KNX address.
    * (Based on eibd code)
