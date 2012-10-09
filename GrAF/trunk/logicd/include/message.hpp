@@ -214,6 +214,25 @@ public:
     return size;
   }
   
+  variable_t getVariable( void ) const
+  {
+    switch( getType() )
+    {
+      case variableType::INT:
+        return variable_t( getInt() );
+        
+      case variableType::FLOAT:
+        return variable_t( getFloat() );
+        
+      case variableType::STRING:
+        return variable_t( getString() );
+        
+      default:
+      case variableType::UNKNOWN:
+        return variable_t();
+    }
+  }
+  
   int getInt( void ) const
   {
     if( variableType::INT == getType() )
