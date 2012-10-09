@@ -20,7 +20,6 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <map>
 
 #include "zmq.hpp"
 
@@ -149,7 +148,22 @@ int main( int argc, char *argv[] )
       switch( type )
       {
         case ':': // write
-          cout << "write not implemented yet...\n";
+          {
+            const size_t buf_len = 15;
+            uint8_t buf[ buf_len ];
+            buf[ 0 ] = 0;
+            int len = knx.getDPT( dest ).setVariable( buf_len-1, buf+1, msg.getVariable() );
+            if( 0 == len )
+            {
+              cerr << "Incompatible or unknown DPT! No value sent..." << endl;
+              break;
+            }
+            if( EIBSendGroup( knx.con, dest, len+1, buf ) == -1 )
+            {
+              cerr << "Sending write request failed!" << endl;
+              break; // Request failed;
+            }
+          }
           break;
           
         case '<': // response

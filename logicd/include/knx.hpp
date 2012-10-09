@@ -60,12 +60,18 @@ namespace KNX
 
     std::string getName( const eibaddr_t& GA ) const
     {
-      return db.at( GA ).name;
+      try {
+        return db.at( GA ).name;
+      } catch(...){} // only std::out_of_range might be thrown here...
+      return "???";
     }
 
     DPT getDPT( const eibaddr_t& GA ) const
     {
-      return db.at( GA ).dpt;
+      try {
+        return db.at( GA ).dpt;
+      } catch(...){} // only std::out_of_range might be thrown here...
+      return DPT();
     }
   };
 
