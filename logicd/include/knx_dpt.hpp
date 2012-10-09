@@ -34,5 +34,7 @@ namespace KNX
     }
     variable_t getVariable( const size_t len, const uint8_t* data ) const;
     std::string getVariableAsString( const size_t len, const uint8_t* data ) const;
+    
+    int setVariable( const size_t max_len, uint8_t* buf, const variable_t& data ) const;
   };
 }

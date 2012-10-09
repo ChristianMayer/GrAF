@@ -26,7 +26,6 @@
 
 namespace KNX
 {
-
   int32_t parseKNXAddr( const std::string& addr )
   {
     int32_t a, b, c;
