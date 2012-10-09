@@ -34,7 +34,7 @@ add_executable( logicd src/main.cpp )
 add_executable( client src/testclient.cpp )
 add_executable( send2logic src/send2logic.cpp )
 add_executable( logicspy src/logicspy.cpp )
-add_executable( knx2logic src/knx.cpp src/knx2logic.cpp )
+add_executable( knx2logic src/knx.cpp src/knx_dpt.cpp src/knx2logic.cpp )
 
 find_library( 
   ZEROMQ_LIBRARY

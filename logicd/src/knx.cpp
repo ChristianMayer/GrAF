@@ -18,9 +18,6 @@
 
 #include <iostream>
 #include <fstream>
-#include <sstream>
-#include <iomanip>
-#include <limits>
 
 #include <cassert>
 
@@ -57,87 +54,6 @@ namespace KNX
     return out.str();
   }
 
-  std::string DPT::toString( void ) const
-  {
-    std::ostringstream out;
-    out << major << "." << std::setw(3) << std::setfill('0') << minor;
-    return out.str();
-  }
-  
-  variable_t DPT::getVariable( const size_t len, const uint8_t* data ) const
-  {
-    switch( major )
-    {
-      case 1:
-      case 2:
-      case 3:
-        if( 2 == len )
-          return variable_t( data[1] & 0x7f );
-        break;
-        
-      case 5:
-        if( 3 == len )
-          return variable_t( data[2] * 100.f / 255.f );
-        break;
-        
-      case 7:
-        if( 4 == len )
-          return variable_t( (int(data[2]) << 8) + data[3] );
-        break;
-
-      case 9:
-        if( 4 == len )
-        {
-          if( data[2] == 0x7f && data[3] == 0xff ) return std::numeric_limits<float>::quiet_NaN();
-          int sign =   data[2] & 0x80;
-          int exp  =  (data[2] & 0x78) >> 3;
-          int mant = ((data[2] & 0x07) << 8) | data[3];
-          if( sign != 0 )
-            mant = -(~(mant - 1) & 0x7ff);
-          return (1 << exp) * 0.01f * mant;
-        }
-        break;
-        
-      case 8:
-      case 12:
-      case 13:
-        return variable_t(); // will be int
-        
-      case 6:
-      case 14:
-        return variable_t(); // will be float
-        
-      case 4:
-      case 16:
-        return variable_t( "string" );
-
-      // case 10: // time
-      // case 11: // date
-    }
-    return variable_t();
-  }
-  
-  std::string DPT::getVariableAsString( const size_t len, const uint8_t* data ) const
-  {
-    variable_t v = getVariable( len, data );
-    
-    switch( v.getType() )
-    {
-      case variableType::UNKNOWN:
-      default:
-        return "[unknown]";
-        
-      case variableType::INT:
-        return std::to_string( v.getInt() );
-        
-      case variableType::FLOAT:
-        return std::to_string( v.getFloat() );
-        
-      case variableType::STRING:
-        return v.getString();
-    }
-  }
-  
   GAconf::GAconf( const std::string& file )
   {
     std::string line;
