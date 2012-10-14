@@ -15,7 +15,7 @@ SET( PROJECT_NAME ${CMAKE_PROJECT_NAME} )
 ##############################################################################
 # Setup project dependencies:
 
-FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS program_options system REQUIRED)
 IF (Boost_FOUND)
   #INCLUDE_DIRECTORIES(${INCLUDE_DIRECTORIES} ${Boost_INCLUDE_DIRS})
   INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
@@ -35,6 +35,7 @@ add_executable( client src/testclient.cpp )
 add_executable( send2logic src/send2logic.cpp )
 add_executable( logicspy src/logicspy.cpp )
 add_executable( knx2logic src/knx.cpp src/knx_dpt.cpp src/knx2logic.cpp )
+add_executable( cometvisu2logic src/cometvisu2logic.cpp )
 
 find_library( 
   ZEROMQ_LIBRARY
@@ -48,6 +49,7 @@ TARGET_LINK_LIBRARIES( client ${ZEROMQ_LIBRARIES} )
 TARGET_LINK_LIBRARIES( send2logic ${ZEROMQ_LIBRARIES} )
 TARGET_LINK_LIBRARIES( logicspy ${ZEROMQ_LIBRARIES} )
 TARGET_LINK_LIBRARIES( knx2logic ${ZEROMQ_LIBRARIES} eibclient )
+TARGET_LINK_LIBRARIES( cometvisu2logic ${ZEROMQ_LIBRARIES} ${Boost_LIBRARIES} )
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
