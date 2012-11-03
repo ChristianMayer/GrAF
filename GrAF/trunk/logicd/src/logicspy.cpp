@@ -127,9 +127,14 @@ int main( int argc, char *argv[] )
     cout << " (<- " << msg.getSource() << ")";
     
     if( verbose )
-      cout << " [" << msg.getSize() << "]: ";
-    else
-      cout << ": ";
+      cout << " [" << msg.getSize() << "]";
+    
+    if( msg.hasInvalidIndex() )
+    {
+      cout << "{noIndex}: ";
+    } else {
+      cout << "{" << msg.getIndex() << "}: ";
+    }
     
     switch( msg.getType() )
     {

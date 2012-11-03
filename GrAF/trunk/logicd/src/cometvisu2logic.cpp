@@ -24,6 +24,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/bind.hpp>
 #include <boost/asio.hpp>
+#include <boost/algorithm/string.hpp>
 
 #include "zmq.hpp"
 
@@ -42,9 +43,17 @@ void showHelp( void )
        << endl
        << "Parameters:" << endl
        << "    -h, --help              This help message" << endl
+       << "    -n, --namespace [nsp]   Set namespace to transparently use for messages" << endl 
+       << "                            (optional and only usefull in exisiting" << endl
+       << "                            installations)" << endl
        << "    -v, --vebose            Verbose output - repeatable" << endl;
 }
 
+/**
+ * Globals
+ */
+string logicNamespace;
+int lastIndex;
 //DEBUG// int globalCnt = 0; // FIXME REMOVE
 
 /**
@@ -100,12 +109,15 @@ public:
       if( msg.getDestination() == *it )
       {
         //DEBUG// cout  << localCnt << ": Address FOUND!\n";
+        string dest = *it;
+        if( "" != logicNamespace && logicNamespace == dest.substr( 0, logicNamespace.length() ))
+          dest = dest.substr( logicNamespace.length() );
         return send_result(
           "{"
-            "\"d\": {"
-              "\"" + *it + "\": \"" + msg.getString() + "\""
+            "\"d\":{"
+            "\"" + dest + "\": \"" + msg.getString() + "\""
             "},"
-            "\"i\": \"9999\""
+            + ( msg.hasInvalidIndex() ? string("") : ("\"i\": \"" + to_string(msg.getIndex()) + "\"") ) +
           "}",
           true 
         );
@@ -225,7 +237,7 @@ private:
           switch( requestURI[ parameterPos ] )
           {
             case 'a':
-              addresses.insert( parameter );
+              addresses.insert( logicNamespace + parameter );
               break;
 
             case 's':
@@ -291,15 +303,42 @@ private:
           break;
           
         case 'r': // read
-          goodRequest = true;
-          if( 0 == timeout )
           {
-            SCGI_result = "{"
-              "\"d\":{},"
-              "\"i\":\"4711\""
-            "}";
-            break;
-          } else {
+            if( 0 == timeout || lastIndex != stol( index ) )
+            { // read all messages (i.e. CometVisu start) or there were some messages after the last reply
+              goodRequest = true;
+              LogicMessage msg( "meta:cacheread", boost::algorithm::join( addresses, "," ) );
+              if( 0 == timeout )
+                msg.send( sender );
+              else
+                msg.send( sender, stoul(index) );
+              vector<LogicMessage::shared_ptr> msgs( recieveMultiMessage( sender ) );
+
+              if( 0 == timeout || (msgs.front() != msgs.back()) || !msgs.front()->isEmpty() )
+              { // read all messages or at least one message was returned
+                SCGI_result = "{\"d\":{";
+                bool after_first = false;
+                for( vector<LogicMessage::shared_ptr>::iterator it = msgs.begin(); it != msgs.end(); it++ )
+                {
+                  string dest = ( *it )->getDestination();
+                  if( "" != logicNamespace && logicNamespace == dest.substr( 0, logicNamespace.length() ) )
+                    dest = dest.substr( logicNamespace.length() );
+
+                  if( after_first )
+                    SCGI_result += ",";
+                  SCGI_result += "\"" + dest + "\":\"" + ( *it )->getString() + "\"";
+
+                  after_first = true;
+                }
+                SCGI_result += "},\"i\":\"" + to_string( ( *msgs.begin() )->getIndex() ) + "\"}";
+                break;
+              }
+            } 
+            // when we get here:
+            // - we are NOT in an initial read
+            // - although there were message after the last reply, none were of any interest
+            // => wait for new messages
+
             timer.expires_from_now( boost::posix_time::seconds( timeout ) );
             timer.async_wait( boost::bind( &SCGI_session::timeout, this,
                                            boost::asio::placeholders::error ) );
@@ -430,7 +469,7 @@ public:
       subscriber_socket( io_service )
   {
     subscriber.connect( "ipc:///tmp/logicd.messages.ipc" );
-    subscriber.setsockopt( ZMQ_SUBSCRIBE, "foo", 3 ); // Setup filter
+    subscriber.setsockopt( ZMQ_SUBSCRIBE, "", 0 ); // Setup filter - take all possible messages
 
     int subscriber_fd;
     size_t sizeof_fd = sizeof( subscriber_fd );
@@ -462,6 +501,7 @@ private:
         {
           //DEBUG// cout << "ZMQ_POLLIN\n";
           LogicMessage msg   = recieveMessage( subscriber );
+          lastIndex = msg.getIndex();
           //DEBUG// cout << "got message type: " << msg.getType() << "\n";
 
           // Passing message to all waiting SCGI connections
@@ -505,7 +545,16 @@ int main( int argc, char *argv[] )
   for( int i = 1; i < argc; i++ )
   {
     string parameter( argv[ i ] );
-    if( parameter == "-h" || parameter == "--help" )
+    if     ( parameter == "-n" || parameter == "--namespace" )
+    {
+      if( ++i == argc )
+      {
+        cout << "Error: namespace not specified!" << endl;
+        return -1;
+      }
+      logicNamespace = argv[ i ];
+    }
+    else if( parameter == "-h" || parameter == "--help" )
     {
       showHelp();
       return 0;
