@@ -21,7 +21,7 @@
 #define VARIABLETYPE_HPP
 
 namespace variableType {
-  enum type
+  enum type : uint8_t
   {
     UNKNOWN = 0,
     INT     = 1,

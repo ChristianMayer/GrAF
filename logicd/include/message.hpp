@@ -20,6 +20,10 @@
 #ifndef MESSAGE_HPP
 #define MESSAGE_HPP
 
+#include <vector>
+
+#include <boost/shared_ptr.hpp>
+
 #include "zmq.hpp"
 
 #include "variabletype.hpp"
@@ -27,6 +31,23 @@
 class LogicMessage
 {
 public:
+  typedef boost::shared_ptr<LogicMessage> shared_ptr;
+  
+  /**
+   * Default constructor - creates a neutral message that also could mean "ACK"
+   */
+  LogicMessage( const std::string& info = "" )
+    : destination( info ),
+      source( "" ),
+      size( metaSize ),
+      data( new uint8_t[size] )
+  {
+    reinterpret_cast<messageType*>( data )->flags = 0;
+    reinterpret_cast<messageType*>( data )->_rows = 0;
+    reinterpret_cast<messageType*>( data )->_cols = 0;
+    reinterpret_cast<messageType*>( data )->type = variableType::UNKNOWN;
+  }
+  
   LogicMessage( const std::string& destination_,
                 const std::string& source_,
                 const zmq::message_t& message )
@@ -57,6 +78,8 @@ public:
       size( metaSize + sizeof( T ) ),
       data( new uint8_t[size] )
   {
+    assert( sizeof( messageType ) <= metaSize );
+    
     reinterpret_cast<messageType*>( data )->flags = 0;
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
@@ -72,6 +95,8 @@ public:
       size( metaSize + sizeof( T ) ),
       data( new uint8_t[size] )
   {
+    assert( sizeof( messageType ) <= metaSize );
+    
     reinterpret_cast<messageType*>(data)->flags = 0;
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
@@ -87,6 +112,8 @@ public:
       size( metaSize + value.length() + 1 ),
       data( new uint8_t[size] )
   {
+    assert( sizeof( messageType ) <= metaSize );
+    
     reinterpret_cast<messageType*>( data )->flags = 0;
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
@@ -101,6 +128,8 @@ public:
       size( metaSize + value.length() + 1 ),
       data( new uint8_t[size] )
   {
+    assert( sizeof( messageType ) <= metaSize );
+    
     reinterpret_cast<messageType*>(data)->flags = 0;
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
@@ -116,6 +145,8 @@ public:
       size( metaSize + std::string( value ).length() + 1 ),
       data( new uint8_t[size] )
   {
+    assert( sizeof( messageType ) <= metaSize );
+    
     reinterpret_cast<messageType*>( data )->flags = 0;
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
@@ -130,6 +161,8 @@ public:
       size( metaSize + std::string( value ).length() + 1 ),
       data( new uint8_t[size] )
   {
+    assert( sizeof( messageType ) <= metaSize );
+    
     reinterpret_cast<messageType*>(data)->flags = 0;
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
@@ -145,6 +178,8 @@ public:
       size( metaSize + value.getSize () ),
       data( new uint8_t[size] )
   {
+    assert( sizeof( messageType ) <= metaSize );
+    
     reinterpret_cast<messageType*>( data )->flags = 0;
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
@@ -176,8 +211,21 @@ public:
     data = nullptr;
   }
   
-  void send( zmq::socket_t& socket ) const
+  /**
+   * Check if it is an empty message, e.g. an ACK
+   */
+  bool isEmpty( void ) const
   {
+    return ("" == destination) && (size == metaSize);
+  }
+  
+  /**
+   * Send message over the socket.
+   */
+  void send( zmq::socket_t& socket, const size_t& index = invalidIndex, bool last = true ) const
+  {
+    reinterpret_cast<messageType*>( data )->index = index;
+    
     zmq::message_t dst( destination.length()+1 );
     memcpy((void *) dst.data(), destination.c_str(), destination.length()+1 );
     
@@ -191,7 +239,7 @@ public:
     zmq::message_t request( size );
     memcpy((void *) request.data(), data, size );
     
-    socket.send( request );
+    socket.send( request, last ? 0 : ZMQ_SNDMORE );
   }
   
   std::string getDestination( void ) const
@@ -207,6 +255,16 @@ public:
   variableType::type getType( void ) const
   {
     return reinterpret_cast<const messageType*>(data)->type;
+  }
+  
+  size_t getIndex( void ) const
+  {
+    return reinterpret_cast<messageType*>( data )->index;
+  }
+  
+  bool hasInvalidIndex( void ) const
+  {
+    return invalidIndex == reinterpret_cast<messageType*>( data )->index;
   }
   
   size_t getSize( void ) const
@@ -266,18 +324,20 @@ private:
   std::string destination;
   std::string source;
   struct messageType {
-    int flags : 8;
-    int _rows : 8; // currently unused
-    int _cols : 8; // currently unused
-    variableType::type type : 8;
+    uint8_t flags;
+    uint8_t _rows; // currently unused
+    uint8_t _cols; // currently unused
+    variableType::type type;
+    uint32_t index;
   };
   const static size_t metaSize = 8; // 64bit align to content
+  const static uint32_t invalidIndex = std::numeric_limits<uint32_t>::max();
   
   size_t size;
   void* data;
 };
 
-LogicMessage recieveMessage( zmq::socket_t& socket )
+LogicMessage recieveMessage( zmq::socket_t& socket, bool multi = false )
 {
   int more;
   size_t more_size = sizeof( more );
@@ -300,9 +360,36 @@ LogicMessage recieveMessage( zmq::socket_t& socket )
   socket.recv( &content );
  
   zmq_getsockopt( socket, ZMQ_RCVMORE, &more, &more_size );
-  assert( 0 == more );
+  assert( 0 == more || multi );
 
   return LogicMessage( dst, src, content );
 }
+
+/**
+ * Recieve a mesage and store it on the heap.
+ * The caller is responsibe to delete the returned pointer!
+ */
+LogicMessage* new_recieveMessage( zmq::socket_t& socket, bool multi = false )
+{
+  return new LogicMessage( recieveMessage( socket, multi ) );
+}
+
+std::vector<LogicMessage::shared_ptr> recieveMultiMessage( zmq::socket_t& socket )
+{
+  std::vector<LogicMessage::shared_ptr> container;
+  int more;
+  size_t more_size = sizeof( more );
   
+  for(;;)
+  {
+    container.push_back( LogicMessage::shared_ptr( new_recieveMessage( socket, true ) ) );
+    
+    zmq_getsockopt( socket, ZMQ_RCVMORE, &more, &more_size );
+    if( 0 == more )
+      break;
+  }
+  
+  return container;
+}
+
 #endif // MESSAGE_HPP
