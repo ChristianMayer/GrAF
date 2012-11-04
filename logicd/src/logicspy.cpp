@@ -139,18 +139,20 @@ int main( int argc, char *argv[] )
     switch( msg.getType() )
     {
       case variableType::INT:
-        cout << "INT: " << msg.getInt() << " 0x" << hex << msg.getInt() << dec << endl;
+        cout << "INT: " << msg.getInt() << " 0x" << hex << msg.getInt() << dec;
         break;
       case variableType::FLOAT:
-        cout << "FLOAT: " << msg.getFloat() << endl;
+        cout << "FLOAT: " << msg.getFloat();
         break;
       case variableType::STRING:
-        cout << "STRING: " << msg.getString() << endl;
+        cout << "STRING: " << msg.getString();
         break;
       default:
-        cout << "unknown / default" << endl;
+        cout << "unknown / default";
     }
     
+    cout << "; additonal " << msg.nativeSize() << " bytes of raw: " << hexdump( msg.getNative(), msg.nativeSize(), false );
+    cout << endl;
     if( verbose )
     {
       if( showColor ) cout << colorBlue;

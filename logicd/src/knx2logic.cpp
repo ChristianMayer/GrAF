@@ -214,7 +214,8 @@ int main( int argc, char *argv[] )
             {
               LogicMessage msg( logicNamespace + ">" + printKNXGroupAddr( dest ), 
                                 logicNamespace + ":" + printKNXPhysicalAddr( src ),
-                                knx.getDPT( dest ).getVariable( len, buf ) );
+                                knx.getDPT( dest ).getVariable( len, buf ),
+                                len-1, buf+1 );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }
@@ -224,7 +225,8 @@ int main( int argc, char *argv[] )
             {
               LogicMessage msg( logicNamespace + "<" + printKNXGroupAddr( dest ), 
                                 logicNamespace + ":" + printKNXPhysicalAddr( src ),
-                                knx.getDPT( dest ).getVariable( len, buf ) );
+                                knx.getDPT( dest ).getVariable( len, buf ),
+                                len-1, buf+1 );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }
@@ -234,7 +236,8 @@ int main( int argc, char *argv[] )
             {
               LogicMessage msg( logicNamespace + ":" + printKNXGroupAddr( dest ), 
                                 logicNamespace + ":" + printKNXPhysicalAddr( src ),
-                                knx.getDPT( dest ).getVariable( len, buf ) );
+                                knx.getDPT( dest ).getVariable( len, buf ),
+                                len-1, buf+1 );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }
