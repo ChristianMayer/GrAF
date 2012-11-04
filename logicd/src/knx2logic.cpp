@@ -152,13 +152,20 @@ int main( int argc, char *argv[] )
             const size_t buf_len = 15;
             uint8_t buf[ buf_len ];
             buf[ 0 ] = 0;
-            int len = knx.getDPT( dest ).setVariable( buf_len-1, buf+1, msg.getVariable() );
-            if( 0 == len )
+            //int len = knx.getDPT( dest ).setVariable( buf_len-1, buf+1, msg.getVariable() );
+            //if( 0 == len )
+            //{
+            //  cerr << "Incompatible or unknown DPT! No value sent..." << endl;
+            //  break;
+            //}
+            //if( EIBSendGroup( knx.con, dest, len+1, buf ) == -1 )
+            if( buf_len+1 < msg.nativeSize() )
             {
-              cerr << "Incompatible or unknown DPT! No value sent..." << endl;
+              cerr << "Message size (" << msg.nativeSize() << ") too big!" << endl;
               break;
             }
-            if( EIBSendGroup( knx.con, dest, len+1, buf ) == -1 )
+            memcpy( buf+1, msg.getNative(), msg.nativeSize() );
+            if( EIBSendGroup( knx.con, dest, msg.nativeSize()+1, buf ) == -1 )
             {
               cerr << "Sending write request failed!" << endl;
               break; // Request failed;
@@ -208,14 +215,22 @@ int main( int argc, char *argv[] )
       }
       else
       {
-        switch( buf[1] & 0xC0 )
+        uint8_t messageType = buf[1] & 0xC0;
+        uint8_t *nativeBuf = buf + 1;
+        size_t nativeLen = len - 1;
+        if( len == 2 )
+          nativeBuf[0] &= 0x3f;  // filter first (and only) byte
+        else
+          nativeBuf++;           // skip first byte
+        
+        switch( messageType )
         {
           case 0x00: // read
             {
               LogicMessage msg( logicNamespace + ">" + printKNXGroupAddr( dest ), 
                                 logicNamespace + ":" + printKNXPhysicalAddr( src ),
                                 knx.getDPT( dest ).getVariable( len, buf ),
-                                len-1, buf+1 );
+                                nativeLen, nativeBuf );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }
@@ -226,7 +241,7 @@ int main( int argc, char *argv[] )
               LogicMessage msg( logicNamespace + "<" + printKNXGroupAddr( dest ), 
                                 logicNamespace + ":" + printKNXPhysicalAddr( src ),
                                 knx.getDPT( dest ).getVariable( len, buf ),
-                                len-1, buf+1 );
+                                nativeLen, nativeBuf );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }
@@ -237,7 +252,7 @@ int main( int argc, char *argv[] )
               LogicMessage msg( logicNamespace + ":" + printKNXGroupAddr( dest ), 
                                 logicNamespace + ":" + printKNXPhysicalAddr( src ),
                                 knx.getDPT( dest ).getVariable( len, buf ),
-                                len-1, buf+1 );
+                                nativeLen, nativeBuf );
               msg.send( sender );
               LogicMessage reply = recieveMessage( sender );
             }

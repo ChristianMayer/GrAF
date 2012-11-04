@@ -112,10 +112,20 @@ public:
         string dest = *it;
         if( "" != logicNamespace && logicNamespace == dest.substr( 0, logicNamespace.length() ))
           dest = dest.substr( logicNamespace.length() );
+
+        std::stringstream sstr;
+        sstr << std::hex;       // switch to hex mode
+        uint8_t *native = reinterpret_cast<uint8_t*>( msg.getNative() );
+        for( size_t i = 0; i < msg.nativeSize(); ++i )
+        {
+          sstr << std::setw( 2 ) << std::setfill( '0' );
+          sstr << (int)native[i];
+        }
+
         return send_result(
           "{"
             "\"d\":{"
-            "\"" + dest + "\": \"" + msg.getString() + "\""
+            "\"" + dest + "\": \"" + sstr.str() + "\""
             "},"
             + ( msg.hasInvalidIndex() ? string("") : ("\"i\": \"" + to_string(msg.getIndex()) + "\"") ) +
           "}",
@@ -286,8 +296,19 @@ private:
           goodRequest = true;
           for( set<string>::const_iterator it = addresses.cbegin(); it != addresses.cend(); it++ )
           {
-            //DEBUG// cout << localCnt << ": WRITE [" << *it << "]=" << value << ";\n";
-            LogicMessage msg( *it, "C2L", value ); // TODO FIXME translate to proper msg / KNX
+            cout << "VALUE: " << value << ";";
+            size_t dataLength = value.length()/2;
+            uint8_t *data = new uint8_t[ dataLength ];
+            for( size_t pos = 0; pos < dataLength; pos++ )
+            {
+              size_t startPos = pos*2;
+              cout << "[" << pos << "/" << startPos << "=";
+              data[ pos ] = stoul( value.substr( startPos, 2 ), 0, 16 );
+              cout << startPos << "]:" << hex << (int)data[ pos ];
+            }
+            cout << ";\n";
+            LogicMessage msg( *it, "C2L", variable_t(), dataLength, data );
+            delete [] data;
             msg.send( sender );
             LogicMessage reply = recieveMessage( sender );
           }
@@ -326,7 +347,16 @@ private:
 
                   if( after_first )
                     SCGI_result += ",";
-                  SCGI_result += "\"" + dest + "\":\"" + ( *it )->getString() + "\"";
+                  
+                  std::stringstream sstr;
+                  sstr << std::hex;       // switch to hex mode
+                  uint8_t *native = reinterpret_cast<uint8_t*>( (*it)->getNative() );
+                  for( size_t i = 0; i < (*it)->nativeSize(); ++i )
+                  {
+                    sstr << std::setw(2) << std::setfill('0');
+                    sstr << (int)native[i];
+                  }
+                  SCGI_result += "\"" + dest + "\":\"" + sstr.str() + "\"";
 
                   after_first = true;
                 }
