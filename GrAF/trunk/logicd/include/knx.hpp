@@ -56,8 +56,14 @@ namespace KNX
     GAdb db;
 
   public:
+    /**
+     * Read GA config file and setup internal database.
+     */
     GAconf( const std::string& file );
 
+    /**
+     * Get the name of the GA as defined in the config file.
+     */
     std::string getName( const eibaddr_t& GA ) const
     {
       try {
@@ -66,6 +72,9 @@ namespace KNX
       return "???";
     }
 
+    /**
+     * Return the DPT of the GA as defined in the config file.
+     */
     DPT getDPT( const eibaddr_t& GA ) const
     {
       try {

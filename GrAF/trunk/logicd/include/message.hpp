@@ -48,6 +48,10 @@ public:
     reinterpret_cast<messageType*>( data )->type = variableType::UNKNOWN;
   }
   
+  /**
+   * Construct a LogicMessage with given destination and source out of a
+   * ZMQ message.
+   */
   LogicMessage( const std::string& destination_,
                 const std::string& source_,
                 const zmq::message_t& message )
@@ -59,6 +63,10 @@ public:
     memcpy( data, message.data(), size );
   }
 
+  /**
+   * Construct a LogicMessage with given destination and dummy source out of a
+   * ZMQ message.
+   */
   LogicMessage( const std::string& destination_,
                 const zmq::message_t& message )
     : destination( destination_ ),
@@ -69,6 +77,10 @@ public:
     memcpy( data, message.data(), size );
   }
   
+  /**
+   * Construct a LogicMessage with given destination and source out of a
+   * value of template type T.
+   */
   template<typename T>
   explicit LogicMessage( const std::string& destination_,
                          const std::string& source_,
@@ -87,6 +99,10 @@ public:
     *reinterpret_cast<T*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = value;
   }
 
+  /**
+   * Construct a LogicMessage with given destination and dummy source out of a
+   * value of template type T.
+   */
   template<typename T>
   explicit LogicMessage( const std::string& destination_,
                          const T& value )
@@ -104,6 +120,9 @@ public:
     *reinterpret_cast<T*>( reinterpret_cast<uint8_t*>(data) + metaSize ) = value;
   }
   
+  /**
+   * Construct a LogicMessage with given destination and source of type string.
+   */
   explicit LogicMessage( const std::string& destination_,
                          const std::string& source_,
                          const std::string& value )
@@ -121,6 +140,10 @@ public:
     memcpy( reinterpret_cast<uint8_t*>( data ) + metaSize, value.c_str(), size - metaSize );
   }
 
+  /**
+   * Construct a LogicMessage with given destination and dummy source of type
+   * string.
+   */
   explicit LogicMessage( const std::string& destination_,
                          const std::string& value )
     : destination( destination_ ),
@@ -137,6 +160,9 @@ public:
     memcpy( reinterpret_cast<uint8_t*>(data) + metaSize, value.c_str(), size - metaSize );
   }
 
+  /**
+   * Construct a LogicMessage with given destination and source of type string.
+   */
   explicit LogicMessage( const std::string& destination_,
                          const std::string& source_,
                          const char* value )
@@ -154,6 +180,10 @@ public:
     memcpy( reinterpret_cast<uint8_t*>( data ) + metaSize, value, size - metaSize );
   }
 
+  /**
+   * Construct a LogicMessage with given destination and dummy source of type
+   * string.
+   */
   explicit LogicMessage( const std::string& destination_,
                          const char* value )
     : destination( destination_ ),
@@ -242,36 +272,57 @@ public:
     socket.send( request, last ? 0 : ZMQ_SNDMORE );
   }
   
+  /**
+   * @return destination of the LogicMessage.
+   */
   std::string getDestination( void ) const
   {
     return destination;
   }
   
+  /**
+   * @return source of the LogicMessage.
+   */
   std::string getSource( void ) const
   {
     return source;
   }
   
+  /**
+   * @return type of the LogicMessage.
+   */
   variableType::type getType( void ) const
   {
     return reinterpret_cast<const messageType*>(data)->type;
   }
   
+  /**
+   * @return index of the LogicMessage.
+   */
   size_t getIndex( void ) const
   {
     return reinterpret_cast<messageType*>( data )->index;
   }
   
+  /**
+   * Check if this message has an invalid index.
+   */
   bool hasInvalidIndex( void ) const
   {
     return invalidIndex == reinterpret_cast<messageType*>( data )->index;
   }
   
+  /**
+   * @return the size of the data part of the message (including metaSize).
+   */
   size_t getSize( void ) const
   {
     return size;
   }
   
+  /**
+   * Return the variable of the message as variable_t.
+   */
   variable_t getVariable( void ) const
   {
     switch( getType() )
@@ -291,6 +342,10 @@ public:
     }
   }
   
+  /**
+   * Return the value of the message as int.
+   * It it's not of that type it will return 0.
+   */
   int getInt( void ) const
   {
     if( variableType::INT == getType() )
@@ -299,6 +354,10 @@ public:
     return 0;
   }
   
+  /**
+   * Return the value of the message as float.
+   * It it's not of that type it will return 0.0f.
+   */
   float getFloat( void ) const
   {
     if( variableType::FLOAT == getType() )
@@ -307,6 +366,10 @@ public:
     return 0.0f;
   }
   
+  /**
+   * Return the value of the message as std::string.
+   * It it's not of that type it will return an empty string.
+   */
   std::string getString( void ) const
   {
     if( variableType::STRING == getType() )
@@ -315,6 +378,9 @@ public:
     return "";
   }
   
+  /**
+   * @return a pointer to the raw data that also contains meta information.
+   */
   void* getRaw( void ) const
   {
     return data;
@@ -337,6 +403,11 @@ private:
   void* data;
 };
 
+/**
+ * Recieve a LogicMessage from the ZMQ socket.
+ * @param multi if false (default) the transmision will be ended,
+ *              if true one or more messages will be recieved afterwards.
+ */
 LogicMessage recieveMessage( zmq::socket_t& socket, bool multi = false )
 {
   int more;
@@ -368,12 +439,17 @@ LogicMessage recieveMessage( zmq::socket_t& socket, bool multi = false )
 /**
  * Recieve a mesage and store it on the heap.
  * The caller is responsibe to delete the returned pointer!
+ * @param multi if false (default) the transmision will be ended,
+ *              if true one or more messages will be recieved afterwards.
  */
 LogicMessage* new_recieveMessage( zmq::socket_t& socket, bool multi = false )
 {
   return new LogicMessage( recieveMessage( socket, multi ) );
 }
 
+/**
+ * Recieve a multi message and return it in a vector of shared_ptr.
+ */
 std::vector<LogicMessage::shared_ptr> recieveMultiMessage( zmq::socket_t& socket )
 {
   std::vector<LogicMessage::shared_ptr> container;

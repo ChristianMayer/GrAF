@@ -114,7 +114,7 @@ std::string DPT::getVariableAsString( const size_t len, const uint8_t* data ) co
   }
 }
 
-int DPT::setVariable( const size_t max_len, uint8_t* buf, const variable_t& data ) const
+size_t DPT::setVariable( const size_t max_len, uint8_t* buf, const variable_t& data ) const
 {
   switch( major )
   {
