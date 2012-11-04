@@ -79,7 +79,12 @@ public:
   
   variableType::type getType( void ) const { return type; }
   std::string getTypeName( void ) const { return variableType::getTypeName( type ); }
-  size_t getSize( void ) const
+  
+  /**
+   * Return number of bytes needed to represent that type.
+   * @param internalLength if set to true the size contains the tailing \0 for a string
+   */
+  size_t getSize( bool internalLength = false ) const
   {
     switch( type )
     {
@@ -94,7 +99,7 @@ public:
         return sizeof( float );
         
       case variableType::STRING:
-        return stringValue->length();
+        return stringValue->length() + ( internalLength ? 1 : 0);
     }
   }
   

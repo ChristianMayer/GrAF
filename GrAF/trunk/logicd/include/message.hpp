@@ -23,6 +23,7 @@
 #include <vector>
 
 #include <boost/shared_ptr.hpp>
+#include <boost/concept_check.hpp>
 
 #include "zmq.hpp"
 
@@ -39,6 +40,7 @@ public:
   LogicMessage( const std::string& info = "" )
     : destination( info ),
       source( "" ),
+      contentSize( metaSize ),
       size( metaSize ),
       data( new uint8_t[size] )
   {
@@ -57,10 +59,12 @@ public:
                 const zmq::message_t& message )
     : destination( destination_ ),
       source( source_ ),
+      contentSize( metaSize ),
       size( message.size() ),
       data( new uint8_t[size] )
   {
     memcpy( data, message.data(), size );
+    fixContentSize();
   }
 
   /**
@@ -71,23 +75,29 @@ public:
                 const zmq::message_t& message )
     : destination( destination_ ),
       source( "NoSrc" ),
+      contentSize( metaSize ),
       size( message.size() ),
       data( new uint8_t[size] )
   {
     memcpy( data, message.data(), size );
+    fixContentSize();
   }
   
   /**
    * Construct a LogicMessage with given destination and source out of a
    * value of template type T.
+   * An addition raw presentation of the value might optinally be added.
    */
   template<typename T>
   explicit LogicMessage( const std::string& destination_,
                          const std::string& source_,
-                         const T& value )
+                         const T& value,
+                         const size_t& rawLength = 0,
+                         void* raw = nullptr )
     : destination( destination_ ),
       source( source_ ),
-      size( metaSize + sizeof( T ) ),
+      contentSize( metaSize + sizeof( T ) ),
+      size( contentSize + rawLength ),
       data( new uint8_t[size] )
   {
     assert( sizeof( messageType ) <= metaSize );
@@ -96,19 +106,25 @@ public:
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
     reinterpret_cast<messageType*>( data )->type = variableType::getType<T>();
-    *reinterpret_cast<T*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = value;
+    *reinterpret_cast<T*>( data + metaSize ) = value;
+    
+    memcpy( data + contentSize, raw, rawLength );
   }
 
   /**
    * Construct a LogicMessage with given destination and dummy source out of a
    * value of template type T.
+   * An addition raw presentation of the value might optinally be added.
    */
   template<typename T>
   explicit LogicMessage( const std::string& destination_,
-                         const T& value )
+                         const T& value,
+                         const size_t& rawLength = 0,
+                         void* raw = nullptr )
     : destination( destination_ ),
       source( "NoSrc" ),
-      size( metaSize + sizeof( T ) ),
+      contentSize( metaSize + sizeof( T ) ),
+      size( contentSize + rawLength ),
       data( new uint8_t[size] )
   {
     assert( sizeof( messageType ) <= metaSize );
@@ -117,18 +133,24 @@ public:
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
     reinterpret_cast<messageType*>(data)->type = variableType::getType<T>();
-    *reinterpret_cast<T*>( reinterpret_cast<uint8_t*>(data) + metaSize ) = value;
+    *reinterpret_cast<T*>( data + metaSize ) = value;
+    
+    memcpy( data + contentSize, raw, rawLength );
   }
   
   /**
    * Construct a LogicMessage with given destination and source of type string.
+   * An addition raw presentation of the value might optinally be added.
    */
   explicit LogicMessage( const std::string& destination_,
                          const std::string& source_,
-                         const std::string& value )
+                         const std::string& value,
+                         const size_t& rawLength = 0,
+                         void* raw = nullptr )
     : destination( destination_ ),
       source( source_ ),
-      size( metaSize + value.length() + 1 ),
+      contentSize( metaSize + value.length() + 1 ),
+      size( contentSize + rawLength ),
       data( new uint8_t[size] )
   {
     assert( sizeof( messageType ) <= metaSize );
@@ -137,18 +159,23 @@ public:
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
     reinterpret_cast<messageType*>( data )->type = variableType::STRING;
-    memcpy( reinterpret_cast<uint8_t*>( data ) + metaSize, value.c_str(), size - metaSize );
+    memcpy( data + metaSize   , value.c_str(), value.length() + 1 ); // copy including tailing \0
+    memcpy( data + contentSize, raw          , rawLength          );
   }
 
   /**
    * Construct a LogicMessage with given destination and dummy source of type
    * string.
+   * An addition raw presentation of the value might optinally be added.
    */
   explicit LogicMessage( const std::string& destination_,
-                         const std::string& value )
+                         const std::string& value,
+                         const size_t& rawLength = 0,
+                         void* raw = nullptr )
     : destination( destination_ ),
       source( "NoSrc" ),
-      size( metaSize + value.length() + 1 ),
+      contentSize( metaSize + value.length() + 1 ),
+      size( contentSize + rawLength ),
       data( new uint8_t[size] )
   {
     assert( sizeof( messageType ) <= metaSize );
@@ -157,18 +184,23 @@ public:
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
     reinterpret_cast<messageType*>(data)->type = variableType::STRING;
-    memcpy( reinterpret_cast<uint8_t*>(data) + metaSize, value.c_str(), size - metaSize );
+    memcpy( data + metaSize   , value.c_str(), value.length() + 1 ); // copy including tailing \0
+    memcpy( data + contentSize, raw          , rawLength          );
   }
 
   /**
    * Construct a LogicMessage with given destination and source of type string.
+   * An addition raw presentation of the value might optinally be added.
    */
   explicit LogicMessage( const std::string& destination_,
                          const std::string& source_,
-                         const char* value )
+                         const char* value,
+                         const size_t& rawLength = 0,
+                         void* raw = nullptr )
     : destination( destination_ ),
       source( source_ ),
-      size( metaSize + std::string( value ).length() + 1 ),
+      contentSize( metaSize + std::string( value ).length() + 1 ),
+      size( contentSize + rawLength ),
       data( new uint8_t[size] )
   {
     assert( sizeof( messageType ) <= metaSize );
@@ -177,18 +209,24 @@ public:
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
     reinterpret_cast<messageType*>( data )->type = variableType::STRING;
-    memcpy( reinterpret_cast<uint8_t*>( data ) + metaSize, value, size - metaSize );
+
+    memcpy( data + metaSize   , value, contentSize - metaSize ); // copy including tailing \0
+    memcpy( data + contentSize, raw  , rawLength              );
   }
 
   /**
    * Construct a LogicMessage with given destination and dummy source of type
    * string.
+   * An addition raw presentation of the value might optinally be added.
    */
   explicit LogicMessage( const std::string& destination_,
-                         const char* value )
+                         const char* value,
+                         const size_t& rawLength = 0,
+                         void* raw = nullptr )
     : destination( destination_ ),
       source( "NoSrc" ),
-      size( metaSize + std::string( value ).length() + 1 ),
+      contentSize( metaSize + std::string( value ).length() + 1 ),
+      size( contentSize + rawLength ),
       data( new uint8_t[size] )
   {
     assert( sizeof( messageType ) <= metaSize );
@@ -197,15 +235,20 @@ public:
     reinterpret_cast<messageType*>(data)->_rows = 0;
     reinterpret_cast<messageType*>(data)->_cols = 0;
     reinterpret_cast<messageType*>(data)->type = variableType::STRING;
-    memcpy( reinterpret_cast<uint8_t*>(data) + metaSize, value, size - metaSize );
+
+    memcpy( data + metaSize   , value, contentSize - metaSize ); // copy including tailing \0
+    memcpy( data + contentSize, raw  , rawLength              );
   }
 
   explicit LogicMessage( const std::string& destination_,
                          const std::string& source_,
-                         const variable_t& value )
+                         const variable_t& value,
+                         const size_t& rawLength = 0,
+                         void* raw = nullptr )
     : destination( destination_ ),
       source( source_ ),
-      size( metaSize + value.getSize () ),
+      contentSize( metaSize + value.getSize(true) ),  // include tailing \0
+      size( contentSize + rawLength ),
       data( new uint8_t[size] )
   {
     assert( sizeof( messageType ) <= metaSize );
@@ -214,30 +257,31 @@ public:
     reinterpret_cast<messageType*>( data )->_rows = 0;
     reinterpret_cast<messageType*>( data )->_cols = 0;
     reinterpret_cast<messageType*>( data )->type = value.getType();
+    
     switch( value.getType() )
     {
       case variableType::INT:
-        *reinterpret_cast<int*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = value.getInt();
+        *reinterpret_cast<int*>( data + metaSize ) = value.getInt();
         break;
         
       case variableType::FLOAT:
-        *reinterpret_cast<float*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = value.getFloat();
+        *reinterpret_cast<float*>( data + metaSize ) = value.getFloat();
         break;
         
       case variableType::STRING:
-        memcpy( reinterpret_cast<uint8_t*>( data ) + metaSize, value.getString().c_str(), size - metaSize );
+        memcpy( data + metaSize, value.getString().c_str(), value.getSize(true) );
         break;
         
       case variableType::UNKNOWN:
       default:
-        *reinterpret_cast<int*>( reinterpret_cast<uint8_t*>( data ) + metaSize ) = 0;
         break;
     }
+    memcpy( data + contentSize, raw  , rawLength );
   }
   
   ~LogicMessage()
   {
-    delete [] (uint8_t*)data;
+    delete [] data;
     data = nullptr;
   }
   
@@ -313,7 +357,7 @@ public:
   }
   
   /**
-   * @return the size of the data part of the message (including metaSize).
+   * @return the size of the data part of the message (including metaSize and raw).
    */
   size_t getSize( void ) const
   {
@@ -379,7 +423,24 @@ public:
   }
   
   /**
-   * @return a pointer to the raw data that also contains meta information.
+   * @return the size of native data in the message
+   */
+  size_t nativeSize( void ) const
+  {
+    return size - contentSize;
+  }
+  
+  /**
+   * @return a pointer to the native data
+   */
+  void* getNative( void ) const
+  {
+    return data + contentSize;
+  }
+  
+  /**
+   * @return a pointer to the raw data that also contains meta information and
+   * the value.
    */
   void* getRaw( void ) const
   {
@@ -387,6 +448,14 @@ public:
   }
   
 private:
+  /**
+   * reconstruct the contentSize
+   */
+  void fixContentSize( void )
+  {
+    contentSize = metaSize + getVariable().getSize( true );
+  }
+  
   std::string destination;
   std::string source;
   struct messageType {
@@ -399,8 +468,9 @@ private:
   const static size_t metaSize = 8; // 64bit align to content
   const static uint32_t invalidIndex = std::numeric_limits<uint32_t>::max();
   
-  size_t size;
-  void* data;
+  size_t contentSize; // the size of meta and the value
+  size_t size;        // the size of the full message, i.e. of data[]
+  uint8_t* data;
 };
 
 /**
