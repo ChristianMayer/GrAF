@@ -27,14 +27,34 @@ namespace KNX
     int major;
     int minor;
     
+    /**
+     * Return string represenation of DPT.
+     */
     std::string toString( void ) const;
+    
+    /**
+     * Return float represenation of DPT.
+     */
     float toFloat( void ) const
     {
       return major + 0.001 * minor;
     }
+    
+    /**
+     * Convert data according to current DPT into a variable_t variable.
+     */
     variable_t getVariable( const size_t len, const uint8_t* data ) const;
+    
+    /**
+     * Convert data according to current DPT into a string representing the value.
+     */
     std::string getVariableAsString( const size_t len, const uint8_t* data ) const;
     
-    int setVariable( const size_t max_len, uint8_t* buf, const variable_t& data ) const;
+    /**
+     * Convert variable in data into a raw representation in the buf according 
+     * to the current DPT.
+     * @return The number ob bytes written in the buf.
+     */
+    size_t setVariable( const size_t max_len, uint8_t* buf, const variable_t& data ) const;
   };
 }
