@@ -106,6 +106,28 @@ public:
   int         getInt   ( void ) const { return intValue;     }
   float       getFloat ( void ) const { return floatValue;   }
   std::string getString( void ) const { return *stringValue; }
+  
+  /**
+   * Return the value printed to a string.
+   */
+  std::string getAsString( void ) const 
+  {
+    switch( type )
+    {
+      case variableType::UNKNOWN:
+      default:
+        return "<UNKNOWN>";
+        
+      case variableType::INT:
+        return std::to_string( intValue );
+        
+      case variableType::FLOAT:
+        return std::to_string( floatValue );
+        
+      case variableType::STRING:
+        return *stringValue;
+    }
+  }
 };
 
 #endif // VARIABLETYPE_HPP

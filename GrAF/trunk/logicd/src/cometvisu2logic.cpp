@@ -52,6 +52,7 @@ void showHelp( void )
 /**
  * Globals
  */
+char thisSource[] = "C2L";
 string logicNamespace;
 int lastIndex;
 //DEBUG// int globalCnt = 0; // FIXME REMOVE
@@ -71,10 +72,11 @@ public:
     : socket( io_service ),
       timer( io_service ),
       data( nullptr ),
-      sender( ZMQ_sender )
+      sender( ZMQ_sender ),
+      self( sessionsList.end() )
   {
     //DEBUG// localCnt = globalCnt++;
-    //DEBUG// cout << "======= NEW SCGI_session: " << localCnt << " =======\n";
+    //DEBUG// cout << localCnt << ": ======= NEW SCGI_session: " << localCnt << " =======\n";
   }
 
   ~SCGI_session()
@@ -103,7 +105,13 @@ public:
 
   void handleLogicMessage( const LogicMessage& msg )
   {
-    //DEBUG// cout << localCnt << ": got message type: " << msg.getType() << "; " << msg.getDestination() << "; v=" << msg.getString()<< "\n";
+    if( sessionsList.end() == self )
+      return; // early exist - this session hasn't been started yet
+    
+    if( thisSource == msg.getSource() )
+      return; // early exit - this message comes from ourself
+      
+    //DEBUG// cout << localCnt << ": got message type: " << msg.getType() << "; " << msg.getDestination() << "; " << msg.getSource() << "; v=" << msg.getVariable().getAsString()<< " (" << msg.getVariable().getTypeName() << ")\n";
     for( set<string>::const_iterator it = addresses.cbegin(); it != addresses.cend(); it++ )
     {
       if( msg.getDestination() == *it )
@@ -296,17 +304,17 @@ private:
           goodRequest = true;
           for( set<string>::const_iterator it = addresses.cbegin(); it != addresses.cend(); it++ )
           {
-            cout << "VALUE: " << value << ";";
+            //DEBUG// cout << localCnt  << ": write - VALUE: " << value << ";";
             size_t dataLength = value.length()/2;
             uint8_t *data = new uint8_t[ dataLength ];
             for( size_t pos = 0; pos < dataLength; pos++ )
             {
               size_t startPos = pos*2;
-              cout << "[" << pos << "/" << startPos << "=";
+              //DEBUG// cout << "[" << pos << "/" << startPos << "=";
               data[ pos ] = stoul( value.substr( startPos, 2 ), 0, 16 );
-              cout << startPos << "]:" << hex << (int)data[ pos ];
+              //DEBUG// cout << startPos << "]:" << hex << (int)data[ pos ];
             }
-            cout << ";\n";
+            //DEBUG// cout << ";\n";
             LogicMessage msg( *it, "C2L", variable_t(), dataLength, data );
             delete [] data;
             msg.send( sender );
@@ -328,6 +336,7 @@ private:
             if( 0 == timeout || lastIndex != stol( index ) )
             { // read all messages (i.e. CometVisu start) or there were some messages after the last reply
               goodRequest = true;
+              //DEBUG// cout << localCnt  << ": meta:cacheread; lastIndex: " << lastIndex <<"; index: " << index << ";\n";
               LogicMessage msg( "meta:cacheread", boost::algorithm::join( addresses, "," ) );
               if( 0 == timeout )
                 msg.send( sender );
@@ -412,6 +421,7 @@ private:
   void close_session( const boost::system::error_code& error )
   {
     //DEBUG// cout << localCnt << ": write_result -> delete this\n";
+    //DEBUG// cout << localCnt << ": close_session;\n";
     sessionsList.erase( self ); 
     //DEBUG// cout << localCnt << ": sessionsList.erase( self );\n";
   }
@@ -441,7 +451,7 @@ private:
   set<string> addresses;
   
   sessionsList_t::iterator self;
-  int localCnt; // FIXME remove
+  public: int localCnt; // FIXME remove
 };
 
 /**
@@ -462,7 +472,7 @@ private:
   void start_accept()
   {
     sessionsList.push_front( SCGI_session_ptr( new SCGI_session( io_service_, ZMQ_sender_ ) ) );
-    //DEBUG// cout << "SCGI_server - created new SCGI_session: " << &(*(sessionsList.begin())) << ";\n";
+    //DEBUG// cout << (*(sessionsList.begin()))->localCnt << ": SCGI_server - created new SCGI_session: " << &(*(sessionsList.begin())) << ";\n";
     acceptor.async_accept( sessionsList.front()->getSocket(),
                            boost::bind( &SCGI_server::handle_accept, this, sessionsList.begin(),
                                         boost::asio::placeholders::error ) );
@@ -473,12 +483,12 @@ private:
   {
     if( !error )
     {
-      //DEBUG// cout << "SCGI_server - start new session: " << &(*new_session) << ";\n";
+      //DEBUG// cout << (*new_session)->localCnt << ": SCGI_server - start new session: " << &(*new_session) << ";\n";
       (*new_session)->start( new_session );
     }
     else
     {
-      //DEBUG// cout << "SCGI_server - erase session: " << &(*new_session) << ";\n";
+      //DEBUG// cout << (*new_session)->localCnt << ": SCGI_server - erase session: " << &(*new_session) << ";\n";
       sessionsList.erase( new_session );
     }
 
