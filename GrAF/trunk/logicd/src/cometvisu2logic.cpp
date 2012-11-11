@@ -83,7 +83,7 @@ public:
   {
     //DEBUG// cout << localCnt << ": DEBUG: destructor for 'data' at " << (void*)data << ".\n";
     if( nullptr != data )
-      delete data;
+      delete[] data;
   }
   
   tcp::socket& getSocket()
@@ -180,7 +180,7 @@ private:
         return send_result( "Error, header size not plausible...", false );
       }
       
-      data = new char[ headerLength +10];
+      data = new char[ headerLength + 10 ];
       memcpy( data, "CONTENT_LENGTH", 14 );
 
       //DEBUG// cout << localCnt << ": DEBUG: allocated " << (headerLength) << " bytes for 'data' at " << (void*)data << ".\n";
@@ -241,7 +241,7 @@ private:
       
       //DEBUG// cout << localCnt << ": cmd: '" << command << "', [" << requestURI.substr( parameterPos ) << "]\n";
       string session;
-      int timeout = 60;
+      int req_timeout = 60;
       string index;
       string value;
       while( parameterPos < requestURI.length() )
@@ -264,7 +264,7 @@ private:
 
             case 't':
               if( '0' <= parameter[0] && parameter[0] <= '9' )
-                timeout = stoi( parameter );
+                req_timeout = stoi( parameter );
               break;
 
             case 'i':
@@ -306,17 +306,17 @@ private:
           {
             //DEBUG// cout << localCnt  << ": write - VALUE: " << value << ";";
             size_t dataLength = value.length()/2;
-            uint8_t *data = new uint8_t[ dataLength ];
+            uint8_t *write_data = new uint8_t[ dataLength ];
             for( size_t pos = 0; pos < dataLength; pos++ )
             {
               size_t startPos = pos*2;
               //DEBUG// cout << "[" << pos << "/" << startPos << "=";
-              data[ pos ] = stoul( value.substr( startPos, 2 ), 0, 16 );
+              write_data[ pos ] = stoul( value.substr( startPos, 2 ), 0, 16 );
               //DEBUG// cout << startPos << "]:" << hex << (int)data[ pos ];
             }
             //DEBUG// cout << ";\n";
-            LogicMessage msg( *it, "C2L", variable_t(), dataLength, data );
-            delete [] data;
+            LogicMessage msg( *it, "C2L", variable_t(), dataLength, write_data );
+            delete [] write_data;
             msg.send( sender );
             LogicMessage reply = recieveMessage( sender );
           }
@@ -333,18 +333,18 @@ private:
           
         case 'r': // read
           {
-            if( 0 == timeout || lastIndex != stol( index ) )
+            if( 0 == req_timeout || lastIndex != stol( index ) )
             { // read all messages (i.e. CometVisu start) or there were some messages after the last reply
               goodRequest = true;
               //DEBUG// cout << localCnt  << ": meta:cacheread; lastIndex: " << lastIndex <<"; index: " << index << ";\n";
               LogicMessage msg( "meta:cacheread", boost::algorithm::join( addresses, "," ) );
-              if( 0 == timeout )
+              if( 0 == req_timeout )
                 msg.send( sender );
               else
                 msg.send( sender, stoul(index) );
               vector<LogicMessage::shared_ptr> msgs( recieveMultiMessage( sender ) );
 
-              if( 0 == timeout || (msgs.front() != msgs.back()) || !msgs.front()->isEmpty() )
+              if( 0 == req_timeout || (msgs.front() != msgs.back()) || !msgs.front()->isEmpty() )
               { // read all messages or at least one message was returned
                 SCGI_result = "{\"d\":{";
                 bool after_first = false;
@@ -378,7 +378,7 @@ private:
             // - although there were message after the last reply, none were of any interest
             // => wait for new messages
 
-            timer.expires_from_now( boost::posix_time::seconds( timeout ) );
+            timer.expires_from_now( boost::posix_time::seconds( req_timeout ) );
             timer.async_wait( boost::bind( &SCGI_session::timeout, this,
                                            boost::asio::placeholders::error ) );
             return;
