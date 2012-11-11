@@ -50,7 +50,7 @@ void printTimestamp( void )
   char buffer[80];
   strftime( buffer, 80, "%Y-%m-%d %H:%M:%S", localtime( &currentTime.tv_sec ) );
     
-  cout << "[" << buffer << "." << milli << "] ";
+  cout << "[" << buffer << "." << setw(3) << setfill('0') << milli << "] ";
 }
 
 // Terminal codes to set colors
