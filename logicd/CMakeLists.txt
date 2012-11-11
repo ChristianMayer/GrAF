@@ -25,7 +25,7 @@ ENDIF()
 
 message( "Building type: ${CMAKE_BUILD_TYPE}" )
 
-set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra -pedantic")
+set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra -Wshadow -pedantic")
 
 file(GLOB_RECURSE logicd_sources src/*.cpp)
 #add_executable( logicd ${logicd_sources} )
