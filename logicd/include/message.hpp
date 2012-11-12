@@ -466,7 +466,14 @@ private:
     uint32_t index;
   };
   const static size_t metaSize = 8; // 64bit align to content
+  #ifdef __GNUC__
+  #  if __GNUC_PREREQ(4,7)
   const static uint32_t invalidIndex = std::numeric_limits<uint32_t>::max();
+  #  else
+  // fallback for old compilers e.g. ubuntu 12.04 LTS - TODO remove in future versions
+  const static uint32_t invalidIndex = 4294967295;
+  #  endif  
+  #endif  
   
   size_t contentSize; // the size of meta and the value
   size_t size;        // the size of the full message, i.e. of data[]
