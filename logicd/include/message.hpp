@@ -485,7 +485,7 @@ private:
  * @param multi if false (default) the transmision will be ended,
  *              if true one or more messages will be recieved afterwards.
  */
-LogicMessage recieveMessage( zmq::socket_t& socket, bool multi = false )
+inline LogicMessage recieveMessage( zmq::socket_t& socket, bool multi = false )
 {
   int more;
   size_t more_size = sizeof( more );
@@ -519,7 +519,7 @@ LogicMessage recieveMessage( zmq::socket_t& socket, bool multi = false )
  * @param multi if false (default) the transmision will be ended,
  *              if true one or more messages will be recieved afterwards.
  */
-LogicMessage* new_recieveMessage( zmq::socket_t& socket, bool multi = false )
+inline LogicMessage* new_recieveMessage( zmq::socket_t& socket, bool multi = false )
 {
   return new LogicMessage( recieveMessage( socket, multi ) );
 }
@@ -527,7 +527,7 @@ LogicMessage* new_recieveMessage( zmq::socket_t& socket, bool multi = false )
 /**
  * Recieve a multi message and return it in a vector of shared_ptr.
  */
-std::vector<LogicMessage::shared_ptr> recieveMultiMessage( zmq::socket_t& socket )
+inline std::vector<LogicMessage::shared_ptr> recieveMultiMessage( zmq::socket_t& socket )
 {
   std::vector<LogicMessage::shared_ptr> container;
   int more;

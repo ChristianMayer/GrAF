@@ -28,14 +28,14 @@ using namespace std;
 
 void showHelp( void )
 {
-  cout << "Usage: send2logic address type value" << endl
-  << endl
-  << "Send a message as defined by the parameters." << endl
-  << endl
-  << "Parameters:" << endl
-  << "    address              The address (including namespace) to send to" << endl
-  << "    type                 One of INT, FLOAT or STRING" << endl
-  << "    value                The value to send (represented as a string)" << endl;
+  cout << "Usage: send2logic address type value\n"
+  "\n"
+  "Send a message as defined by the parameters.\n"
+  "\n"
+  "Parameters:\n"
+  "    address              The address (including namespace) to send to\n"
+  "    type                 One of INT, FLOAT or STRING\n"
+  "    value                The value to send (represented as a string)" << endl;
 }
 
 int main( int argc, const char *argv[] )

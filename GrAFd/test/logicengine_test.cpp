@@ -5,6 +5,8 @@
 #include "logicengine.h"
 #include "logic_elements.h"
 
+Logger logger;
+
 /**
  * first test
  */
@@ -19,7 +21,7 @@ BOOST_AUTO_TEST_CASE( test1 )
  */
 BOOST_AUTO_TEST_CASE( total )
 {
-  LogicEngine le(200);
+  LogicEngine le(200,999);
   
   typedef float flt;
   raw_offset_t min_x  = le.registerVariable<flt>( "min_x"  );

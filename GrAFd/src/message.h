@@ -23,7 +23,6 @@
 #include <stdint.h>
 #include <sys/time.h>
 
-
 class Message
 {
 public:
@@ -61,7 +60,5 @@ private:
   uint16_t length_data_raw;
   char data[dataLength];
 };
-
-
 
 #endif // MESSAGE_H

@@ -29,16 +29,16 @@ using namespace std;
 
 void showHelp( void )
 {
-  cout << "Usage: logicspy [options] [filter]" << endl
-  << endl
-  << "Dump all messages sent from the logic deamon." << endl
-  << endl
-  << "Parameters:" << endl
-  << "If a filter is given only messages fitting the filter string will be printed." << endl
-  << "    -c, --color          Show each line color coded" << endl
-  << "    -h, --help           This help message" << endl
-  << "    -t, --time           Preceed each line with a timestamp" << endl
-  << "    -v, --vebose         Verbose output - repeatable" << endl;
+  cout << "Usage: logicspy [options] [filter]\n"
+  "\n"
+  "Dump all messages sent from the logic deamon.\n"
+  "\n"
+  "Parameters:\n"
+  "If a filter is given only messages fitting the filter string will be printed.\n"
+  "    -c, --color          Show each line color coded\n"
+  "    -h, --help           This help message\n"
+  "    -t, --time           Preceed each line with a timestamp\n"
+  "    -v, --vebose         Verbose output - repeatable" << endl;
 }
 
 void printTimestamp( void )

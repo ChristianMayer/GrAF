@@ -15,13 +15,20 @@ SET( PROJECT_NAME ${CMAKE_PROJECT_NAME} )
 ##############################################################################
 # Setup project dependencies:
 
-FIND_PACKAGE(Boost COMPONENTS program_options REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS REQUIRED)
 IF (Boost_FOUND)
   #INCLUDE_DIRECTORIES(${INCLUDE_DIRECTORIES} ${Boost_INCLUDE_DIRS})
   INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
   LINK_DIRECTORIES(${LINK_DIRECTORIES} ${Boost_LIBRARY_DIRS})
   ADD_DEFINITIONS( "-DHAS_BOOST" )
 ENDIF()
+
+find_library(
+  ZEROMQ_LIBRARY
+  NAMES libzmq zmq
+)
+SET(ZEROMQ_LIBRARIES "${ZEROMQ_LIBRARY}") 
+MESSAGE(STATUS "Found zeromq (lib) in: ${ZEROMQ_LIBRARY}")
 
 message( "Building type: ${CMAKE_BUILD_TYPE}" )
 
@@ -30,7 +37,7 @@ file(GLOB_RECURSE GrAFd_sources src/*.cpp)
 #add_executable( GrAFd src/logicengine.cpp src/main.cpp )
 add_executable( GrAFd ${GrAFd_sources} )
 
-TARGET_LINK_LIBRARIES( GrAFd ${Boost_LIBRARIES} eibclient)
+TARGET_LINK_LIBRARIES( GrAFd ${Boost_LIBRARIES} ${ZEROMQ_LIBRARIES})
 
 configure_file( config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY )
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../logicd/include)
