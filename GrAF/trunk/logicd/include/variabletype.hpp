@@ -48,6 +48,31 @@ namespace variableType {
         return "string";
     }
   }
+
+  template <type T> struct typeOf {};
+  template <> struct typeOf<INT>
+  {
+    typedef int type;
+  };
+  template <> struct typeOf<FLOAT>
+  {
+    typedef float type;
+  };
+  
+  inline size_t sizeOf( type T )
+  {
+    switch( T )
+    {
+      case UNKNOWN:
+      default:
+      case STRING: // FIXME
+        return 0;
+      case INT:
+        return sizeof(int);
+      case FLOAT:
+        return sizeof(float);
+    }
+  }
 }
 
 class variable_t
@@ -61,13 +86,41 @@ class variable_t
   };
   
 public:
-  
   variable_t() : type( variableType::UNKNOWN ), intValue( 0 )
   {}
   ~variable_t()
   {
     if( variableType::STRING == type )
       delete stringValue;
+  }
+  /**
+   * Assignment operator
+   */
+  variable_t& operator=(const variable_t& rhs) 
+  {
+    if( variableType::STRING == type )
+      delete stringValue;
+    
+    type = rhs.getType();
+    switch( type )
+    {
+      case variableType::UNKNOWN:
+      default:
+        break;
+        
+      case variableType::INT:
+        intValue = rhs.getInt();
+        break;
+        
+      case variableType::FLOAT:
+        floatValue = rhs.getFloat();
+        break;
+        
+      case variableType::STRING:
+        stringValue = new std::string( rhs.getString() );
+        break;
+    }
+    return *this;
   }
   
   variable_t( int i ) : type( variableType::INT ), intValue( i )

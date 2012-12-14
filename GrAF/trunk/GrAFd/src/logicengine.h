@@ -22,15 +22,15 @@
 
 #include <string>
 #include <map>
+#include <set>
 #include <iostream>
 #include <sstream>
+#include <atomic>
 
 #include "globals.h"
 
+#include "variabletype.hpp"
 
-#include "logic_elements/variabletype.hpp"
-
-//#include "logic_elements.h"
 class LogicElement_Generic;
 
 class LogicEngine
@@ -41,7 +41,32 @@ public:
    */
   typedef LogicElement_Generic** instructionPointer;
   
+  /**
+   * The type of the possible states of the logic
+   */
+  enum logicState_t {
+    STOPPED,  // script has no current information and not running
+    COPIED,   // current values were copied, but script is not running
+    RUNNING   // script is running
+  };
+  const char *logicStateName[3] = { "STOPPED", "COPIED", "RUNNING" };
+  
 private:
+  /**
+   * The logic ID of this logic.
+   */
+  const int thisLogicId;
+  
+  /**
+   * State of the logic to handle thread synchronisation
+   */
+  std::atomic<logicState_t> logicState;
+  
+  /**
+   * Should this script run again after finishing?
+   */
+  std::atomic<bool> rerun;
+  
   /**
    * Array of all the pointers to the LogicElements
    */
@@ -76,10 +101,59 @@ private:
   };
   typedef std::map<std::string, variableRegistryStorage> variableRegistry_t;
   variableRegistry_t variableRegistry;
+  variableRegistry_t importRegistriy;
+  MessageRegister::timestamp_t lastVariableImport;
   
 public:
-  LogicEngine( size_t maxSize );
+  LogicEngine( size_t maxSize, int logicId  );
   ~LogicEngine();
+  
+  logicState_t getState( void ) const 
+  {
+    return logicState;
+  }
+  
+  const char* getStateName( void ) const
+  {
+    return logicStateName[ logicState ];
+  }
+  
+  /**
+   * Set state to allow copying of variables.
+   * @return true when state could be set
+   */
+  bool enableVariables( void )
+  {
+    if( STOPPED == logicState )
+    {
+      logicState = COPIED;
+      return true;
+    } 
+    
+    return false;
+  }
+  
+  bool startLogic( void )
+  {
+    if( COPIED == logicState )
+    {
+      logicState = RUNNING;
+      return true;
+    } 
+    
+    return false;
+  }
+  
+  bool stopLogic( void )
+  {
+    if( RUNNING == logicState )
+    {
+      logicState = STOPPED;
+      return true;
+    } 
+    
+    return false;
+  }
   
   void addElement( LogicElement_Generic* element );
   
@@ -105,7 +179,7 @@ public:
    * Register variable name of size T.
    */
   template<typename T>
-  raw_offset_t registerVariable( std::string name )
+  raw_offset_t registerVariable( const std::string& name )
   {
     register size_t thisVariable = variableCount;
     variableRegistry[ name ] = { thisVariable, variableType::getType<T>(), &LogicEngine::readString<T> };
@@ -114,17 +188,79 @@ public:
   }
   
   /**
+   * Import a variable of size T. I.e. get it from the bus.
+   */
+  template<typename T>
+  raw_offset_t importVariable( const std::string& name )
+  {
+    if( 0 != importRegistriy.count( name ) )
+    {
+      // already imported
+      return variableRegistry[ name ].offset;
+    }
+    raw_offset_t pos = registerVariable<T>( name );
+    registerVariable<int>( name + "_status" );
+    importRegistriy[ name ] = variableRegistry[ name ];
+    registry.subscribe( name, variableType::getType<T>(), thisLogicId );
+    return pos;
+  }
+  
+  /**
+   * Get all bus variables
+   */
+  void copyImportedVariables( MessageRegister::timestamp_t timestamp )
+  {
+    for( auto it = importRegistriy.begin(); it != importRegistriy.end(); ++it )
+    {
+      register raw_t* var_p    = globVar + it->second.offset;
+      register raw_t* status_p = var_p + variableType::sizeOf(it->second.type);
+      
+      *reinterpret_cast<int*>( status_p ) =
+        registry.copy_value( it->first, it->second.type, var_p, lastVariableImport );
+    }
+    
+    lastVariableImport = timestamp;
+  }
+  
+  /**
    * Show all (named) variables
    */
-  void dump( void ) const;
+  void dump( const std::string& prefix = "" ) const;
   
   /**
    * Run the logic
    */
   void run( const instructionPointer start ) const;
-  void run( void ) const
+  void run() const
   {
     run( elementList );
+  }
+  
+  /**
+   * Do a full run, i.e. including copying of the variables
+   */
+  void scheduleRun( MessageRegister::timestamp_t timestamp = MessageRegister::now() )
+  {
+    logger << "!!! scheduleRun 0 rr:" << (rerun?"t":"f") << std::endl; logger.show();
+    do {
+      logger << "!!! scheduleRun 1 rr:" << (rerun?"t":"f") << std::endl; logger.show();
+      copyImportedVariables( timestamp );
+      logger << "!!! scheduleRun 2 rr:" << (rerun?"t":"f") << std::endl; logger.show();
+      rerun = false;
+      run();
+      logger << "!!! scheduleRun 3 rr:" << (rerun?"t":"f") << std::endl; logger.show();
+      timestamp = MessageRegister::now();
+    } while( rerun );
+    logger << "!!! scheduleRun 4 rr:" << (rerun?"t":"f") << std::endl; logger.show();
+  }
+  
+  /**
+   * Rerun this script after it was finished - e.g. because it's currently
+   * running and new data has arrived.
+   */
+  void scheduleRerun( void )
+  {
+    rerun = true;
   }
   
   template<typename T>

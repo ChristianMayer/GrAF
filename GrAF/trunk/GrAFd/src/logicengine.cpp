@@ -19,17 +19,21 @@
 #include "logicengine.h"
 
 #include <cstdint>
-#include <boost/assert.hpp>
 #include <sstream>
 #include <iomanip>
 #include <vector>
+#include <boost/assert.hpp>
+
+#include "globals.h"
 
 #include "logic_elements.h"
 
-
 #define ASSERT_MSG(expr, msg) /*BOOST_ASSERT_MSG( expr, (std::stringstream() << msg).str().c_str() )*/
 
-LogicEngine::LogicEngine( size_t maxSize )
+LogicEngine::LogicEngine( size_t maxSize, int logicId ) :
+  thisLogicId( logicId ),
+  logicState( STOPPED ),
+  rerun( false )
 {
   elementList = new LogicElement_Generic*[ maxSize ];
   elementCount = 0;
@@ -38,6 +42,8 @@ LogicEngine::LogicEngine( size_t maxSize )
   
   // make sure "ground" is zero:
   *reinterpret_cast<long long* const>( globVar + ground() ) = 0;
+  
+  logger << "created Logicengine #" << thisLogicId << ";\n"; logger.show();
 }
 
 LogicEngine::~LogicEngine()
@@ -54,42 +60,47 @@ void LogicEngine::addElement( LogicElement_Generic* element )
   elementList[elementCount++] = element;
 }
 
-void LogicEngine::dump( void ) const
+void LogicEngine::dump( const std::string& prefix ) const
 {
-  std::cout << "Variable dump:" << std::endl;
+  logger( Logger::INFO ) << prefix << "Variable dump:\n" << prefix;
   for( size_t i = 0; i < variableCount; i++ )
   {
-    std::cout << std::setw(2) << std::setfill('0') << /*std::hex <<*/ i << std::dec;
-    if( i%4==3 ) std::cout << " ";
+    logger << std::setw(2) << std::setfill('0') << /*std::hex <<*/ i << std::dec;
+    if( i%4==3 ) logger << " ";
   }
-  std::cout << std::endl;
+  logger << "\n";
+  logger << prefix;
   for( size_t i = 0; i < variableCount; i++ )
   {
-    std::cout << std::setw(2) << std::setfill('0') << std::hex << (int)globVar[i] << std::dec;
-    if( i%4==3 ) std::cout << " ";
+    logger << std::setw(2) << std::setfill('0') << std::hex << (int)globVar[i] << std::dec;
+    if( i%4==3 ) logger << " ";
   }
-  std::cout << std::endl;
+  logger << "\n";
   
   for( variableRegistry_t::const_iterator i = variableRegistry.cbegin(); i != variableRegistry.cend(); ++i )
   {
-    std::cout << i->first << " (" << i->second.offset << ") ";
-    std::cout << "<" << variableType::getTypeName( i->second.type ) << "> ";
-    std::cout << "[" << read<int>( i->second.offset ) << "/" << read<float>( i->second.offset ) << "]: ";
-    std::cout << (this->*(i->second.read))( i->second.offset  );
-    std::cout << std::endl;
+    logger << prefix << i->first << " (" << i->second.offset << ") ";
+    logger << "<" << variableType::getTypeName( i->second.type ) << "> ";
+    logger << "[" << read<int>( i->second.offset ) << "/" << read<float>( i->second.offset ) << "]: ";
+    logger << (this->*(i->second.read))( i->second.offset  );
+    logger << std::endl;
   }
+  
+  logger.show();
 }
 
 void LogicEngine::run( const instructionPointer start ) const
 {
+  // check if state is correct
+  if( RUNNING != logicState )
+    return;
+  
   reinterpret_cast<instructionPointer*>(globVar)[0] = start;
   const instructionPointer elEnd = elementList + elementCount;
   
   while( reinterpret_cast<instructionPointer*>(globVar)[0] < elEnd )
   {
-    //std::cout << reinterpret_cast<instructionPointer*>(globVar)[0]-elementList << ": ";
     (*reinterpret_cast<instructionPointer*>(globVar)[0])->calc( globVar );
-    //dump();
     
     ASSERT_MSG( 
       elementList <= reinterpret_cast<instructionPointer*>(globVar)[0] && 
@@ -108,7 +119,6 @@ std::string LogicEngine::export_noGrAF( void ) const
   const instructionPointer elEnd = elementList + elementCount;
   while( ip != elEnd )
   {
-    //out << (*ip)->dump() << std::endl;
     (*ip)->dump( out );
     
     ip++;
@@ -121,9 +131,8 @@ void LogicEngine::import_noGrAF( std::istream& in )
 {
   std::string line;
 
-  std::cout << "import_noGrAF\n";
+  logger << "import_noGrAF\n";
   
-  //typedef LogicElement_Generic* (*FactoryType)();
   typedef std::map< std::string, LogicElement_Generic::FactoryType > le_map;
   le_map lookup;
   lookup["const<float>"] = LogicElement_Const<float>::create;
@@ -142,7 +151,6 @@ void LogicEngine::import_noGrAF( std::istream& in )
   while( in.good() )
   {
     getline( in, line );
-    //std::cout << line << std::endl;
     
     // remove all whitespace
     size_t found;
@@ -163,7 +171,7 @@ void LogicEngine::import_noGrAF( std::istream& in )
     size_t paramStart = line.find( "(" ) + 1;
     while( (found = line.find( ",", paramStart )) != std::string::npos )
     {
-      //std::cout << "[" << paramStart << "," << found << "]" << std::endl;
+      //logger << "[" << paramStart << "," << found << "]" << std::endl;
       params.push_back( line.substr( paramStart, found - paramStart ) );
       paramStart = found+1;
     }
@@ -173,33 +181,18 @@ void LogicEngine::import_noGrAF( std::istream& in )
     } else {
       // FIXME thow error!
       // throw "Syntax error!";
-      std::cout << "Syntax error!" << std::endl;
+      logger << "Syntax error!" << std::endl;
     }
       
     std::string le = line.substr( 0, line.find( "(" ) );
     
-    /*
-    std::cout << le << "{";
-    for( size_t i = 0; i < params.size(); i++ )
-      std::cout << params[i] << ";";
-    std::cout << "}\n";
-    */
-    //addElement( lookup[ le ]( params ) );
-    //LogicElement_Generic* e = lookup[ le ]( params );
-    //std::cout << line << "\n";
     LogicElement_Generic::FactoryType ft = lookup[ le ];
     if( ft != nullptr )
       addElement( ft( params ) );
     else {
       // FIXME thow error!
       // throw "Syntax error!";
-      std::cout << "Command not found! " << line << std::endl;
+      logger << "Command not found! " << line << std::endl;
     }
-    //std::cout << line << ": " << type_start << ((type_start != std::string::npos)?"j":"n") << std::endl;
   }
 }
-/*
-std::string LogicEngine::variableRegistryStorage::read()
-{
-  return "foo";
-}*/

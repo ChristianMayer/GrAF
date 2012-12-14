@@ -26,6 +26,8 @@
 #include "logic_elements/logicelement_move.h"
 #include "logic_elements/logicelement_mul.h"
 #include "logic_elements/logicelement_rel.h"
+#include "logic_elements/logicelement_send.hpp"
+#include "logic_elements/logicelement_sleep.hpp"
 #include "logic_elements/logicelement_stop.h"
 #include "logic_elements/logicelement_sum.h"
 
