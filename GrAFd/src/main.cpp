@@ -11,7 +11,7 @@
 
 #include "message.hpp"
 #include "graph.hpp"
-
+#include "graphlib.hpp"
 #include "logicengine.h"
 #include "logic_elements.h"
 
@@ -134,7 +134,7 @@ int main( int argc, const char *argv[] )
   "    \"Memory1\": {\n"
   "      \"type\": \"MainLib/memory\",\n"
   "      \"x\": 150, \"y\": 250, \"width\": 50, \"height\": 50,\n"
-  "      \"parameters\": { \"initial_value\": 1.0 },\n"
+  "      \"parameters\": { \"initial_value\": 12.34 },\n"
   "      \"flip\" : true\n"
   "    },\n"
   "    \"Memory1out\": {\n"
@@ -192,7 +192,7 @@ int main( int argc, const char *argv[] )
   "  ]\n"
   "}";
   //************************************************************************
-  
+  Graph::lib.addPath( "../lib/" );
   Graph G( toParse ); 
   scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
   auto le1 = scriptPool.back();

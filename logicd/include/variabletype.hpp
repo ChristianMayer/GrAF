@@ -127,6 +127,8 @@ public:
   {}
   variable_t( float f ) : type( variableType::FLOAT ), floatValue( f )
   {}
+  variable_t( double f ) : type( variableType::FLOAT ), floatValue( f )
+  {}
   variable_t( const std::string& s ) : type( variableType::STRING ), stringValue( new std::string( s ) )
   {}
   

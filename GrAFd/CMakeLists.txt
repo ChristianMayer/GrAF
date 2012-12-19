@@ -15,7 +15,7 @@ SET( PROJECT_NAME ${CMAKE_PROJECT_NAME} )
 ##############################################################################
 # Setup project dependencies:
 
-FIND_PACKAGE(Boost COMPONENTS REQUIRED)
+FIND_PACKAGE(Boost COMPONENTS REQUIRED filesystem system)
 IF (Boost_FOUND)
   #INCLUDE_DIRECTORIES(${INCLUDE_DIRECTORIES} ${Boost_INCLUDE_DIRS})
   INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
@@ -63,4 +63,4 @@ endif(DOXYGEN_FOUND)
 
 add_subdirectory(src)
 add_subdirectory(test)
-
+add_subdirectory(lib)

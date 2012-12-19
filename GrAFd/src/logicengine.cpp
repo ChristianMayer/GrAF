@@ -26,6 +26,7 @@
 
 #include "globals.h"
 
+#include "logger.hpp"
 #include "logic_elements.h"
 
 #define ASSERT_MSG(expr, msg) /*BOOST_ASSERT_MSG( expr, (std::stringstream() << msg).str().c_str() )*/

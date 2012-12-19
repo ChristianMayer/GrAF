@@ -23,10 +23,7 @@
 
 #include <config.h>
 
-#include "logger.hpp"
 #include "message.hpp"
-
-#include "messageregister.hpp"
 
 // macros
 
@@ -35,9 +32,8 @@ typedef unsigned char raw_t;
 typedef ptrdiff_t     raw_offset_t;
 
 // Global objects
-//extern raw globVar[];
-extern Logger logger;
-extern MessageRegister registry;
+extern class Logger logger;
+extern class MessageRegister registry;
 extern zmq::socket_t* sender;
 
 #endif // CONFIGHANDLER
