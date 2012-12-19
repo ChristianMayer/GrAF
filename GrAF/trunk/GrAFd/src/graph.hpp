@@ -22,6 +22,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <istream>
 
 #include "boost/graph/adjacency_list.hpp"
 #include "boost/graph/topological_sort.hpp"
@@ -29,6 +30,8 @@
 #include "globals.h"
 
 #include "logger.hpp"
+#include "graphlib.hpp"
+#include "variabletype.hpp"
 
 /**
  * The Graph class holds one full logic graph.
@@ -42,7 +45,8 @@ public:
    */
   struct Block
   {
-    typedef std::map<std::string, std::string> parameters_t;
+    //typedef std::map<std::string, std::string> parameters_t;
+    typedef std::map<std::string, variable_t> parameters_t;
     std::string name; // NOTE: has to be kept in sync with blockLookup!
     std::string type;
     double x;
@@ -74,6 +78,8 @@ public:
     
     parseError( const std::string& t, const char* p ) : text( t ), pos( p ) {}
   };
+  
+  static GraphLib lib;
 private:
   typedef boost::adjacency_list< boost::vecS, boost::vecS, boost::directedS, Block, Signal > DirecetedGraph_t;
   typedef DirecetedGraph_t::vertex_descriptor vertex_t;
@@ -84,9 +90,9 @@ private:
   DirecetedGraph_t g;
   blockLookup_t blockLookup; // NOTE: has to be kept in sync with Block.name!
   
-  void parseString( const char* string );
-  void grepBlock( char*& pos );
-  void grepSignal( char*& pos );
+  void parseString( std::istream& in );
+  void grepBlock( std::istream& in );
+  void grepSignal( std::istream& in );
 };
 
 std::ostream& operator<<( std::ostream &stream, const Graph::Block& block );

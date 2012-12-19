@@ -30,6 +30,8 @@
 #include "globals.h"
 
 #include "variabletype.hpp"
+#include "messageregister.hpp"
+#include "logger.hpp"
 
 class LogicElement_Generic;
 

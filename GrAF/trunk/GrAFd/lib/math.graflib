@@ -1,0 +1,117 @@
+/*
+    Block library for GrAF: mathematical functions
+    Copyright (C) 2012  Christian Mayer - GrAF (at) ChristianMayer (dot) de
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+{
+  "MainLib": {
+    "memory": {
+      "width": 100,
+      "height": 50,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [      
+      { 
+        "name": "in1",
+        "type": "event"
+      }
+      ],
+      "outPorts": [
+      { 
+        "name": "out1",
+        "type": "state"
+      }
+      ],
+      "parameters":{}
+    },
+    "const": {
+      "width": 100,
+      "height": 50,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [],
+      "outPorts": [
+        { 
+          "name": "out1",
+          "type": "event"
+        }
+      ],
+      "parameters":{}
+    },
+    "source2": {
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 1.0],
+      "background": [1.0, 1.0, 0.5],
+      "inPorts": [],
+      "outPorts": [
+        { 
+          "name": "out1",
+          "type": "event"
+        },
+        { 
+          "name": "out2",
+          "type": "state"
+        }
+      ],
+      "parameters":{}
+    },
+    "gain": {
+      "width": 75,
+      "height": 75,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      /*
+      "mask": [
+      { "type": "move", "x": 0.999, "y": 0.5   }, // it must allways start with a move!
+      { "type": "line", "x": 0    , "y": 0.999 },
+      { "type": "line", "x": 0    , "y": 0     },
+      { "type": "close" },
+      { "type": "new", "fill": "none" },
+      { "type": "text", "x": 0.4, "y": 0.55, "text": "$gain", "styling":["middle"] }
+      ],
+      "maskOptions": {
+        "showLabel": false
+      },*/
+      "inPorts": [
+        { 
+          "name": "in",
+          "type": "event"
+        }
+      ],
+      "outPorts": [
+        { 
+          "name": "out",
+          "type": "event"
+        }
+      ],
+      "parameters": {
+        "gain" : { 
+          "type": "float",
+          "default": 1.0
+        }
+      }
+    }
+  }
+}
