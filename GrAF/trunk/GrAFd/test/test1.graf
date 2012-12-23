@@ -1,0 +1,60 @@
+{
+  "blocks": {
+    "Const1": {
+      "type": "MainLib/const",
+      "x": 50, "y": 50, "width": 50, "height": 50,
+      "parameters": { "value": 1.0 }
+    },
+    "Gain1": {
+      "type": "MainLib/gain",
+      "x": 150, "y": 50, "width": 50, "height": 50,
+      "parameters": { "gain": 5.0 }
+    },
+    "Display1": {
+      "type": "MainLib/display",
+      "x": 250, "y": 150, "width": 150, "height": 50,
+      "parameters": {}
+    },
+    "Display2": {
+      "type": "MainLib/display",
+      "x": 250, "y": 50, "width": 150, "height": 50,
+      "parameters": {}
+    },
+    "Integral1": {
+      "type": "MainLib/integral",
+      "x": 50, "y": 250, "width": 50, "height": 50,
+      "parameters": { "inital_value": 1.0 }
+    },
+    "Integral2": {
+      "type": "MainLib/integral",
+      "x": 150, "y": 250, "width": 50, "height": 50,
+      "parameters": { "inital_value": 0.0 }
+    },
+    "Gain2": {
+      "type": "MainLib/gain",
+      "x": 150, "y": 350, "width": 50, "height": 50,
+      "parameters": { "gain": -1.0 },
+      "flip" : true
+    },
+    "Display3": {
+      "type": "MainLib/display",
+      "x": 250, "y": 350, "width": 150, "height": 50,
+      "parameters": {}
+    },
+    "Scope_1": {
+      "type": "MainLib/scope",
+      "x": 500, "y": 125, "width": 600, "height": 300,
+      "parameters": {}
+    }
+  },
+  "signals": [
+    [ "Const1"   , 0, "Display1"  , 0, {} ],
+    [ "Const1"   , 0, "Gain1"     , 0, {} ],
+    [ "Gain1"    , 0, "Display2"  , 0, {} ],
+    [ "Integral1", 0, "Integral2" , 0, {} ],
+    [ "Integral2", 0, "Gain2"     , 0, {} ],
+    [ "Gain2"    , 0, "Integral1" , 0, {} ],
+    [ "Integral2", 0, "Display3"  , 0, {} ],
+    [ "Integral2", 0, "Scope_1"   , 0, {} ]
+  ]
+}

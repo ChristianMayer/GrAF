@@ -43,6 +43,16 @@ public:
    */
   void addSource( const std::string& file );
   
+  const GraphBlock& operator[]( const std::string& key ) const
+  {
+    return lib.at( key );
+  }
+  
+  bool hasElement( const std::string& key ) const
+  {
+    return lib.count( key ) == 1;
+  }
+  
 private:
   std::map<std::string, GraphBlock> lib;
   

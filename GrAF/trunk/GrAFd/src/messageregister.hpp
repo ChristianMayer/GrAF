@@ -27,12 +27,14 @@
 
 #include "variabletype.hpp"
 
+/*
 static const char *message_status_string[3] = 
 { 
   "INVALID_MSG",
   "OLD_MSG",
   "NEW_MSG"
 };
+*/
 
 /**
  * Register all message addresses of interest and the logic IDs that should be

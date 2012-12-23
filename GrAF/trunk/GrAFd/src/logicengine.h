@@ -51,7 +51,7 @@ public:
     COPIED,   // current values were copied, but script is not running
     RUNNING   // script is running
   };
-  const char *logicStateName[3] = { "STOPPED", "COPIED", "RUNNING" };
+  constexpr static const char *const logicStateName[3] = { "STOPPED", "COPIED", "RUNNING" };
   
 private:
   /**
@@ -79,6 +79,12 @@ private:
    */
   size_t elementCount;
   
+  /**
+   * The first LogicElement that is from the normal task, i.e. not belonging to
+   * the init task.
+   */
+  instructionPointer mainTask;
+
   /**
    * Store of all variables.
    * Setup:
@@ -169,6 +175,15 @@ public:
   }
   
   /**
+   * Set the current element as the start of the logic, i.e. the init task
+   * has ended there already.
+   */
+  void markStartOfLogic( void )
+  {
+    mainTask = nextElementPosition();
+  }
+  
+  /**
    * Register an anonymous variable of size T.
    */
   template<typename T>
@@ -183,10 +198,24 @@ public:
   template<typename T>
   raw_offset_t registerVariable( const std::string& name )
   {
-    register size_t thisVariable = variableCount;
+    register raw_offset_t thisVariable = variableCount;
     variableRegistry[ name ] = { thisVariable, variableType::getType<T>(), &LogicEngine::readString<T> };
     variableCount += sizeof( T );
     return thisVariable;
+  }
+  
+  /**
+   * Register variable of type @param type.
+   */
+  raw_offset_t registerVariable( const std::string& name, variableType::type type )
+  {
+    if( variableType::INT == type )
+      return registerVariable<int>( name );
+    else if( variableType::FLOAT == type )
+      return registerVariable<float>( name );
+    else
+      throw( "Unknown type!" ); // TODO throw e.G. JSON::parseError
+    return 0; // TODO throw
   }
   
   /**
@@ -235,7 +264,7 @@ public:
   void run( const instructionPointer start ) const;
   void run() const
   {
-    run( elementList );
+    run( mainTask );
   }
   
   /**
@@ -285,12 +314,12 @@ public:
     return sstr.str(); //*reinterpret_cast<T* const>( globVar + offset );
   }
   
-  raw_offset_t ground( void ) const
+  constexpr static raw_offset_t ground( void )
   {
     return sizeof(LogicElement_Generic*);
   }
   
-  raw_offset_t variableStart( void ) const
+  constexpr static raw_offset_t variableStart( void )
   {
     return ground() + sizeof(long long);
   }
@@ -306,7 +335,8 @@ public:
    * Import the logic that was exported earlier.
    * The format used is the "native object GrAF" notation (abbreviation: noGrAF)
    */
-  void import_noGrAF( std::istream& in );
+  typedef std::map<std::string,std::string> translation_t;
+  void import_noGrAF( std::istream& in, bool symbolicVariables = false, std::string prefix = "", const translation_t& translation = *(translation_t*)(nullptr) );
 };
 
 #endif // LOGICENGINE_H

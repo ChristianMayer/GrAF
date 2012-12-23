@@ -19,7 +19,7 @@
 #include "json.hpp"
 
 #include "globals.h"
-
+#include "logger.hpp"
 using namespace std;
 
 /**
@@ -107,18 +107,22 @@ string JSON::readJsonString( istream& in )
 {
   if( '"' == in.get() )
   {
-    const size_t bufSize = 100;
-    char buf[ bufSize ];
-    char* bufPos = buf;
-    
+    auto startPos = in.tellg();
+
+    char c;
     bool escape = false;
-    while( '"' != (*bufPos = in.get()) || escape )
+    while( '"' != (c = in.get()) || escape )
     {
-      escape = ( '\\' == *bufPos );
-      bufPos++;
+      escape = ( '\\' == c );
     }
-    *bufPos = '\0';
-    return buf;
+    auto endPos = in.tellg();
+
+    string ret( endPos - startPos - 1, '\0');
+    in.seekg( startPos );
+    in.read( &ret[0], endPos - startPos - 1 );
+    in.get(); // move past ending '"'
+
+    return ret;
   }
   
   in.unget();
@@ -175,6 +179,13 @@ void JSON::readJsonObject( istream& in, jsonNamedObjectHandler_t entryHandler )
 
 string JSON::parseError::getErrorLine( int& errorLineNo, int& errorCharPos )
 {
+  if( !hasStream )
+  {
+    errorLineNo = -1;
+    errorCharPos = -1;
+    return "<no stream>";
+  }
+  
   if( stream.fail() )
     stream.clear();
   streampos errorPos = stream.tellg();
@@ -185,7 +196,7 @@ string JSON::parseError::getErrorLine( int& errorLineNo, int& errorCharPos )
   
   // rewind to start line counting
   stream.seekg( 0 );
-  while( (thisPos = stream.tellg()) < errorPos )
+  while( ((thisPos = stream.tellg()) < errorPos) && (thisPos >= 0) )
   {
     errorLineNo++;
     lastPos = thisPos;

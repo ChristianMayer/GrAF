@@ -98,8 +98,10 @@ namespace JSON
   {
     std::string text;
     std::istream& stream;
+    bool hasStream;
     
-    parseError( const std::string& t, std::istream& s ) : text( t ), stream( s ) {}
+    parseError( const std::string& t ) : text( t ), stream( *(std::istream*)(nullptr) ), hasStream( false ) {}
+    parseError( const std::string& t, std::istream& s ) : text( t ), stream( s ), hasStream( true ) {}
     
     /**
      * Return the offending line and change @param errorLineNo and 

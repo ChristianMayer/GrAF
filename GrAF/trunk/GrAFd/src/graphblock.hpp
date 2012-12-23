@@ -32,8 +32,14 @@
  */
 struct GraphBlock
 {
+  /**
+   * Fill the GraphBlock from a JSON structure in the std::istream at @param in.
+   */
   void readJsonBlock( std::istream& in );
   
+  /**
+   * Update the content of the Bloxk
+   */
   struct Port
   {
     std::string name;
@@ -46,13 +52,11 @@ struct GraphBlock
     std::string getType( void ) const;
   };
   
-  /*
-  struct Parameter
-  {
-    std::string type;
-    std::string defaultValue;
-  };
-  */
+  std::string name; // NOTE: only used for Graph - there it has to be kept in sync with blockLookup!
+  std::string type; // NOTE: only used for Graph
+  bool isStateCopy; // NOTE: only used for Graph
+  int x;            // NOTE: only used for Graph
+  int y;            // NOTE: only used for Graph
   int width;
   int height;
   int rotation;
@@ -61,8 +65,9 @@ struct GraphBlock
   std::array<double, 3> background;
   std::vector<Port> inPorts;
   std::vector<Port> outPorts;
-  //std::map<std::string, Parameter> parameters;
   std::map<std::string, variable_t> parameters;
+  std::string init;
+  std::string implementation;
 };
 
 std::ostream& operator<<( std::ostream &stream, const GraphBlock& block );

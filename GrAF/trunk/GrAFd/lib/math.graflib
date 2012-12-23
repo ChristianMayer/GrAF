@@ -37,6 +37,71 @@
         "type": "state"
       }
       ],
+      "parameters":{},
+      "implementation":"
+        //var int inner
+        //var float outer
+        move<float>( out1, in1 )
+      "
+    },
+    "scope": {
+      "width": 100,
+      "height": 50,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+      { 
+        "name": "in1",
+        "type": "event"
+      }
+      ],
+      "outPorts": [],
+      "parameters":{}
+    },
+    "integral": {
+      "width": 100,
+      "height": 50,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+      { 
+        "name": "in1",
+        "type": "event"
+      }
+      ],
+      "outPorts": [
+      { 
+        "name": "out1",
+        "type": "state"
+      }
+      ],
+      "parameters":{},
+      "implementation":"
+        //var int inner
+        //var float outer
+        muladd<float>( out1, in1, __dt )
+        //move<float>( inner, out1 )
+      "
+      
+    },
+    "display": {
+      "width": 100,
+      "height": 50,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+      { 
+        "name": "in1",
+        "type": "event"
+      }
+      ],
+      "outPorts": [],
       "parameters":{}
     },
     "const": {
@@ -53,27 +118,43 @@
           "type": "event"
         }
       ],
-      "parameters":{}
+      "parameters": {
+        "value" : { 
+          "type": "float",
+          "default": 1.0
+        }
+      },
+      "init":"
+      move<float>( out1, value )
+      "
     },
-    "source2": {
+    "sum": {
       "width": 100,
-      "height": 100,
+      "height": 50,
       "rotation": 0,
       "flip": false,
-      "color": [0.0, 0.0, 1.0],
-      "background": [1.0, 1.0, 0.5],
-      "inPorts": [],
-      "outPorts": [
-        { 
-          "name": "out1",
-          "type": "event"
-        },
-        { 
-          "name": "out2",
-          "type": "state"
-        }
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+      { 
+        "name": "in1",
+        "type": "event"
+      },
+      { 
+        "name": "in2",
+        "type": "event"
+      }
       ],
-      "parameters":{}
+      "outPorts": [
+      { 
+        "name": "out1",
+        "type": "event"
+      }
+      ],
+      "parameters":{},
+      "implementation":"
+      sum<float>( out1, in1, in2 )
+      "
     },
     "gain": {
       "width": 75,
@@ -111,7 +192,10 @@
           "type": "float",
           "default": 1.0
         }
-      }
+      },
+      "implementation":"
+      mul<float>( out, gain, in )
+      "
     }
   }
 }
