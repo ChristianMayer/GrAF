@@ -37,13 +37,15 @@ file(GLOB_RECURSE GrAFd_sources src/*.cpp)
 #add_executable( GrAFd src/logicengine.cpp src/main.cpp )
 add_executable( GrAFd ${GrAFd_sources} )
 
-TARGET_LINK_LIBRARIES( GrAFd ${Boost_LIBRARIES} ${ZEROMQ_LIBRARIES})
+TARGET_LINK_LIBRARIES( GrAFd ${Boost_LIBRARIES} ${ZEROMQ_LIBRARIES} )
 
 configure_file( config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY )
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../logicd/include)
 
 #set(CMAKE_CXX_FLAGS "-std=c++0x -O2 -Wall -Wextra -pedantic")
-set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra -pedantic")
+set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra  -pedantic")
+### -Wshadow causes problems with Boost::Graph...
+
 #
 #set(CMAKE_CXX_FLAGS "-O2 -Wa,-a,-ad")
 #set(CMAKE_CXX_FLAGS "-O2 -Wa,-alhn")

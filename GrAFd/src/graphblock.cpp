@@ -47,7 +47,6 @@ string GraphBlock::Port::getType( void ) const
 void GraphBlock::readJsonBlock( std::istream& in )
 {
   JSON::readJsonObject( in, [this]( istream& in, const string& name ){
-    double number;
     if( "width" == name )
     {
       in >> width;
@@ -123,7 +122,13 @@ void GraphBlock::readJsonBlock( std::istream& in )
             throw( JSON::parseError( "Unknown key '"+key+"' in for parameter '"+name+"' section", in ) );
         });
       });
-    } else {
+    } else if( "init" == name )
+    {
+      init = JSON::readJsonString( in );
+    } else if( "implementation" == name )
+    {
+      implementation = JSON::readJsonString( in );
+    }else {
       throw( JSON::parseError( "Unknown key '"+name+"' for block", in ) );
     }
   });
@@ -133,6 +138,10 @@ ostream& operator<<( ostream &out, const GraphBlock& block )
 {
   out 
   << "    {\n"
+  << "      \"name\"      : \"" << block.name   << "\",\n"
+  << "      \"type\"      : \"" << block.type   << "\",\n"
+  << "      \"x\"         : " << block.x        << ",\n"
+  << "      \"y\"         : " << block.y        << ",\n"
   << "      \"width\"     : " << block.width    << ",\n"
   << "      \"height\"    : " << block.height   << ",\n"
   << "      \"rotation\"  : " << block.rotation << ",\n"
@@ -185,6 +194,9 @@ ostream& operator<<( ostream &out, const GraphBlock& block )
     << "          \"default\": \"" << it->second.getAsString() << "\"\n"
     << "        }";
   }
-  out << "\n      }\n";
+  out 
+  << "\n      },\n"
+  << "      \"init\"               : \"" << block.init           << "\"\n"
+  << "      \"implementation\"     : \"" << block.implementation << "\"\n";
   return out << "    }" << endl;
 }

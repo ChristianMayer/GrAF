@@ -22,14 +22,17 @@
 #include <sstream>
 #include <iomanip>
 #include <vector>
-#include <boost/assert.hpp>
+#include <string>
 
 #include "globals.h"
 
 #include "logger.hpp"
 #include "logic_elements.h"
+#include "json.hpp"
 
 #define ASSERT_MSG(expr, msg) /*BOOST_ASSERT_MSG( expr, (std::stringstream() << msg).str().c_str() )*/
+
+constexpr const char *const LogicEngine::logicStateName[]; // give it a home
 
 LogicEngine::LogicEngine( size_t maxSize, int logicId ) :
   thisLogicId( logicId ),
@@ -38,6 +41,7 @@ LogicEngine::LogicEngine( size_t maxSize, int logicId ) :
 {
   elementList = new LogicElement_Generic*[ maxSize ];
   elementCount = 0;
+  mainTask = elementList;
   globVar = new raw_t[10000];
   variableCount = variableStart();
   
@@ -120,6 +124,9 @@ std::string LogicEngine::export_noGrAF( void ) const
   const instructionPointer elEnd = elementList + elementCount;
   while( ip != elEnd )
   {
+    if( ip == mainTask )
+      out << "// mainTask:\n";
+    
     (*ip)->dump( out );
     
     ip++;
@@ -128,12 +135,10 @@ std::string LogicEngine::export_noGrAF( void ) const
   return out.str();
 }
 
-void LogicEngine::import_noGrAF( std::istream& in )
+void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::string prefix, const translation_t& translation )
 {
   std::string line;
 
-  logger << "import_noGrAF\n";
-  
   typedef std::map< std::string, LogicElement_Generic::FactoryType > le_map;
   le_map lookup;
   lookup["const<float>"] = LogicElement_Const<float>::create;
@@ -151,40 +156,88 @@ void LogicEngine::import_noGrAF( std::istream& in )
   
   while( in.good() )
   {
+    in >> std::ws; // remove all whitespace
+
+    if( in.eof() ) // probably reached EOF after consuming the whitespaces
+      break;
+    
     getline( in, line );
     
-    // remove all whitespace
-    size_t found;
-    while( (found = line.find( " " )) != std::string::npos )  // kill space
+    if( '/' == line[0] && '/' == line[1] ) // skip comment
+      continue;
+
+    if( "var " == line.substr( 0, 4 ) )
     {
-      line.replace( found, 1, "" );
+      // variable definition found
+      auto found = line.find( " ", 4 );
+      if( found == std::string::npos )
+        throw( JSON::parseError( "Implementation error at variable definition: '" + line + "'" ) );
+      
+      std::string type = line.substr( 4, found - 4 );
+      std::string name = prefix + line.substr( found + 1 );
+      if( "int" == type )
+        registerVariable<int>( name );
+      else if( "float" == type )
+        registerVariable<float>( name );
+      else
+        throw( JSON::parseError( "Implementation error at variable definition, unknown type '" + type + "' in '" + line + "'" ) );
+      
+      continue;
     }
-    while( (found = line.find( "\t" )) != std::string::npos ) // kill tab
+    
+    // remove all internal whitespace
     {
-      line.replace( found, 1, "" );
+      auto writer = line.begin();
+      auto end    = line.end();
+      for( auto reader = line.begin() ; reader != end; reader++ )
+        if( (' ' != *reader ) && ('\t' != *reader ) )
+          *writer++ = *reader;
+      line.erase( writer, end );
     }
     
     if( line.length() == 0 )
       continue;  // nothing to do in a empty line
+      
+    //logger << "add command: '" << line << "'" << std::endl;
     
     // find parameters
+    size_t found;
     std::vector<std::string> params;
     size_t paramStart = line.find( "(" ) + 1;
+    auto getParam = [&]( size_t start, size_t end ) -> std::string {
+      std::string var = prefix + line.substr( start, end - start );
+      if( symbolicVariables )
+      {
+        auto translationEntry = translation.find( var );
+        if( translationEntry != translation.end() )
+          var = translationEntry->second;
+        auto variable = variableRegistry.find( var );
+        
+        if( variableRegistry.end() == variable ) // if not found: retry global
+          variable = variableRegistry.find( line.substr( start, end - start ) );
+        
+        if( variableRegistry.end() == variable ) throw( JSON::parseError( "Variable '" + var + "' not found!" ) );
+        return std::to_string( variable->second.offset );
+      }
+      else
+        return var;
+    };
+
     while( (found = line.find( ",", paramStart )) != std::string::npos )
     {
       //logger << "[" << paramStart << "," << found << "]" << std::endl;
-      params.push_back( line.substr( paramStart, found - paramStart ) );
+      params.push_back( getParam( paramStart, found ) );
       paramStart = found+1;
     }
     if( (found = line.find( ")", paramStart )) != std::string::npos )
     {
-      params.push_back( line.substr( paramStart, found - paramStart ) );
+      params.push_back( getParam( paramStart, found ) );
     } else {
       // FIXME thow error!
       // throw "Syntax error!";
-      logger << "Syntax error!" << std::endl;
+      logger << "Syntax error! '" << line << "'" << std::endl;
     }
-      
+    
     std::string le = line.substr( 0, line.find( "(" ) );
     
     LogicElement_Generic::FactoryType ft = lookup[ le ];
@@ -193,7 +246,8 @@ void LogicEngine::import_noGrAF( std::istream& in )
     else {
       // FIXME thow error!
       // throw "Syntax error!";
-      logger << "Command not found! " << line << std::endl;
+      logger << "Command '" << le << "' not found! Line: '" << line << "'" << std::endl;
     }
+    //logger << "added le '" << le << "'"<<std::endl; logger.show(); line = "foo";
   }
 }

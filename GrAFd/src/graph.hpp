@@ -30,8 +30,10 @@
 #include "globals.h"
 
 #include "logger.hpp"
+#include "graphblock.hpp"
 #include "graphlib.hpp"
-#include "variabletype.hpp"
+//#include "variabletype.hpp"
+#include "logicengine.h"
 
 /**
  * The Graph class holds one full logic graph.
@@ -41,35 +43,19 @@ class Graph
 {
 public:
   /**
-   * Hold all the information of a GrAF Block.
-   */
-  struct Block
-  {
-    //typedef std::map<std::string, std::string> parameters_t;
-    typedef std::map<std::string, variable_t> parameters_t;
-    std::string name; // NOTE: has to be kept in sync with blockLookup!
-    std::string type;
-    double x;
-    double y;
-    double width;
-    double height;
-    bool flip;
-    parameters_t parameters;
-  };
-
-  /**
    * Hold all the information of a GrAF Signal.
    */
   struct Signal
   {
-    //blockContainer_t::const_iterator first;
     int    fromPort;
-    //blockContainer_t::const_iterator second;
     int    toPort;
     std::string optional;
   };
 
-  Graph( const char* string );
+  Graph( LogicEngine& logicEngine, std::istream& stream );
+  Graph( LogicEngine& logicEngine, const char* string );
+  
+  void dump( void ) const;
   
   struct parseError
   {
@@ -81,7 +67,7 @@ public:
   
   static GraphLib lib;
 private:
-  typedef boost::adjacency_list< boost::vecS, boost::vecS, boost::directedS, Block, Signal > DirecetedGraph_t;
+  typedef boost::adjacency_list< boost::vecS, boost::vecS, boost::bidirectionalS, GraphBlock, Signal > DirecetedGraph_t;
   typedef DirecetedGraph_t::vertex_descriptor vertex_t;
   typedef DirecetedGraph_t::edge_descriptor edge_t;
   
@@ -93,9 +79,21 @@ private:
   void parseString( std::istream& in );
   void grepBlock( std::istream& in );
   void grepSignal( std::istream& in );
+  
+  const GraphBlock& libLookup( const GraphBlock& source ) const 
+  {
+    return lib[ source.type ];
+  }
+  
+  const GraphBlock& libLookup( const std::string& source ) const 
+  {
+    return libLookup( g[ blockLookup.at( source ) ] );
+  }
+  
+  LogicEngine& le;
 };
 
-std::ostream& operator<<( std::ostream &stream, const Graph::Block& block );
+//std::ostream& operator<<( std::ostream &stream, const Graph::Block& block );
 std::ostream& operator<<( std::ostream &stream, const Graph::Signal& signal );
 
 #endif // GRAPH_H

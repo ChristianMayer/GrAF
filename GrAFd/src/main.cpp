@@ -14,6 +14,7 @@
 #include "graphlib.hpp"
 #include "logicengine.h"
 #include "logic_elements.h"
+#include "json.hpp"
 
 using namespace std;
 
@@ -127,79 +128,55 @@ int main( int argc, const char *argv[] )
   //  Main loop
   //
   //###################################
-  //************************************************************************
-  static constexpr char* toParse = 
-  "{\n"
-  "  \"blocks\": {\n"
-  "    \"Memory1\": {\n"
-  "      \"type\": \"MainLib/memory\",\n"
-  "      \"x\": 150, \"y\": 250, \"width\": 50, \"height\": 50,\n"
-  "      \"parameters\": { \"initial_value\": 12.34 },\n"
-  "      \"flip\" : true\n"
-  "    },\n"
-  "    \"Memory1out\": {\n"
-  "      \"type\": \"MainLib/memory\",\n"
-  "      \"x\": 150, \"y\": 250, \"width\": 50, \"height\": 50,\n"
-  "      \"parameters\": { \"initial_value\": 1.0 },\n"
-  "      \"flip\" : true\n"
-  "    },\n"
-  "    \"Gain1\": {\n"
-  "      \"type\": \"MainLib/gain\",\n"
-  "      \"x\": 50, \"y\": 150, \"width\": 50, \"height\": 50,\n"
-  "      \"parameters\": { \"gain\": \"__dt\" }\n"
-  "    },\n"
-  "    \"Sum1\": {\n"
-  "      \"type\": \"MainLib/sum\",\n"
-  "      \"x\": 150, \"y\": 150, \"width\": 50, \"height\": 50,\n"
-  "      \"parameters\": {}\n"
-  "    },\n"
-  "    \"Display22\": {\n"
-  "      \"type\": \"MainLib/display\",\n"
-  "      \"x\": 350, \"y\": 50, \"width\": 150, \"height\": 50,\n"
-  "      \"parameters\": {}\n"
-  "    },\n"
-  "    \"Integral2\": {\n"
-  "      \"type\": \"MainLib/integral\",\n"
-  "      \"x\": 250, \"y\": 150, \"width\": 50, \"height\": 50,\n"
-  "      \"parameters\": { \"inital_value\": 0.0, \"test\":\"tost\" }\n"
-  "    },\n"
-  "    \"Integral2out\": {\n"
-  "      \"type\": \"MainLib/integral\",\n"
-  "      \"x\": 250, \"y\": 150, \"width\": 50, \"height\": 50,\n"
-  "      \"parameters\": { \"inital_value\": 0.0, \"test\":\"tost\" }\n"
-  "    },\n"
-  "    \"Gain2\": {\n"
-  "      \"type\": \"MainLib/gain\",\n"
-  "      \"x\": 150, \"y\": 50, \"width\": 50, \"height\": 50,\n"
-  "      \"parameters\": { \"gain\": -1.0 },\n"
-  "      \"flip\" : true\n"
-  "    },\n"
-  "    \"Scope_2\": {\n"
-  "      \"type\": \"MainLib/scope\",\n"
-  "      \"x\": 350, \"y\": 150, \"width\": 600, \"height\": 300,\n"
-  "      \"parameters\": {}\n"
-  "    }\n"
-  "  },\n"
-  "  \"signals\": [\n"
-  "  [ \"Sum1\"     , 0, \"Integral2\" , 0, {} ],\n"
-  "  [ \"Gain1\"    , 0, \"Sum1\"      , 0, {} ],\n"
-  "  [ \"Sum1\"     , 0, \"Memory1\"   , 0, {} ],\n"
-  "  [ \"Memory1out\"  , 0, \"Sum1\"      , 1, {} ],\n"
-  "  [ \"Integral2out\", 0, \"Gain2\"     , 0, {} ],\n"
-  "  [ \"Gain2\"    , 0, \"Gain1\"     , 0, {} ],\n"
-  "  [ \"Integral2out\", 0, \"Display22\" , 0, {} ],\n"
-  "  [ \"Integral2out\", 0, \"Scope_2\"   , 0, {} ]\n"
-  "  ]\n"
-  "}";
-  //************************************************************************
+
   Graph::lib.addPath( "../lib/" );
-  Graph G( toParse ); 
+  ifstream test1( "../test/test1.graf" );
+  ifstream test2( "../test/test2.graf" );
+  try {
+  logger << "---------------------------------------\n";
+  logger << "test1:" << endl; logger.show();
+  scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
+  auto leG1 = scriptPool.back();
+  Graph G1( *leG1, test1 ); 
+  //(*leG1).dump();
+  G1.dump();
+  logger << "---------------------------------------\n";
+  logger << "test2:" << endl; logger.show();
+  scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
+  auto leG2 = scriptPool.back();
+  Graph G2( *leG2, test2 ); 
+  //(*leG2).dump();
+  G2.dump();
+}
+catch( JSON::parseError e )
+{
+  int lineNo, errorPos;
+  string wrongLine = e.getErrorLine( lineNo, errorPos ) ;
+  logger << "!!! caugt error \"" << e.text << "\" in line " << lineNo << " at postion " << errorPos << ":\n";
+  logger << "!!! " << wrongLine << "\n";
+  logger << "!!!";
+  while( 1 < errorPos-- )
+    logger << " ";
+  logger << "-^-" << endl;
+  logger.show();
+}
+
+
+  logger << "---------------------------------------\n";
+  /*
   scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
   auto le1 = scriptPool.back();
   setupLogic1( *le1 );
+  logger << "LE1:\n" << (*le1).export_noGrAF() << endl; logger.show();
+  (*le1).dump();
+  logger << "---------------------------------------\n";
   scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
   auto le2 = scriptPool.back();
   setupLogic2( *le2 );
+  logger << "LE2:\n" << (*le2).export_noGrAF() << endl; logger.show();
+  (*le2).dump();
+  logger << "---------------------------------------\n";
+  */
   //###################################
   bool running = true;
   while( running ) 
