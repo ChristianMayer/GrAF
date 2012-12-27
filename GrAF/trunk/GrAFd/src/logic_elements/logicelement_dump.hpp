@@ -16,4 +16,38 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "logger.hpp"
+#ifndef LOGICELEMENT_DUMP_HPP
+#define LOGICELEMENT_DUMP_HPP
+
+#include "logicelement_generic.hpp"
+
+//#include "../logicengine.h"
+
+class LogicEngine;
+
+class LogicElement_Dump : public LogicElement_Generic
+{
+  const LogicEngine& le;
+  
+public:
+  LogicElement_Dump( const LogicEngine& _le ) : le( _le )
+  {}
+  
+  /**
+   * Factory
+   */
+  /* FIXME
+  static LogicElement_Generic* create() 
+  { 
+    return new LogicElement_Dump( le ); 
+  }
+  */
+  
+  void calc( raw_t*const base ) const
+  {
+    le.dump();
+    ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
+  }
+};
+
+#endif // LOGICELEMENT_DUMP_HPP

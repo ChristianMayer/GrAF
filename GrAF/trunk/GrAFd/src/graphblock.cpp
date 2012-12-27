@@ -1,23 +1,24 @@
 /*
- *  <one line to give the program's name and a brief idea of what it does.>
- *  Copyright (C) 2012  Christian Mayer <email>
+ * The Graphic Automation Framework deamon
+ * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
- *  This program is free software: you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
  * 
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  * 
- *  You should have received a copy of the GNU General Public License
- *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "graphblock.hpp"
 
+#include "graph.hpp"
 #include "json.hpp"
 #include <boost/concept_check.hpp>
 
@@ -43,6 +44,86 @@ string GraphBlock::Port::getType( void ) const
   
   return "<unknown type>";
 }
+
+void GraphBlock::grepBlock( istream& in, Graph& graph )
+{
+  JSON::readJsonObject( in, [&graph]( istream& in1, const string& name ){
+    graph.blockLookup[ name ] = boost::add_vertex( graph.g );
+    GraphBlock& thisBlock = graph.g[ graph.blockLookup[ name ] ];
+    thisBlock.name = name;
+    JSON::readJsonObject( in1, [&thisBlock]( istream& in2, const string& key ){
+      if       ( "type"       == key )
+      {
+        if( "" == (thisBlock.type = JSON::readJsonString(in2) ) ) throw( JSON::parseError(  "String for block parameter 'type' expected", in2 ) );
+      } else if( "x"          == key )
+      {
+        in2 >> thisBlock.x;
+      } else if( "y"          == key )
+      {
+        in2 >> thisBlock.y;
+      } else if( "width"      == key )
+      {
+        in2 >> thisBlock.width;
+      } else if( "height"     == key )
+      {
+        in2 >> thisBlock.height;
+      } else if( "flip"       == key )
+      {
+        thisBlock.flip        = JSON::readJsonBool( in2 );
+      } else if( "parameters" == key )
+      {
+        JSON::readJsonObject( in2, [&thisBlock]( istream& in3, const string& key2 ){
+          switch( JSON::identifyNext(in3) )
+          {
+            case JSON::NUMBER:
+              double number;
+              in3 >> number;
+              thisBlock.parameters[ key2 ] = number;
+              break;
+              
+            case JSON::STRING:
+              thisBlock.parameters[ key2 ] = JSON::readJsonString(in3);
+              break;
+              
+            default:
+              throw( JSON::parseError( "Paramenter entry type unexpected", in3 ) );
+          }
+        });
+      } else
+        throw( JSON::parseError( "Block paramenter expected", in2 ) );
+    });
+    
+    // now the memory contains the Graph as read - but to make it runnable
+    // the state ports have to be split or the topological sort would find an
+    // algebraic loop
+    if( !graph.lib.hasElement( thisBlock.type ) )
+    {
+      throw( JSON::parseError( "Block of type '" + thisBlock.type + "' not found in library", in1 ) );
+    }
+    const GraphBlock &libBlock = graph.libLookup( thisBlock );
+    bool blockNotCopyied = true;
+    for( auto p = libBlock.outPorts.cbegin(); p != libBlock.outPorts.cend(); ++p )
+    {
+      if( GraphBlock::Port::STATE == p->type )
+      {
+        if( blockNotCopyied )
+        {
+          graph.blockLookup[ name + ".state" ] = boost::add_vertex( graph.g );
+          GraphBlock& stateBlock = graph.g[ graph.blockLookup[ name + ".state" ] ];
+          stateBlock.name = name + ".state";
+          stateBlock.isStateCopy = true;
+          stateBlock.type = graph.g[ graph.blockLookup[ name ] ].type; //NOTE: thisBlock is invalid due to boost::add_vertex( g )
+          stateBlock.implementation = " ";//"... copy state port ...";
+          blockNotCopyied = false;
+        } else {
+          GraphBlock& stateBlock = graph.g[ graph.blockLookup[ name + ".state" ] ];
+          stateBlock.implementation += " ";//"... copy other state port ...";
+        }
+      }
+    }
+  });
+}
+
 
 void GraphBlock::readJsonBlock( std::istream& in )
 {

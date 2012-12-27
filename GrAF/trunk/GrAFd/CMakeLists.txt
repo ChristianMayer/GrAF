@@ -32,7 +32,7 @@ MESSAGE(STATUS "Found zeromq (lib) in: ${ZEROMQ_LIBRARY}")
 
 message( "Building type: ${CMAKE_BUILD_TYPE}" )
 
-file(GLOB_RECURSE GrAFd_sources src/*.cpp)
+file(GLOB_RECURSE GrAFd_sources src/*.hpp src/*.cpp)
 #add_executable( GrAFd src/logicengine.cpp src/connectors/connector.cpp src/connectors/connector4knx.cpp src/message.cpp src/confighandler.cpp src/main.cpp )
 #add_executable( GrAFd src/logicengine.cpp src/main.cpp )
 add_executable( GrAFd ${GrAFd_sources} )

@@ -16,4 +16,32 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "logger.hpp"
+#ifndef LOGICELEMENT_STOP_HPP
+#define LOGICELEMENT_STOP_HPP
+
+#include "logicelement_generic.hpp"
+
+class LogicElement_Stop : public LogicElement_Generic
+{
+public:
+  void calc( raw_t* const base ) const 
+  {
+    // end execution by seting LogicElement instruction point to end position
+    reinterpret_cast<iterator*>( base )[0] = reinterpret_cast<iterator>SIZE_MAX;
+  }
+  
+  /**
+   * Factory
+   */
+  static LogicElement_Generic* create() 
+  { 
+    return new LogicElement_Stop; 
+  }
+  
+  void dump( std::ostream& stream_out ) const 
+  {
+    stream_out << "stop" << std::endl; 
+  }
+};
+
+#endif // LOGICELEMENT_STOP_HPP
