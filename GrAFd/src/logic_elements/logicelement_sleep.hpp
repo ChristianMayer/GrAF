@@ -19,16 +19,20 @@
 #ifndef LOGICELEMENT_SLEEP_HPP
 #define LOGICELEMENT_SLEEP_HPP
 
-#include "message.hpp"
-
 #include "logicelement_generic.hpp"
 
+/**
+ * A LogicElement that will sleep for some time.
+ */
 class LogicElement_Sleep : public LogicElement_Generic
 {
 private:
   const raw_offset_t in1;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_Sleep( const raw_offset_t _in1 ) 
   : in1( _in1 )
   {}
@@ -42,6 +46,9 @@ public:
     return new LogicElement_Sleep( lexical_cast<raw_offset_t>(p[0]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t*const base ) const
   {
     int duration = *reinterpret_cast<int* const>( base + in1 );
@@ -59,6 +66,9 @@ public:
     ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "sleep( " << in1 << " )" << std::endl; 

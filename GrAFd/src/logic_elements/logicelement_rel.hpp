@@ -21,6 +21,9 @@
 
 #include "logicelement_generic.hpp"
 
+/**
+ * A LogicElement that will do a relation operation.
+ */
 template <typename Tout, typename Tin>
 class LogicElement_Rel : public LogicElement_Generic
 {
@@ -76,6 +79,9 @@ private:
   const relType type;
 
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_Rel( const raw_offset_t _out, const raw_offset_t _in1, 
                     const raw_offset_t _in2, const relType _type  ) : 
                     out(_out), in1(_in1), in2(_in2), type( _type )
@@ -93,6 +99,9 @@ public:
                                             string2type(p[3]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t* const base ) const 
   {
     Tout &_out = *reinterpret_cast<Tout* const>( base + out );
@@ -130,7 +139,7 @@ public:
   }
   
   /**
-   * Dump. Even more informations...
+   * Export the content in noGrAF format.
    */
   void dump( std::ostream& stream_out ) const 
   {

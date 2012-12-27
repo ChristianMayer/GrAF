@@ -36,6 +36,9 @@
 class Logger
 {
 public:
+  /**
+   * All known log levels.
+   */
   enum logLevels
   {
     ERROR = 0,

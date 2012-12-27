@@ -23,6 +23,9 @@
 
 #include "../globals.h"
 
+/**
+ * A LogicElement that will sum two values together.
+ */
 template <typename T>
 class LogicElement_Sum : public LogicElement_Generic
 {
@@ -31,6 +34,9 @@ class LogicElement_Sum : public LogicElement_Generic
   const raw_offset_t in2;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_Sum( const raw_offset_t _out, const raw_offset_t _in1, const raw_offset_t _in2 ) : out(_out), in1(_in1), in2(_in2)
   {}
   
@@ -45,6 +51,9 @@ public:
                                     lexical_cast<raw_offset_t>(p[2]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t* const base ) const 
   {
     T &_out = *reinterpret_cast<T* const>( base + out );
@@ -56,6 +65,9 @@ public:
     ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "sum<";

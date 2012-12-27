@@ -96,11 +96,27 @@ namespace JSON
    */
   struct parseError
   {
+    /**
+     * The error message.
+     */
     std::string text;
+    /**
+     * The stream with the error (at the current stream position).
+     */
     std::istream& stream;
+    /**
+     * Boolean to indicate if this parseError has a stream information included.
+     */
     bool hasStream;
     
+    /**
+     * Throw a JSON::parseError without a corresponding istream.
+     */
     parseError( const std::string& t ) : text( t ), stream( *(std::istream*)(nullptr) ), hasStream( false ) {}
+    /**
+     * Throw a JSON::parseError with error message and the stream s at the
+     * position of the parse error.
+     */
     parseError( const std::string& t, std::istream& s ) : text( t ), stream( s ), hasStream( true ) {}
     
     /**

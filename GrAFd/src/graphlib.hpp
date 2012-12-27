@@ -25,11 +25,14 @@
 #include "graphblock.hpp"
 
 /**
- * 
+ * The class to hold a library of known GraphBlock elements.
  */
 class GraphLib
 {
 public:
+  /**
+   * Constructor.
+   */
   GraphLib() {}
   
   /**
@@ -43,17 +46,26 @@ public:
    */
   void addSource( const std::string& file );
   
+  /**
+   * Look up the GraphBlock for the given key.
+   */
   const GraphBlock& operator[]( const std::string& key ) const
   {
     return lib.at( key );
   }
   
+  /**
+   * Look up if the GraphBlock for the given key is in the library.
+   */
   bool hasElement( const std::string& key ) const
   {
     return lib.count( key ) == 1;
   }
   
 private:
+  /**
+   * The library of all known Blocks.
+   */
   std::map<std::string, GraphBlock> lib;
   
   friend std::ostream& operator<<( std::ostream &stream, const GraphLib& lib );

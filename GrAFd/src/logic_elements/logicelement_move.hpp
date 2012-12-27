@@ -21,6 +21,9 @@
 
 #include "logicelement_generic.hpp"
 
+/**
+ * A LogicElement that will copy one value over an other.
+ */
 template <typename T>
 class LogicElement_Move : public LogicElement_Generic
 {
@@ -28,6 +31,9 @@ class LogicElement_Move : public LogicElement_Generic
   const raw_offset_t in;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_Move( const raw_offset_t _out, const raw_offset_t _in ) : out(_out), in(_in)
   {}
   
@@ -40,6 +46,9 @@ public:
     return new LogicElement_Move<T>( lexical_cast<raw_offset_t>(p[0]), lexical_cast<raw_offset_t>(p[1]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc ( raw_t*const base ) const
   {
     T &_out = *reinterpret_cast<T* const>( base + out );
@@ -50,6 +59,9 @@ public:
     ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "move<";

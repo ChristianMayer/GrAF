@@ -26,19 +26,49 @@
 
 #include "variabletype.hpp"
 
+/**
+ * The base class of all LogicElements defining the interface.
+ */
 class LogicElement_Generic
 {
 public:
+  /**
+   * Type of an iterator though a list of LogicElements.
+   */
   typedef LogicElement_Generic** iterator;
+  /**
+   * Type of an const iterator though a list of LogicElements.
+   */
   typedef const iterator const_iterator;
   
+  /**
+   * Type of parameters for creating a LogicElement though the factory.
+   */
   typedef std::vector< std::string > params_t;
+  /**
+   * Type of the factory function to create a LogicElement
+   */
   typedef LogicElement_Generic* (*FactoryType)( const params_t& );
   
+  /**
+   * Global valid position of "ground", a variable that will allways be
+   * zero and might be used as a fall back for undefined entries.
+   */
   static const raw_offset_t ground = sizeof( LogicElement_Generic* );
   
+  /**
+   * Destructor - virtual to allow overloading.
+   */
   virtual ~LogicElement_Generic() {}
+  
+  /**
+   * Do the real work - must be implemented
+   */
   virtual void calc( raw_t* const base ) const = 0;
+  
+  /**
+   * Export the content in noGrAF format - should be overloaded.
+   */
   virtual void dump( std::ostream& out ) const { out << "<unknown element>" << std::endl; }
 };
 
