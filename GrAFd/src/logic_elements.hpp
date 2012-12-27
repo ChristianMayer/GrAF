@@ -16,4 +16,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "logger.hpp"
+#ifndef LOGICELEMENTS_HPP
+#define LOGICELEMENTS_HPP
+
+#include "logic_elements/logicelement_const.hpp"
+#include "logic_elements/logicelement_dump.hpp"
+#include "logic_elements/logicelement_jump.hpp"
+#include "logic_elements/logicelement_move.hpp"
+#include "logic_elements/logicelement_mul.hpp"
+#include "logic_elements/logicelement_rel.hpp"
+#include "logic_elements/logicelement_send.hpp"
+#include "logic_elements/logicelement_sleep.hpp"
+#include "logic_elements/logicelement_stop.hpp"
+#include "logic_elements/logicelement_sum.hpp"
+
+#endif // LOGICELEMENTS_HPP

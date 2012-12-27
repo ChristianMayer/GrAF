@@ -2,8 +2,8 @@
 #define BOOST_TEST_MODULE LogicEngine
 #include <boost/test/unit_test.hpp>
 
-#include "logicengine.h"
-#include "logic_elements.h"
+#include "logicengine.hpp"
+#include "logic_elements.hpp"
 
 Logger logger;
 

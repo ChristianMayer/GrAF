@@ -1,6 +1,6 @@
 /*
- * < one line to give the *program's name and a brief idea of what it does.>
- * Copyright (C) 2012  Christian Mayer <email>
+ * The Graphic Automation Framework deamon
+ * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GRAPHBLOCK_H
-#define GRAPHBLOCK_H
+#ifndef GRAPHBLOCK_HPP
+#define GRAPHBLOCK_HPP
 
 #include <array>
 #include <vector>
@@ -26,6 +26,8 @@
 #include <iostream>
 
 #include "variabletype.hpp"
+
+class Graph;
 
 /**
  * 
@@ -36,6 +38,7 @@ struct GraphBlock
    * Fill the GraphBlock from a JSON structure in the std::istream at @param in.
    */
   void readJsonBlock( std::istream& in );
+  static void grepBlock( std::istream& in, Graph& graph );
   
   /**
    * Update the content of the Bloxk
@@ -72,4 +75,4 @@ struct GraphBlock
 
 std::ostream& operator<<( std::ostream &stream, const GraphBlock& block );
 
-#endif // GRAPHBLOCK_H
+#endif // GRAPHBLOCK_HPP

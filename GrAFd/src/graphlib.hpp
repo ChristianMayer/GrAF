@@ -1,6 +1,6 @@
 /*
- * < one line to give the *program's name and a brief idea of what it does.>
- * Copyright (C) 2012  Christian Mayer <email>
+ * The Graphic Automation Framework deamon
+ * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GRAPHLIB_H
-#define GRAPHLIB_H
+#ifndef GRAPHLIB_HPP
+#define GRAPHLIB_HPP
 
 #include <string>
 #include <map>
@@ -61,4 +61,4 @@ private:
 
 std::ostream& operator<<( std::ostream &stream, const GraphLib& lib );
 
-#endif // GRAPHLIB_H
+#endif // GRAPHLIB_HPP

@@ -1,6 +1,6 @@
 /*
- * < one line to give the *program's name and a brief idea of what it does.>
- * Copyright (C) 2012  Christian Mayer <email>
+ * The Graphic Automation Framework deamon
+ * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef GRAPH_H
-#define GRAPH_H
+#ifndef GRAPH_HPP
+#define GRAPH_HPP
 
 #include <vector>
 #include <string>
@@ -31,9 +31,10 @@
 
 #include "logger.hpp"
 #include "graphblock.hpp"
+#include "graphsignal.hpp"
 #include "graphlib.hpp"
 //#include "variabletype.hpp"
-#include "logicengine.h"
+#include "logicengine.hpp"
 
 /**
  * The Graph class holds one full logic graph.
@@ -42,34 +43,18 @@
 class Graph
 {
 public:
-  /**
-   * Hold all the information of a GrAF Signal.
-   */
-  struct Signal
-  {
-    int    fromPort;
-    int    toPort;
-    std::string optional;
-  };
-
   Graph( LogicEngine& logicEngine, std::istream& stream );
-  Graph( LogicEngine& logicEngine, const char* string );
   
   void dump( void ) const;
   
-  struct parseError
-  {
-    std::string text;
-    const char *pos;
-    
-    parseError( const std::string& t, const char* p ) : text( t ), pos( p ) {}
-  };
-  
   static GraphLib lib;
-private:
-  typedef boost::adjacency_list< boost::vecS, boost::vecS, boost::bidirectionalS, GraphBlock, Signal > DirecetedGraph_t;
+  typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, GraphBlock, GraphSignal> DirecetedGraph_t;
   typedef DirecetedGraph_t::vertex_descriptor vertex_t;
   typedef DirecetedGraph_t::edge_descriptor edge_t;
+  
+private:
+  friend GraphBlock;
+  friend GraphSignal;
   
   typedef std::map<std::string, vertex_t> blockLookup_t;
   
@@ -77,7 +62,6 @@ private:
   blockLookup_t blockLookup; // NOTE: has to be kept in sync with Block.name!
   
   void parseString( std::istream& in );
-  void grepBlock( std::istream& in );
   void grepSignal( std::istream& in );
   
   const GraphBlock& libLookup( const GraphBlock& source ) const 
@@ -93,7 +77,4 @@ private:
   LogicEngine& le;
 };
 
-//std::ostream& operator<<( std::ostream &stream, const Graph::Block& block );
-std::ostream& operator<<( std::ostream &stream, const Graph::Signal& signal );
-
-#endif // GRAPH_H
+#endif // GRAPH_HPP
