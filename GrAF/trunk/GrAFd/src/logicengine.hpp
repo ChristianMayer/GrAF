@@ -34,6 +34,9 @@
 
 class LogicElement_Generic;
 
+/**
+ * The LogicEngine holds and runs a list of LogicElements.
+ */
 class LogicEngine
 {
 public:
@@ -46,10 +49,13 @@ public:
    * The type of the possible states of the logic
    */
   enum logicState_t {
-    STOPPED,  // script has no current information and not running
-    COPIED,   // current values were copied, but script is not running
-    RUNNING   // script is running
+    STOPPED,  ///< script has no current information and not running
+    COPIED,   ///< current values were copied, but script is not running
+    RUNNING   ///< script is running
   };
+  /**
+   * Map strings to the @p logicState_t constants.
+   */
   constexpr static const char *const logicStateName[3] = { "STOPPED", "COPIED", "RUNNING" };
   
 private:
@@ -112,14 +118,32 @@ private:
   MessageRegister::timestamp_t lastVariableImport;
   
 public:
+  /**
+   * Constructor.
+   * 
+   * Create a new LogicEngine where at most @p maxSize elements can be stored
+   * and that has the ID @p logicId.
+   * 
+   * @param maxSize Maximum number of LogicElements
+   * @param logicId ID of this LogicEngine
+   */
   LogicEngine( size_t maxSize, int logicId  );
+  /**
+   * Destructor.
+   */
   ~LogicEngine();
   
+  /**
+   * Return the current state of the LogicEngine.
+   */
   logicState_t getState( void ) const 
   {
     return logicState;
   }
   
+  /**
+   * Return an array of const chars of the name of the current state.
+   */
   const char* getStateName( void ) const
   {
     return logicStateName[ logicState ];
@@ -140,6 +164,12 @@ public:
     return false;
   }
   
+  /**
+   * Set the state of the LogicEngine to @p RUNNING - when possible.
+   * 
+   * @return @p true when the state could be changed<br>
+   *         @p false when not.
+   */
   bool startLogic( void )
   {
     if( COPIED == logicState )
@@ -151,6 +181,12 @@ public:
     return false;
   }
   
+  /**
+   * Set the state of the LogicEngine to @p STOPPED - when possible.
+   * 
+   * @return @p true when the state could be changed<br>
+   *         @p false when not.
+   */
   bool stopLogic( void )
   {
     if( RUNNING == logicState )
@@ -162,6 +198,9 @@ public:
     return false;
   }
   
+  /**
+   * Add an element at the end to the instructions of this LogicEngine.
+   */
   void addElement( LogicElement_Generic* element );
   
   /**
@@ -204,7 +243,10 @@ public:
   }
   
   /**
-   * Register variable of type @param type.
+   * Register variable @p name of type @p type.
+   * 
+   * @param name The name of the variable.
+   * @param type The type of the variable.
    */
   raw_offset_t registerVariable( const std::string& name, variableType::type type )
   {
@@ -258,9 +300,14 @@ public:
   void dump( const std::string& prefix = "" ) const;
   
   /**
-   * Run the logic
+   * Run the logic, starting at @p start.
+   * 
+   * @param start the first instruction to run.
    */
   void run( const instructionPointer start ) const;
+  /**
+   * Run the logic, start at the main task.
+   */
   void run() const
   {
     run( mainTask );
@@ -293,18 +340,27 @@ public:
     rerun = true;
   }
   
+  /**
+   * Return the variable at @p offset, interpreting the raw data there as
+   * type @p T.
+   */
   template<typename T>
   T read( const raw_offset_t offset ) const
   {
     return *reinterpret_cast<T* const>( globVar + offset );
   }
 
+  /*
   std::string readString( const raw_offset_t offset ) const
   {
     while( false && offset ); // stop warning...
-    return "foo"; //*reinterpret_cast<T* const>( globVar + offset );
+    return "foo"; // *reinterpret_cast<T* const>( globVar + offset );
   }
+  */
   
+  /**
+   * Return the variable at @p offset as a string.
+   */
   template<typename T>
   std::string readString( const raw_offset_t offset ) const
   {
@@ -313,11 +369,17 @@ public:
     return sstr.str(); //*reinterpret_cast<T* const>( globVar + offset );
   }
   
+  /**
+   * Return the offset of the @p ground variable.
+   */
   constexpr static raw_offset_t ground( void )
   {
     return sizeof(LogicElement_Generic*);
   }
   
+  /**
+   * Return the offset of the first variable.
+   */
   constexpr static raw_offset_t variableStart( void )
   {
     return ground() + sizeof(long long);
@@ -331,10 +393,13 @@ public:
   std::string export_noGrAF( void ) const;
   
   /**
+   * Type of the translation map for import_noGrAF().
+   */
+  typedef std::map<std::string,std::string> translation_t;
+  /**
    * Import the logic that was exported earlier.
    * The format used is the "native object GrAF" notation (abbreviation: noGrAF)
    */
-  typedef std::map<std::string,std::string> translation_t;
   void import_noGrAF( std::istream& in, bool symbolicVariables = false, std::string prefix = "", const translation_t& translation = *(translation_t*)(nullptr) );
 };
 

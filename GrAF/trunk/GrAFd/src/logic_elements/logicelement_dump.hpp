@@ -25,11 +25,17 @@
 
 class LogicEngine;
 
+/**
+ * A LogicElement that will dump the current LogicEngine - only for debugging.
+ */
 class LogicElement_Dump : public LogicElement_Generic
 {
   const LogicEngine& le;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_Dump( const LogicEngine& _le ) : le( _le )
   {}
   
@@ -43,6 +49,9 @@ public:
   }
   */
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t*const base ) const
   {
     le.dump();

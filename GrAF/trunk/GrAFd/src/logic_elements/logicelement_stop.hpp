@@ -21,9 +21,15 @@
 
 #include "logicelement_generic.hpp"
 
+/**
+ * A LogicElement that will stop the current calculations.
+ */
 class LogicElement_Stop : public LogicElement_Generic
 {
 public:
+  /**
+   * Do the real work
+   */
   void calc( raw_t* const base ) const 
   {
     // end execution by seting LogicElement instruction point to end position
@@ -38,6 +44,9 @@ public:
     return new LogicElement_Stop; 
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "stop" << std::endl; 

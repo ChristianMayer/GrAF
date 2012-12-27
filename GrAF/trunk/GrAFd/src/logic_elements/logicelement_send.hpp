@@ -23,6 +23,9 @@
 
 #include "logicelement_generic.hpp"
 
+/**
+ * A LogicElement that will send a value to the bus.
+ */
 template <typename T>
 class LogicElement_Send : public LogicElement_Generic
 {
@@ -31,6 +34,9 @@ private:
   const std::string target;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_Send( const raw_offset_t _in1, const std::string& _target ) 
   : in1( _in1 ), target( _target )
   {}
@@ -45,6 +51,9 @@ public:
                                      p[1] ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t*const base ) const
   {
     logger( Logger::ALL ) << "sending to '" << target << "' the value '" << *reinterpret_cast<T* const>( base + in1 ) << "';\n";
@@ -59,6 +68,9 @@ public:
     ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "send<";

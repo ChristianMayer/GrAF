@@ -42,6 +42,9 @@ static const char *message_status_string[3] =
 class MessageRegister
 {
 public:
+  /**
+   * Type of a timestamp.
+   */
   typedef std::chrono::time_point<std::chrono::system_clock> timestamp_t;
   /**
    * @return current timestamp
@@ -67,6 +70,9 @@ private:
   };
   typedef std::map<key, register_t> map_t;
 public:
+  /**
+   * Enumeration of possible states of the messages.
+   */
   enum message_status : uint8_t
   {
     INVALID_MSG,

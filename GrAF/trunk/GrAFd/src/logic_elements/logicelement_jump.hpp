@@ -21,12 +21,18 @@
 
 #include "logicelement_generic.hpp"
 
+/**
+ * A LogicElement that will jump the instruction pointer.
+ */
 class LogicElement_Jump : public LogicElement_Generic
 {
 private:
   const long int offset;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_Jump( const long int _offset ) 
   : offset( _offset )
   {}
@@ -40,17 +46,26 @@ public:
     return new LogicElement_Jump( lexical_cast<long int>(p[0]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t*const base ) const
   {
     reinterpret_cast<iterator*>( base )[0] += offset; // jump instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "jump( " << offset << " )" << std::endl; 
   }
 };
 
+/**
+ * A LogicElement that will conditionally jump the instruction pointer.
+ */
 template <typename T>
 class LogicElement_JumpTrue : public LogicElement_Generic
 {
@@ -59,6 +74,9 @@ private:
   const raw_offset_t in1;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_JumpTrue( const long int _offset, const raw_offset_t _in1 ) 
   : offset( _offset ), in1( _in1 )
   {}
@@ -73,6 +91,9 @@ public:
                                          lexical_cast<raw_offset_t>(p[1]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t*const base ) const
   {
     if( *reinterpret_cast<T* const>( base + in1 ) > 0 )
@@ -81,6 +102,9 @@ public:
       ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "jumptrue<";
@@ -89,6 +113,9 @@ public:
   }
 };
 
+/**
+ * A LogicElement that will conditionally jump the instruction pointer.
+ */
 template <typename T>
 class LogicElement_JumpZero : public LogicElement_Generic
 {
@@ -97,6 +124,9 @@ private:
   const raw_offset_t in1;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_JumpZero( const long int _offset, const raw_offset_t _in1 ) 
   : offset( _offset ), in1( _in1 )
   {}
@@ -111,6 +141,9 @@ public:
                                          lexical_cast<raw_offset_t>(p[1]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t*const base ) const
   {
     if( *reinterpret_cast<T* const>( base + in1 ) == 0 )
@@ -119,6 +152,9 @@ public:
       ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "jumpzero<";
@@ -127,6 +163,9 @@ public:
   }
 };
 
+/**
+ * A LogicElement that will conditionally jump the instruction pointer.
+ */
 template <typename T>
 class LogicElement_JumpEqual : public LogicElement_Generic
 {
@@ -136,6 +175,9 @@ private:
   const raw_offset_t in2;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_JumpEqual( const long int _offset,
                      const raw_offset_t _in1, const raw_offset_t _in2 ) 
   : offset( _offset ), in1( _in1 ), in2( _in2 )
@@ -152,6 +194,9 @@ public:
                                           lexical_cast<raw_offset_t>(p[2]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t*const base ) const
   {
     if( *reinterpret_cast<T* const>( base + in1 ) == *reinterpret_cast<T* const>( base + in2 ) )
@@ -160,6 +205,9 @@ public:
       ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "jumpequal<";
@@ -168,6 +216,9 @@ public:
   }
 };
 
+/**
+ * A LogicElement that will conditionally jump the instruction pointer.
+ */
 template <typename T>
 class LogicElement_JumpNotEqual : public LogicElement_Generic
 {
@@ -177,6 +228,9 @@ private:
   const raw_offset_t in2;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_JumpNotEqual( const long int _offset,
                      const raw_offset_t _in1, const raw_offset_t _in2 ) 
   : offset( _offset ), in1( _in1 ), in2( _in2 )
@@ -193,6 +247,9 @@ public:
                                              lexical_cast<raw_offset_t>(p[2]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t*const base ) const
   {
     if( (*reinterpret_cast<T* const>( base + in1 )) != (*reinterpret_cast<T* const>( base + in2 )) )
@@ -201,6 +258,9 @@ public:
       ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "jumpnotequal<";

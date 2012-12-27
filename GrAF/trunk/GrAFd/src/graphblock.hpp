@@ -30,47 +30,62 @@
 class Graph;
 
 /**
- * 
+ * One block in the GrAF graph.
  */
 struct GraphBlock
 {
   /**
-   * Fill the GraphBlock from a JSON structure in the std::istream at @param in.
+   * Fill the GraphBlock from a JSON structure in the std::istream at @p in.
    */
   void readJsonBlock( std::istream& in );
+  /**
+   * Read a GraphBlock from @p in and insert it in the @p graph.
+   */
   static void grepBlock( std::istream& in, Graph& graph );
   
   /**
-   * Update the content of the Bloxk
+   * Information about a Port of the block.
    */
   struct Port
   {
+    /**
+     * The name of the port.
+     */
     std::string name;
+    /**
+     * The possible port types.
+     */
     enum portType {
       EVENT,
       STATE
-    } type;
+    } type; ///< The type of the port.
     
+    /**
+     * Set the type of the port.
+     */
     void setType( const std::string& t );
+    /**
+     * Return a string describing the type of the port.
+     */
     std::string getType( void ) const;
   };
   
-  std::string name; // NOTE: only used for Graph - there it has to be kept in sync with blockLookup!
-  std::string type; // NOTE: only used for Graph
-  bool isStateCopy; // NOTE: only used for Graph
-  int x;            // NOTE: only used for Graph
-  int y;            // NOTE: only used for Graph
-  int width;
-  int height;
-  int rotation;
-  bool flip;
-  std::array<double, 3> color;
-  std::array<double, 3> background;
-  std::vector<Port> inPorts;
-  std::vector<Port> outPorts;
-  std::map<std::string, variable_t> parameters;
-  std::string init;
-  std::string implementation;
+  std::string name; ///< Name of the block, NOTE: only used for Graph - there it has to be kept in sync with blockLookup!
+  std::string type; ///< Type of the block, NOTE: only used for Graph
+  bool isStateCopy; ///< Is the block a copy due to a state, NOTE: only used for Graph
+  int x;            ///< x position of the block, NOTE: only used for Graph
+  int y;            ///< y position of the block, NOTE: only used for Graph
+  int width;        ///< width of the block
+  int height;       ///< height of the block
+  int rotation;     ///< rotation of the block
+  bool flip;        ///< is the block flipped?
+  std::array<double, 3> color;      ///< color of the block
+  std::array<double, 3> background; ///< background color of the block
+  std::vector<Port> inPorts;        ///< inPorts of the block
+  std::vector<Port> outPorts;       ///< outPorts of the block
+  std::map<std::string, variable_t> parameters; ///< parameters of the block
+  std::string init;                 ///< Init task instructions of the block
+  std::string implementation;       ///< Main taks instructions of the block
 };
 
 std::ostream& operator<<( std::ostream &stream, const GraphBlock& block );

@@ -43,23 +43,55 @@
 class Graph
 {
 public:
+  /**
+   * Constructor - logicEngine from the stream.
+   * 
+   * @param logicEngine A reference to the logicEngine of this Graph
+   * @param stream      An istream from which the Graph is extracted
+   */
   Graph( LogicEngine& logicEngine, std::istream& stream );
   
+  /**
+   * Show the content of the graph.
+   */
   void dump( void ) const;
   
+  /**
+   * The library of all known GraphBlock elements.
+   */
   static GraphLib lib;
+  
+  /**
+   * Type of the used graph.
+   */
   typedef boost::adjacency_list<boost::vecS, boost::vecS, boost::bidirectionalS, GraphBlock, GraphSignal> DirecetedGraph_t;
+  /**
+   * Type of a descriptor of a vertex (so it's like a index to a vertex).
+   */
   typedef DirecetedGraph_t::vertex_descriptor vertex_t;
+  /**
+   * Type of a descriptor of a edge (so it's like a index to an edge).
+   */
   typedef DirecetedGraph_t::edge_descriptor edge_t;
   
 private:
   friend GraphBlock;
   friend GraphSignal;
   
+  /**
+   * Type of a look up table of a vertex, also a GraphBlock, for a given name.
+   */
   typedef std::map<std::string, vertex_t> blockLookup_t;
   
+  /**
+   * The graph structure of this Graph.
+   */
   DirecetedGraph_t g;
-  blockLookup_t blockLookup; // NOTE: has to be kept in sync with Block.name!
+  /**
+   * Look up table of a vertex, also a GraphBlock, for a given name.
+   * NOTE: has to be kept in sync with Block.name!
+   */
+  blockLookup_t blockLookup;
   
   void parseString( std::istream& in );
   void grepSignal( std::istream& in );

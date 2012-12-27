@@ -23,7 +23,9 @@
 
 #include <boost/lexical_cast.hpp>
 
-
+/**
+ * A LogicElement that will write a constant value.
+ */
 template <typename T>
 class LogicElement_Const : public LogicElement_Generic
 {
@@ -31,6 +33,9 @@ class LogicElement_Const : public LogicElement_Generic
   const T value;
   
 public:
+  /**
+   * Constructor.
+   */
   LogicElement_Const( const raw_offset_t _out, const T _value ) : out(_out), value( _value )
   {}
 
@@ -43,6 +48,9 @@ public:
     return new LogicElement_Const<T>( lexical_cast<raw_offset_t>(p[0]), lexical_cast<T>(p[1]) ); 
   }
   
+  /**
+   * Do the real work
+   */
   void calc( raw_t* const base ) const 
   {
     T &_out = *reinterpret_cast<T* const>( base + out );
@@ -52,6 +60,9 @@ public:
     ++reinterpret_cast<iterator*>( base )[0]; // increase instruction pointer
   }
   
+  /**
+   * Export the content in noGrAF format.
+   */
   void dump( std::ostream& stream_out ) const 
   {
     stream_out << "const<";
