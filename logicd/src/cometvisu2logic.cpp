@@ -263,7 +263,7 @@ private:
               break;
 
             case 't':
-              if( '0' <= parameter[0] && parameter[0] <= '9' )
+              if( ('-' == parameter[0]) || ('0' <= parameter[0] && parameter[0] <= '9') )
                 req_timeout = stoi( parameter );
               break;
 
@@ -333,7 +333,14 @@ private:
           
         case 'r': // read
           {
-            if( 0 == req_timeout || lastIndex != stol( index ) )
+            int newIndex;
+            try {
+              newIndex = stol( index );
+            } catch( ... )
+            {
+              newIndex = lastIndex - 1; // force "lastIndex != newIndex"
+            }
+            if( 0 == req_timeout || lastIndex != newIndex )
             { // read all messages (i.e. CometVisu start) or there were some messages after the last reply
               goodRequest = true;
               //DEBUG// cout << localCnt  << ": meta:cacheread; lastIndex: " << lastIndex <<"; index: " << index << ";\n";
@@ -341,7 +348,7 @@ private:
               if( 0 == req_timeout )
                 msg.send( sender );
               else
-                msg.send( sender, stoul(index) );
+                msg.send( sender, newIndex );
               vector<LogicMessage::shared_ptr> msgs( recieveMultiMessage( sender ) );
 
               if( 0 == req_timeout || (msgs.front() != msgs.back()) || !msgs.front()->isEmpty() )
