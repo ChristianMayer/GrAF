@@ -101,6 +101,14 @@ void GraphBlock::grepBlock( istream& in, Graph& graph )
       throw( JSON::parseError( "Block of type '" + thisBlock.type + "' not found in library", in1 ) );
     }
     const GraphBlock &libBlock = graph.libLookup( thisBlock );
+    
+    // fill the missing parts from the library template
+    // TODO: make it dynamic by depending on the real read informations
+    thisBlock.color      = libBlock.color;
+    thisBlock.background = libBlock.background;
+    thisBlock.inPorts    = libBlock.inPorts;
+    thisBlock.outPorts   = libBlock.outPorts;
+    
     bool blockNotCopyied = true;
     for( auto p = libBlock.outPorts.cbegin(); p != libBlock.outPorts.cend(); ++p )
     {
@@ -125,8 +133,10 @@ void GraphBlock::grepBlock( istream& in, Graph& graph )
 }
 
 
-void GraphBlock::readJsonBlock( std::istream& in )
+void GraphBlock::readJsonBlock( std::istream& in, const std::string& blockName )
 {
+  name = blockName;
+  
   JSON::readJsonObject( in, [this]( istream& in, const string& name ){
     if( "width" == name )
     {
@@ -217,9 +227,14 @@ void GraphBlock::readJsonBlock( std::istream& in )
 
 ostream& operator<<( ostream &out, const GraphBlock& block )
 {
-  out 
-  << "    {\n"
-  << "      \"name\"      : \"" << block.name   << "\",\n"
+  if( block.showAsLogic )
+    out << "    \"" << block.name << "\": {\n";
+  else
+    out 
+    << "    {\n"
+    << "      \"name\"      : \"" << block.name   << "\",\n";
+  
+  out
   << "      \"type\"      : \"" << block.type   << "\",\n"
   << "      \"x\"         : " << block.x        << ",\n"
   << "      \"y\"         : " << block.y        << ",\n"
@@ -236,7 +251,7 @@ ostream& operator<<( ostream &out, const GraphBlock& block )
       out << ",\n";
     else
       out << "\n";
-
+    
     out 
     << "        {\n"
     << "          \"name\": \"" << it->name << "\",\n"
@@ -262,22 +277,39 @@ ostream& operator<<( ostream &out, const GraphBlock& block )
   out
   << "\n      ],\n"
   << "      \"parameters\": {";
-  for( auto it = block.parameters.cbegin(); it != block.parameters.cend(); it++ )
+  
+  if( block.showAsLogic )
   {
-    if( it != block.parameters.cbegin() ) 
-      out << ",\n";
-    else
-      out << "\n";
-    
+    for( auto it = block.parameters.cbegin(); it != block.parameters.cend(); it++ )
+    {
+      if( it != block.parameters.cbegin() ) 
+        out << ",\n";
+      else
+        out << "\n";
+      
+      out 
+      << "        \"" << it->first << "\": " << it->second.getAsString( true );
+    }
+    out
+    << "\n      }\n";
+  } else {
+    for( auto it = block.parameters.cbegin(); it != block.parameters.cend(); it++ )
+    {
+      if( it != block.parameters.cbegin() ) 
+        out << ",\n";
+      else
+        out << "\n";
+      
+      out 
+      << "        \"" << it->first << "\": {\n"
+      << "          \"type\"   : \"" << it->second.getTypeName() << "\",\n"
+      << "          \"default\": \"" << it->second.getAsString() << "\"\n"
+      << "        }";
+    }
     out 
-    << "        \"" << it->first << "\": {\n"
-    << "          \"type\"   : \"" << it->second.getTypeName() << "\",\n"
-    << "          \"default\": \"" << it->second.getAsString() << "\"\n"
-    << "        }";
+    << "\n      },\n"
+    << "      \"init\"               : " << JSON::escape( block.init          , false ) << ",\n"
+    << "      \"implementation\"     : " << JSON::escape( block.implementation, false ) << "\n";
   }
-  out 
-  << "\n      },\n"
-  << "      \"init\"               : \"" << block.init           << "\"\n"
-  << "      \"implementation\"     : \"" << block.implementation << "\"\n";
-  return out << "    }" << endl;
+  return out << "    }" << (block.showContinue?",":"") << endl;
 }

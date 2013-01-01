@@ -231,9 +231,10 @@ private:
           requestURI = value;
       }
 
-      //DEBUG// cout << localCnt << ": SCGI Request: [" << requestURI << "]\n";
-      //DEBUG// cout << localCnt << ": {" << SCGI_result << "}\n";
       size_t parameterPos = requestURI.find_first_of( "?" );
+      if( parameterPos == std::string::npos )  // no '?' found?
+        parameterPos = (requestURI.size()>1) ? requestURI.size() : 0;  // => try last
+        
       char command;
       if( parameterPos >= 2 && '/' == requestURI[ parameterPos - 2 ] )
         command = requestURI[ parameterPos - 1 ];
@@ -413,7 +414,10 @@ private:
       socket,
       boost::asio::buffer( 
         "Status: " + string(ok ? "200 OK" : "400 Bad Request") + "\x0d\x0a"
-        "Content-Type: text/plain\x0d\x0a"
+        "Content-Type: application/json\x0d\x0a"
+#ifndef NDEBUG
+        "Access-Control-Allow-Origin: *\x0d\x0a"
+#endif
         "\x0d\x0a"
         + result
       ),

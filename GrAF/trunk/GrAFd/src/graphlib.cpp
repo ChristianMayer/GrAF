@@ -60,7 +60,7 @@ void GraphLib::addSource( const string& file )
     {
       JSON::readJsonObject( in, [&libName,this]( istream & in, const string & blockName )
       {
-        lib[ libName + "/" + blockName ].readJsonBlock( in );
+        lib[ libName + "/" + blockName ].readJsonBlock( in, blockName );
       } );
     } );
   } catch( JSON::parseError e )
@@ -80,15 +80,22 @@ void GraphLib::addSource( const string& file )
 ostream& operator<<( ostream &stream, const GraphLib& lib )
 {
   stream << "{";
+  string thisLib;
   for( auto it = lib.lib.cbegin(); it != lib.lib.cend(); it++ )
   {
-    if( it != lib.lib.cbegin() ) 
+    size_t lib_seperator = it->first.find_first_of('/');
+    bool lib_changed = it->first.substr( 0, lib_seperator ) != thisLib;
+    if( lib_changed )
+    {
+      if( thisLib.size() != 0 ) // not the first run
+        stream << "  },";
+      thisLib = it->first.substr( 0, lib_seperator );
+      stream << "\n  \"" << thisLib << "\": {\n";
+    } else {
       stream << ",\n";
-    else
-      stream << "\n";
-    stream << "  \"" << it->first << "\": {\n";
+    }
+    stream << "    \"" << it->first << "\":\n";
     stream << it->second;
-    stream << "  }";
   }
-  return stream << "\n}" << endl;
+  return stream << "  }\n}" << endl;
 }

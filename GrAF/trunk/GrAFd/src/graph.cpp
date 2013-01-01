@@ -19,6 +19,7 @@
 #include "graph.hpp"
 
 #include <string>
+#include <boost/algorithm/string/predicate.hpp>
 
 #include "json.hpp"
 #include "logger.hpp"
@@ -157,3 +158,42 @@ void Graph::parseString( istream& in )
   }
 }
 
+std::ostream& operator<<( std::ostream &stream, Graph& graph )
+{
+  stream << "{\n  \"blocks\": {\n";
+
+  Graph::DirecetedGraph_t::vertex_iterator vi, vi_end;
+  boost::tie( vi, vi_end ) = boost::vertices( graph.g );
+  bool cont = (vi != vi_end);
+  while( cont )
+  {
+    auto thisGraph = graph.g[ *vi ];
+    cont = (++vi != vi_end);
+    if( thisGraph.isStateCopy )
+      continue;
+    stream << thisGraph.show( true, cont );
+  }
+
+  stream << "  },\n  \"signals\": [\n";
+
+  Graph::DirecetedGraph_t::edge_iterator ei, ei_end;
+  boost::tie( ei, ei_end ) = boost::edges( graph.g );
+  cont = (ei != ei_end);
+  while( cont )
+  {
+    auto thisEdge = graph.g[ *ei ];
+    
+    string from = graph.g[ boost::source( *ei, graph.g ) ].name;
+    if( boost::algorithm::ends_with( from, ".state") )
+      from = from.substr( 0, from.length() - 6 );
+    string to   = graph.g[ boost::target( *ei, graph.g ) ].name;
+    cont = (++ei != ei_end);
+    stream << thisEdge.extend( from, to );
+    if( cont )
+      stream << ",\n";
+  }
+    //Graph::DirecetedGraph_t::  in_edge_iterator begin, end;
+  //for( boost::tie(begin, end) = boost::in_edges( *i, g ); begin != end; begin++ )
+
+  return stream << "\n  ]\n}\n";
+}

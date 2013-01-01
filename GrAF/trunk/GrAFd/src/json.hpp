@@ -92,6 +92,11 @@ namespace JSON
   void readJsonObject( std::istream& in, jsonNamedObjectHandler_t entryHandler );
 
   /**
+   * Escape the string.
+   */
+  std::string escape( const std::string& str, bool keepNewline = false );
+  
+  /**
    * The object that will be thrown when a parsing error will happen.
    */
   struct parseError

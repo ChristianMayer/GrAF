@@ -23,6 +23,7 @@
 
 #include <config.h>
 
+#include <map>
 #include "message.hpp"
 
 // macros
@@ -32,8 +33,8 @@ typedef unsigned char raw_t;
 typedef ptrdiff_t     raw_offset_t;
 
 // Global objects
-extern class Logger logger;
 extern class MessageRegister registry;
 extern zmq::socket_t* sender;
+extern std::map<std::string, class Graph> graphs;
 
 #endif // CONFIGHANDLER

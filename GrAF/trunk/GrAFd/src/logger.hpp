@@ -231,4 +231,6 @@ private:
   
 };
 
+extern class Logger logger;
+
 #endif // LOGGER_HPP
