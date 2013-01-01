@@ -77,6 +77,7 @@ public:
 private:
   friend GraphBlock;
   friend GraphSignal;
+  friend std::ostream& operator<<( std::ostream &stream, Graph& graph );
   
   /**
    * Type of a look up table of a vertex, also a GraphBlock, for a given name.
@@ -108,5 +109,7 @@ private:
   
   LogicEngine& le;
 };
+
+std::ostream& operator<<( std::ostream &stream, Graph& graph );
 
 #endif // GRAPH_HPP

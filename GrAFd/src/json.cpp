@@ -177,6 +177,34 @@ void JSON::readJsonObject( istream& in, jsonNamedObjectHandler_t entryHandler )
     THROW( "JSON Object '}' expected", in );
 }
 
+string JSON::escape( const string& str, bool keepNewline )
+{
+  string ret;
+  
+  size_t pos = 0;
+  while( pos != string::npos )
+  {
+    if( keepNewline || pos == 0 )
+      ret += "\"";
+      
+    size_t nextPos = str.find_first_of( "\n", pos );
+    ret += str.substr( pos, nextPos - pos ); // TODO escape '"'
+    if( nextPos != string::npos )
+    {
+      if( keepNewline )
+        ret += "\\n\" +\n";
+      else
+        ret += "\\n";
+      nextPos++;
+    } else {
+      ret += "\"";
+    }
+    pos = nextPos;
+  }
+  
+  return ret;
+}
+
 string JSON::parseError::getErrorLine( int& errorLineNo, int& errorCharPos )
 {
   if( !hasStream )

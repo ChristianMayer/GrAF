@@ -33,12 +33,15 @@
 #include "logicengine.hpp"
 #include "logic_elements.hpp"
 #include "json.hpp"
+#include "asyncsocket.hpp"
+#include "editorhandler.hpp"
 
 using namespace std;
 
 Logger logger;
 MessageRegister registry;
 zmq::socket_t *sender;
+std::map<std::string, class Graph> graphs;
 
 void setupLogic1( LogicEngine& le ); // FIXME - remove
 void setupLogic2( LogicEngine& le ); // FIXME - remove
@@ -77,6 +80,9 @@ int main( int argc, const char *argv[] )
   }
   logger.setLogLevel( static_cast<Logger::logLevels>( verbose ) );
   
+  // Setup ASIO
+  boost::asio::io_service io_service;
+  
   // Setup ZMQ
   zmq::context_t context( 1 );
   zmq::socket_t subscriber( context, ZMQ_SUB );
@@ -84,10 +90,6 @@ int main( int argc, const char *argv[] )
   subscriber.setsockopt( ZMQ_SUBSCRIBE, "", 0 ); // get all messages
   sender = new zmq::socket_t( context, ZMQ_REQ );
   sender->connect( "ipc:///tmp/logicd.ipc" );
-  
-  zmq::pollitem_t items[1];
-  items[0].socket = subscriber;          // the ZMQ
-  items[0].events = ZMQ_POLLIN;
   
   typedef boost::shared_ptr<LogicEngine> LogicEngine_ptr;
   vector<LogicEngine_ptr> scriptPool;
@@ -155,16 +157,17 @@ int main( int argc, const char *argv[] )
   logger << "test1:" << endl; logger.show();
   scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
   auto leG1 = scriptPool.back();
-  Graph G1( *leG1, test1 ); 
+  //Graph G1( *leG1, test1 ); 
+  graphs.insert( make_pair( "G1", Graph( *leG1, test1 ) ) ); 
   //(*leG1).dump();
-  G1.dump();
+  graphs.at("G1").dump();
   logger << "---------------------------------------\n";
   logger << "test2:" << endl; logger.show();
   scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
   auto leG2 = scriptPool.back();
-  Graph G2( *leG2, test2 ); 
+  graphs.insert( make_pair( "G2", Graph( *leG2, test2 ) ) ); 
   //(*leG2).dump();
-  G2.dump();
+  graphs.at("G2").dump();
 }
 catch( JSON::parseError e )
 {
@@ -180,8 +183,8 @@ catch( JSON::parseError e )
 }
 
 
-  logger << "---------------------------------------\n";
-  /*
+logger << "fin ---------------------------------------\n";logger.show();
+  /**/
   scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
   auto le1 = scriptPool.back();
   setupLogic1( *le1 );
@@ -194,66 +197,89 @@ catch( JSON::parseError e )
   logger << "LE2:\n" << (*le2).export_noGrAF() << endl; logger.show();
   (*le2).dump();
   logger << "---------------------------------------\n";
-  */
+  /**/
   //###################################
-  bool running = true;
-  while( running ) 
-  {
-    // wait for next message or signal - infinitely long
-    int pollRes = zmq_poll( items, 1, -1 );
-    logger << "pollRes: " << pollRes << ";\n"; logger.show();
-    if( -1 == pollRes )  // Signal or Error
-      running = false;
-    
-    if( items[0].revents ) // we recieced a ZMQ message
+  int subscriber_fd;
+  size_t sizeof_fd = sizeof( subscriber_fd );
+  subscriber.getsockopt( ZMQ_FD, ( void* )&subscriber_fd, &sizeof_fd ); // TODO check return value == 0
+  
+  AsyncSocket zmq_handler( io_service, subscriber_fd, [&](){
+    while( true )
     {
-      LogicMessage msg = recieveMessage( subscriber );
+      uint32_t eventState;
+      size_t   eventStateSize = sizeof( eventState );
+      subscriber.getsockopt( ZMQ_EVENTS, ( void* )&eventState, &eventStateSize ); // TODO check return value == 0
+      //DEBUG// cout << "eventState: " << eventState << " (POLLIN: " << ZMQ_POLLIN << ", POLLOUT: " << ZMQ_POLLOUT << ")" << ", eventStateSize: " << eventStateSize << ", sizeof: " << sizeof( eventState ) << "\n";
       
-      // prevent echo loops by ignoring all packets originating form our namespace
-      if( logicNamespace + ":" == msg.getSource().substr( 0, logicNamespace.length()+1 ) )
-        continue;
-      
-      //string fullAddress = msg.getDestination();
-      logger << "Got message from [" << msg.getDestination() << "]\n"; logger.show();
-      auto message = registry.update( msg.getDestination(), msg.getVariable() );
-      if( registry.is_valid( message ) )
+      if( eventState & ZMQ_POLLIN )
       {
-        for( auto script = message->second.subscribers.cbegin(); script != message->second.subscribers.cend(); ++script )
+        
+        LogicMessage msg = recieveMessage( subscriber );
+        
+        // prevent echo loops by ignoring all packets originating form our namespace
+        if( logicNamespace + ":" == msg.getSource().substr( 0, logicNamespace.length()+1 ) )
+          return;
+        
+        //string fullAddress = msg.getDestination();
+        logger << "Got message from [" << msg.getDestination() << "]\n"; logger.show();
+        logger << "src: '" << msg.getSource() << "' => '" << msg.getVariable().getAsString() << "'\n";logger.show();
+        auto message = registry.update( msg.getDestination(), msg.getVariable() );
+        if( registry.is_valid( message ) )
         {
-          logger << "Running script #" << *script << ";\n"; logger.show();
-          string prefix = "Task " + to_string( *script ) + ": ";
-          logger << "script #" << *script << "; state: " << scriptPool[ *script ]->getState() << ";\n"; logger.show();
-          if( !scriptPool[ *script ]->enableVariables() )
+          for( auto script = message->second.subscribers.cbegin(); script != message->second.subscribers.cend(); ++script )
           {
-            logger << "enableVariables() failed -> scheduleRerun()\n"; logger.show();
-            scriptPool[ *script ]->scheduleRerun();
-            //scriptPool[ *script ]->dump( prefix );
-            continue;
+            logger << "Running script #" << *script << ";\n"; logger.show();
+            string prefix = "Task " + to_string( *script ) + ": ";
+            logger << "script #" << *script << "; state: " << scriptPool[ *script ]->getState() << ";\n"; logger.show();
+            if( !scriptPool[ *script ]->enableVariables() )
+            {
+              logger << "enableVariables() failed -> scheduleRerun()\n"; logger.show();
+              scriptPool[ *script ]->scheduleRerun();
+              //scriptPool[ *script ]->dump( prefix );
+              return;
+            }
+            logger << "script #" << *script << "; state: " << scriptPool[ *script ]->getState() << ";\n"; logger.show();
+            scriptPool[ *script ]->scheduleRun( message->second.timestamp );
+            //scriptPool[ *script ]->copyImportedVariables( message->second.timestamp );
+            //scriptPool[ *script ]->dump( prefix ); 
+            
+            // add script to task que
+            { 
+              // acquire lock
+              unique_lock<mutex> lock( queue_mutex );
+              
+              // add the task
+              tasks.push_back( *script );
+            } // release lock
+            
+            // wake up one thread
+            condition.notify_one();
+            
           }
-          logger << "script #" << *script << "; state: " << scriptPool[ *script ]->getState() << ";\n"; logger.show();
-          scriptPool[ *script ]->scheduleRun( message->second.timestamp );
-          //scriptPool[ *script ]->copyImportedVariables( message->second.timestamp );
-          //scriptPool[ *script ]->dump( prefix ); 
-          
-          // add script to task que
-          { 
-            // acquire lock
-            unique_lock<mutex> lock( queue_mutex );
-          
-            // add the task
-            tasks.push_back( *script );
-          } // release lock
-          
-          // wake up one thread
-          condition.notify_one();
-          
+        } else {
+          logger << "not valid\n"; logger.show();
         }
-      } else {
-        logger << "not valid\n"; logger.show();
       }
-    } // end: if( items[0].revents )
+    //}
+    else
+    {
+      break;
+    }
   }
-    
+  logger << "Message from ZMQ handled. Callback ende.\n"; logger.show();  
+  });
+  
+  EditorHandler editor_handler( io_service, 9998 );
+  logger << "!!!!! start main loop\n"; logger.show();
+
+  try {
+    io_service.run();
+  }
+  catch( std::exception& e )
+  {
+    std::cerr << "Exception in io_service: '" << e.what() << "'" << std::endl;
+  }
+
   ///////////////////////////////////////////////////////////////////////////
   //
   //  clean up

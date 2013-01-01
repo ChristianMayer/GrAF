@@ -24,6 +24,7 @@
 #include <map>
 #include <string>
 #include <iostream>
+#include <boost/concept_check.hpp>
 
 #include "variabletype.hpp"
 
@@ -37,11 +38,18 @@ struct GraphBlock
   /**
    * Fill the GraphBlock from a JSON structure in the std::istream at @p in.
    */
-  void readJsonBlock( std::istream& in );
+  void readJsonBlock( std::istream& in, const std::string& blockName );
   /**
    * Read a GraphBlock from @p in and insert it in the @p graph.
    */
   static void grepBlock( std::istream& in, Graph& graph );
+  
+  const GraphBlock& show( bool asLogic, bool cont )
+  {
+    showAsLogic = asLogic;
+    showContinue = cont;
+    return *this;
+  }
   
   /**
    * Information about a Port of the block.
@@ -86,6 +94,9 @@ struct GraphBlock
   std::map<std::string, variable_t> parameters; ///< parameters of the block
   std::string init;                 ///< Init task instructions of the block
   std::string implementation;       ///< Main taks instructions of the block
+  
+  bool showAsLogic;
+  bool showContinue;
 };
 
 std::ostream& operator<<( std::ostream &stream, const GraphBlock& block );

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>Graphical Logic Editor</title>
+    <link rel="stylesheet" href="logicEditor.css" type="text/css" />
+    <link rel="stylesheet" href="lib/jquery-ui.css" type="text/css" />
+    <script type="text/javascript" src="lib/jquery-1.4.4.js"></script>
+    <script type="text/javascript" src="lib/jquery-ui-1.8.7.custom.min.js"></script>
+    <script type="text/javascript" src="lib/jquery.svg.js"></script>
+    <script type="text/javascript" src="lib/jquery.layout.js"></script>
+    <script type="text/javascript" src="lib/jquery.jstree.js"></script>
+    <script type="text/javascript" src="lib/jquery.hotkeys.js"></script>
+    <script type="text/javascript" src="lib/cometvisu-client.js"></script>
+    <script type="text/javascript" src="backendCommunication.js"></script>
+    <script type="text/javascript" src="gle/gle.block.js"></script>
+    <script type="text/javascript" src="gle/gle.connection.js"></script>
+    <script type="text/javascript" src="logicEditor.js"></script>
+    <script type="text/javascript">
+    </script>
+  </head>
+  <body>
+    <div id="header" class="ui-layout-north">
+      <img class="toolbarButton" src="icon/32/zoom-out.png"      onClick="zoomEditor(-1)"/>
+      <img class="toolbarButton" src="icon/32/zoom-original.png" onClick="zoomEditor(10)" />
+      <img class="toolbarButton" src="icon/32/zoom-in.png"       onClick="zoomEditor(+1)" />
+    </div>
+    <div id="structureContainer" class="ui-layout-west">
+      <h2>Structure area</h2>
+      <div id="structureTree"></div>
+    </div>
+    <div id="editor" class="ui-layout-center ui-layout-content"></div>
+    <div id="libraryContainer" class="ui-layout-east">
+      <h2>Element Library</h2>
+      <div id="library"></div>
+    </div>
+    <div id="status" class="ui-layout-south">
+      <div id="zoom">Zoom: <span id="zoomLevel">100%</span></div>
+    </div>
+  </body>
+</html>

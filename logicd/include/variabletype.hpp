@@ -164,8 +164,10 @@ public:
   
   /**
    * Return the value printed to a string.
+   * @param JSON When true, format the output as a JSON object, i.e. a pure
+   *             number or an escaped string
    */
-  std::string getAsString( void ) const 
+  std::string getAsString( bool JSON = false ) const 
   {
     switch( type )
     {
@@ -180,7 +182,10 @@ public:
         return std::to_string( floatValue );
         
       case variableType::STRING:
-        return *stringValue;
+        if( JSON )
+          return "\"" + *stringValue + "\"";
+        else
+          return *stringValue;
     }
   }
 };
