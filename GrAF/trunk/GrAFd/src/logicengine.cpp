@@ -48,11 +48,12 @@ LogicEngine::LogicEngine( size_t maxSize, int logicId ) :
   // make sure "ground" is zero:
   *reinterpret_cast<long long* const>( globVar + ground() ) = 0;
   
-  logger << "created Logicengine #" << thisLogicId << ";\n"; logger.show();
+  logger << "created Logicengine #" << thisLogicId << " @ " << this << " for " << maxSize << " entries;\n"; logger.show();
 }
 
 LogicEngine::~LogicEngine()
 {
+  logger << "destructing LogicEngine @ " << this << ", deleting " << elementCount << " elements;\n"; logger.show();
   for( size_t i = 0; i < elementCount; ++i )
   {
     delete elementList[i];
@@ -250,4 +251,32 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
     }
     //logger << "added le '" << le << "'"<<std::endl; logger.show(); line = "foo";
   }
+}
+
+size_t LogicEngine::instructionsCount( const std::string& src )
+{
+  size_t retval = 0;
+  std::stringstream in( src );
+  std::string line;
+  
+  while( in.good() )
+  {
+    in >> std::ws; // remove all whitespace
+    
+    if( in.eof() ) // probably reached EOF after consuming the whitespaces
+      break;
+    
+    getline( in, line );
+    
+    if( '/' == line[0] && '/' == line[1] ) // skip comment
+      continue;
+    
+    if( "var " == line.substr( 0, 4 ) )
+      continue;
+    
+    // once we get here, we are really seeing an instruction
+    retval++;
+  }
+  
+  return retval;
 }

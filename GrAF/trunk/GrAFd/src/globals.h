@@ -24,17 +24,20 @@
 #include <config.h>
 
 #include <map>
-#include "message.hpp"
+//#include "message.hpp"
+#include "zmq.hpp"
+//#include "graph.hpp"
 
 // macros
 
 // Global definitions
 typedef unsigned char raw_t;
 typedef ptrdiff_t     raw_offset_t;
+typedef std::map<std::string, class Graph> graphs_t;
 
 // Global objects
 extern class MessageRegister registry;
 extern zmq::socket_t* sender;
-extern std::map<std::string, class Graph> graphs;
+extern graphs_t graphs;
 
 #endif // CONFIGHANDLER
