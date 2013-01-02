@@ -296,7 +296,7 @@ public:
   /**
    * Send message over the socket.
    */
-  void send( zmq::socket_t& socket, const size_t& index = invalidIndex, bool last = true ) const
+  void send( zmq::socket_t& socket, uint32_t index = invalidIndex, bool last = true ) const
   {
     reinterpret_cast<messageType*>( data )->index = index;
     
@@ -465,15 +465,8 @@ private:
     variableType::type type;
     uint32_t index;
   };
-  const static size_t metaSize = 8; // 64bit align to content
-  #ifdef __GNUC__
-  #  if __GNUC_PREREQ(4,7)
-  const static uint32_t invalidIndex = std::numeric_limits<uint32_t>::max();
-  #  else
-  // fallback for old compilers e.g. ubuntu 12.04 LTS - TODO remove in future versions
-  const static uint32_t invalidIndex = 4294967295;
-  #  endif  
-  #endif  
+  constexpr static size_t metaSize{ 8 }; // 64bit align to content
+  constexpr static uint32_t invalidIndex{ std::numeric_limits<uint32_t>::max() };
   
   size_t contentSize; // the size of meta and the value
   size_t size;        // the size of the full message, i.e. of data[]
