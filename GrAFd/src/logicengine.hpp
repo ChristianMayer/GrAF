@@ -401,6 +401,11 @@ public:
    * The format used is the "native object GrAF" notation (abbreviation: noGrAF)
    */
   void import_noGrAF( std::istream& in, bool symbolicVariables = false, std::string prefix = "", const translation_t& translation = *(translation_t*)(nullptr) );
+  
+  /**
+   * Count the amount of instructions in the passed string.
+   */
+  static size_t instructionsCount( const std::string& src );
 };
 
 #endif // LOGICENGINE_HPP

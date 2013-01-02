@@ -27,13 +27,10 @@
 #include "boost/graph/adjacency_list.hpp"
 #include "boost/graph/topological_sort.hpp"
 
-#include "globals.h"
-
 #include "logger.hpp"
 #include "graphblock.hpp"
 #include "graphsignal.hpp"
 #include "graphlib.hpp"
-//#include "variabletype.hpp"
 #include "logicengine.hpp"
 
 /**
@@ -46,10 +43,23 @@ public:
   /**
    * Constructor - logicEngine from the stream.
    * 
-   * @param logicEngine A reference to the logicEngine of this Graph
    * @param stream      An istream from which the Graph is extracted
    */
-  Graph( LogicEngine& logicEngine, std::istream& stream );
+  Graph( std::istream& stream );
+  
+  /**
+   * Destructor.
+   */
+  ~Graph();
+  
+  Graph(const Graph& that) = delete; // no copy
+  Graph( Graph&& other ) noexcept :  // but move
+    g( std::move( other.g ) ),
+    blockLookup( std::move( blockLookup ) ),
+    le( nullptr )
+  {
+    std::swap( le, other.le );
+  }
   
   /**
    * Show the content of the graph.
@@ -107,7 +117,8 @@ private:
     return libLookup( g[ blockLookup.at( source ) ] );
   }
   
-  LogicEngine& le;
+public: // TODO only a temporary solution...
+  class LogicEngine* le;
 };
 
 std::ostream& operator<<( std::ostream &stream, Graph& graph );

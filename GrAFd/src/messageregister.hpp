@@ -24,7 +24,11 @@
 #include <vector>
 #include <chrono>
 
+#include "globals.h"
+
 #include "variabletype.hpp"
+
+#include "graph.hpp"
 
 /*
 static const char *message_status_string[3] = 
@@ -52,7 +56,7 @@ public:
   static timestamp_t now( void ) { return timestamp_t::clock().now(); }
   
 private:
-  typedef std::vector<int> subscribers_t;
+  typedef std::vector<graphs_t::iterator> subscribers_t;
   struct register_t
   {
     variable_t    value;
@@ -95,7 +99,7 @@ public:
   /**
    * Stores a logic ID that will be called once the address arrives
    */
-  void subscribe( const std::string& dst, const variableType::type type, const int logic_ID )
+  void subscribe( const std::string& dst, const variableType::type type, const subscribers_t::value_type logic_ID )
   {
     look_for( dst, type )->second.subscribers.push_back( logic_ID );
   }

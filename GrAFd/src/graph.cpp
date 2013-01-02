@@ -28,14 +28,29 @@ using namespace std;
 
 GraphLib Graph::lib; // give the static variable a home
 
-Graph::Graph( LogicEngine& logicEngine, istream& stream ) : le( logicEngine )
+Graph::Graph( istream& stream )
 {
   parseString( stream );
   
   std::vector<vertex_t> topo_order;
   boost::topological_sort(g, std::back_inserter(topo_order));
   
-  le.registerVariable<float>( "__dt" );
+  // count the needed instructions for this logic
+  size_t instructions = 0;
+  for( auto i = topo_order.crbegin(); i != topo_order.crend(); ++i )
+  {
+    auto &block = g[*i];
+    auto &libBlock = libLookup( block );
+    
+    if( block.isStateCopy )
+      continue;
+    
+    instructions += le->instructionsCount( libBlock.init );
+    instructions += le->instructionsCount( libBlock.implementation );
+  }
+  
+  le = new LogicEngine( instructions, -1 );
+  le->registerVariable<float>( "__dt" );
   
   // Register the variables
   for( auto i = topo_order.crbegin(); i != topo_order.crend(); ++i )
@@ -48,7 +63,7 @@ Graph::Graph( LogicEngine& logicEngine, istream& stream ) : le( logicEngine )
     {    
       for( auto it = block.parameters.cbegin(); it != block.parameters.cend(); it++ )
       {
-        le.registerVariable( block.name + "/" + it->first, it->second.getType() );
+        le->registerVariable( block.name + "/" + it->first, it->second.getType() );
       }
     }
     
@@ -56,7 +71,7 @@ Graph::Graph( LogicEngine& logicEngine, istream& stream ) : le( logicEngine )
     for( auto it = libBlock.outPorts.cbegin(); it != libBlock.outPorts.cend(); it++ )
     {
       if( !(block.isStateCopy && GraphBlock::Port::STATE != it->type) )
-        le.registerVariable<int>( block.name + "/" + it->name );
+        le->registerVariable<int>( block.name + "/" + it->name );
     }
   }
   
@@ -64,11 +79,11 @@ Graph::Graph( LogicEngine& logicEngine, istream& stream ) : le( logicEngine )
   auto setupLogicEngine = [this]( std::vector<vertex_t>::const_reverse_iterator i, bool doInit )
   {
     auto &block = g[*i];
-    auto &libBlock = libLookup( g[*i] );
-    string implementation = g[*i].implementation;
+    auto &libBlock = libLookup( block );
+    string implementation = block.implementation;
     if( "" == implementation )
       implementation = libBlock.implementation;
-    string init = g[*i].init;
+    string init = block.init;
     if( "" == init )
       init = libBlock.init;
     
@@ -83,10 +98,10 @@ Graph::Graph( LogicEngine& logicEngine, istream& stream ) : le( logicEngine )
       inPortTranslation[ block.name + "/" + libBlock.inPorts[ g[*begin].toPort ].name ] = source.name + "/" + libSource.outPorts[ g[*begin].fromPort ].name;
     }
     stringstream impl( doInit ? init : implementation );
-    le.import_noGrAF( impl, true, block.name + "/", inPortTranslation );
+    le->import_noGrAF( impl, true, block.name + "/", inPortTranslation );
   };
   
-  // Setup the normal logic afterwards
+  // Setup the normal logic initialization
   for( auto i = topo_order.crbegin(); i != topo_order.crend(); ++i )
   {
     if( g[*i].isStateCopy )
@@ -94,7 +109,7 @@ Graph::Graph( LogicEngine& logicEngine, istream& stream ) : le( logicEngine )
     
     setupLogicEngine( i, true );
   }
-  le.markStartOfLogic();
+  le->markStartOfLogic();
   
   // Setup the state copies first
   for( auto i = topo_order.crbegin(); i != topo_order.crend(); ++i )
@@ -116,11 +131,17 @@ Graph::Graph( LogicEngine& logicEngine, istream& stream ) : le( logicEngine )
   
 }
 
+Graph::~Graph()
+{ 
+  if( nullptr != le )
+    delete le;
+}
+
 void Graph::dump( void ) const
 {
-  le.dump();
+  le->dump();
   logger << "\nInstruction dump:\n";
-  logger << le.export_noGrAF();
+  logger << le->export_noGrAF();
   logger.show();
 }
 
