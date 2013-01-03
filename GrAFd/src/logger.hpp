@@ -71,7 +71,7 @@ private:
   } nullstream;
   
 public:
-  Logger() : globalLogLevel( ERROR ), showTimestamp( true ), currentReadableID( 0 ) 
+  Logger() : streams(), globalLogLevel( ERROR ), showTimestamp( true ), currentReadableID( 0 ), cout_mutex(), map_mutex(), nullstream() 
   {}
   
   ~Logger()

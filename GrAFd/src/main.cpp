@@ -183,14 +183,14 @@ int main( int argc, const char *argv[] )
  //###################################
   int subscriber_fd;
   size_t sizeof_fd = sizeof( subscriber_fd );
-  subscriber.getsockopt( ZMQ_FD, ( void* )&subscriber_fd, &sizeof_fd ); // TODO check return value == 0
+  subscriber.getsockopt( ZMQ_FD, static_cast<void *>(&subscriber_fd), &sizeof_fd ); // TODO check return value == 0
   
   AsyncSocket zmq_handler( io_service, subscriber_fd, [&](){
     while( true )
     {
       uint32_t eventState;
       size_t   eventStateSize = sizeof( eventState );
-      subscriber.getsockopt( ZMQ_EVENTS, ( void* )&eventState, &eventStateSize ); // TODO check return value == 0
+      subscriber.getsockopt( ZMQ_EVENTS, static_cast<void *>(&eventState), &eventStateSize ); // TODO check return value == 0
       
       if( eventState & ZMQ_POLLIN )
       {

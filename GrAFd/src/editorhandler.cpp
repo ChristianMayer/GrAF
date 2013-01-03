@@ -71,7 +71,7 @@ void SCGI_session::handle_read_start( const boost::system::error_code& error,
 }
 
 void SCGI_session::handle_read( const boost::system::error_code& error,
-                  size_t bytes_transferred )
+                  size_t /*bytes_transferred*/ )
 {
   
   if( !error )

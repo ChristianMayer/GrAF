@@ -43,7 +43,8 @@ configure_file( config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY )
 include_directories(${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../logicd/include)
 
 #set(CMAKE_CXX_FLAGS "-std=c++0x -O2 -Wall -Wextra -pedantic")
-set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra  -pedantic")
+set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra  -pedantic -fno-rtti -fstrict-enums -Wnoexcept -Wold-style-cast")
+### leave out "-Weffc++" untill I find my copy of the book again...
 ### -Wshadow causes problems with Boost::Graph...
 
 #

@@ -78,7 +78,7 @@ void LogicEngine::dump( const std::string& prefix ) const
   logger << prefix;
   for( size_t i = 0; i < variableCount; i++ )
   {
-    logger << std::setw(2) << std::setfill('0') << std::hex << (int)globVar[i] << std::dec;
+    logger << std::setw(2) << std::setfill('0') << std::hex << static_cast<int>(globVar[i]) << std::dec;
     if( i%4==3 ) logger << " ";
   }
   logger << "\n";

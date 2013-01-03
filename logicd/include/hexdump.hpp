@@ -35,7 +35,7 @@ inline std::string hexdump( const void* const data, const size_t& length, bool m
   for( ; i < length; ++i )
   {
     sstr << std::setw(2) << std::setfill('0');
-    sstr << (int)(reinterpret_cast<const unsigned char*>(data)[i]) << " ";
+    sstr << static_cast<int>(reinterpret_cast<const unsigned char*>(data)[i]) << " ";
     
     if( i % 8 == 7 )      // every 8 numbers an extra space
       sstr << " ";
