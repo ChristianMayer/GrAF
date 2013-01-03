@@ -25,7 +25,8 @@ ENDIF()
 
 message( "Building type: ${CMAKE_BUILD_TYPE}" )
 
-set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra -Wshadow -pedantic")
+set(CMAKE_CXX_FLAGS "-std=c++0x -Wall -Wextra -Wshadow -pedantic -fno-rtti -fstrict-enums -Wnoexcept -Wold-style-cast")
+### leave out "-Weffc++" untill I find my copy of the book again...
 
 file(GLOB_RECURSE logicd_sources src/*.cpp)
 #add_executable( logicd ${logicd_sources} )

@@ -20,12 +20,16 @@
 #include <iostream>
 #include <sstream>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "zmq.hpp"
+#pragma GCC diagnostic pop
 
 #include "message.hpp"
 #include "hexdump.hpp"
 
-int main( int argc, char *argv[] )
+int main( int /*argc*/, char */*argv*/[] )
 {
   zmq::context_t context( 1 );
   

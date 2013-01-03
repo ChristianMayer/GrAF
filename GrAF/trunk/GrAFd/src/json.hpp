@@ -117,7 +117,7 @@ namespace JSON
     /**
      * Throw a JSON::parseError without a corresponding istream.
      */
-    parseError( const std::string& t ) : text( t ), stream( *(std::istream*)(nullptr) ), hasStream( false ) {}
+    parseError( const std::string& t ) : text( t ), stream( *static_cast<std::istream*>(nullptr) ), hasStream( false ) {}
     /**
      * Throw a JSON::parseError with error message and the stream s at the
      * position of the parse error.

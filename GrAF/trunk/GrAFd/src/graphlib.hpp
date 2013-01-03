@@ -33,7 +33,7 @@ public:
   /**
    * Constructor.
    */
-  GraphLib() {}
+  GraphLib() : lib() {}
   
   /**
    * Add a path and scan it for .graflib files.

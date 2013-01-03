@@ -26,7 +26,11 @@
 #include <boost/asio.hpp>
 #include <boost/algorithm/string.hpp>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "zmq.hpp"
+#pragma GCC diagnostic pop
 
 #include "netstring.hpp"
 #include "message.hpp"
@@ -127,7 +131,7 @@ public:
         for( size_t i = 0; i < msg.nativeSize(); ++i )
         {
           sstr << std::setw( 2 ) << std::setfill( '0' );
-          sstr << (int)native[i];
+          sstr << static_cast<int>(native[i]);
         }
 
         return send_result(
@@ -205,7 +209,7 @@ private:
    * Handle read request, i.e. new data has arrived and has to be processed
    */
   void handle_read( const boost::system::error_code& error,
-                    size_t bytes_transferred )
+                    size_t /*bytes_transferred*/ )
   {
     if( !error )
     {
@@ -371,7 +375,7 @@ private:
                   for( size_t i = 0; i < (*it)->nativeSize(); ++i )
                   {
                     sstr << std::setw(2) << std::setfill('0');
-                    sstr << (int)native[i];
+                    sstr << static_cast<int>(native[i]);
                   }
                   SCGI_result += "\"" + dest + "\":\"" + sstr.str() + "\"";
 
@@ -429,7 +433,7 @@ private:
   /**
    * Handler that's called after the SCGI request was answered
    */
-  void close_session( const boost::system::error_code& error )
+  void close_session( const boost::system::error_code& /*error*/ )
   {
     //DEBUG// cout << localCnt << ": write_result -> delete this\n";
     //DEBUG// cout << localCnt << ": close_session;\n";
@@ -524,7 +528,7 @@ public:
 
     int subscriber_fd;
     size_t sizeof_fd = sizeof( subscriber_fd );
-    subscriber.getsockopt( ZMQ_FD, ( void* )&subscriber_fd, &sizeof_fd ); // TODO check return value == 0
+    subscriber.getsockopt( ZMQ_FD, static_cast<void*>(&subscriber_fd), &sizeof_fd ); // TODO check return value == 0
 
     subscriber_socket.assign( subscriber_fd );
     //DEBUG// cout << "Subscriber FD: " << subscriber_fd << ", native: " << subscriber_socket.native() << "\n";
@@ -545,7 +549,7 @@ private:
       {
         uint32_t eventState;
         size_t   eventStateSize = sizeof( eventState );
-        subscriber.getsockopt( ZMQ_EVENTS, ( void* )&eventState, &eventStateSize ); // TODO check return value == 0
+        subscriber.getsockopt( ZMQ_EVENTS, static_cast<void*>(&eventState), &eventStateSize ); // TODO check return value == 0
         //DEBUG// cout << "eventState: " << eventState << " (POLLIN: " << ZMQ_POLLIN << ", POLLOUT: " << ZMQ_POLLOUT << ")" << ", eventStateSize: " << eventStateSize << ", sizeof: " << sizeof( eventState ) << "\n";
 
         if( eventState & ZMQ_POLLIN )
@@ -556,7 +560,6 @@ private:
           //DEBUG// cout << "got message type: " << msg.getType() << "\n";
 
           // Passing message to all waiting SCGI connections
-          int FIXME_tmp = 0;
           for( sessionsList_t::iterator it = sessionsList.begin(); it != sessionsList.end(); it++ )
           {
             //DEBUG// cout << "sessionsList_t::iterator FIXME_tmp: " << ( FIXME_tmp++ ) << ";\n";

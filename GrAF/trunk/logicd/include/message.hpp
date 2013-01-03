@@ -25,7 +25,11 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/concept_check.hpp>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "zmq.hpp"
+#pragma GCC diagnostic pop
 
 #include "variabletype.hpp"
 
@@ -301,17 +305,17 @@ public:
     reinterpret_cast<messageType*>( data )->index = index;
     
     zmq::message_t dst( destination.length()+1 );
-    memcpy((void *) dst.data(), destination.c_str(), destination.length()+1 );
+    memcpy(static_cast<void *>(dst.data()), destination.c_str(), destination.length()+1 );
     
     socket.send( dst, ZMQ_SNDMORE );
     
     zmq::message_t src( source.length()+1 );
-    memcpy((void *) src.data(), source.c_str(), source.length()+1 );
+    memcpy(static_cast<void *>(src.data()), source.c_str(), source.length()+1 );
     
     socket.send( src, ZMQ_SNDMORE );
     
     zmq::message_t request( size );
-    memcpy((void *) request.data(), data, size );
+    memcpy(static_cast<void *>(request.data()), data, size );
     
     socket.send( request, last ? 0 : ZMQ_SNDMORE );
   }
@@ -485,14 +489,14 @@ inline LogicMessage recieveMessage( zmq::socket_t& socket, bool multi = false )
   
   zmq::message_t destination;
   socket.recv( &destination ); // Wait for next request from client
-  std::string dst = (const char*)destination.data();
+  std::string dst = static_cast<const char*>(destination.data());
 
   zmq_getsockopt( socket, ZMQ_RCVMORE, &more, &more_size );
   assert( 1 == more );
 
   zmq::message_t source;
   socket.recv( &source );
-  std::string src = (const char*)source.data();
+  std::string src = static_cast<const char*>(source.data());
   
   zmq_getsockopt( socket, ZMQ_RCVMORE, &more, &more_size );
   assert( 1 == more );

@@ -20,7 +20,11 @@
 #include <iostream>
 #include <sstream>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "zmq.hpp"
+#pragma GCC diagnostic pop
 
 #include "message.hpp"
 

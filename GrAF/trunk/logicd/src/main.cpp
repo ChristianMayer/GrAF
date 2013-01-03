@@ -23,7 +23,11 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/algorithm/string.hpp>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Weffc++"
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "zmq.hpp"
+#pragma GCC diagnostic pop
 
 #include "message.hpp"
 #include "hexdump.hpp"
@@ -111,7 +115,7 @@ static void signal_handler( int /*signal_value*/ )
   running = false;
 }
 
-int main ( int argc, const char *argv[] )
+int main( int /*argc*/, const char */*argv*/[] )
 {
   // catch signals
   struct sigaction action;
