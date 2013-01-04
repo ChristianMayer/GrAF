@@ -38,6 +38,11 @@ public:
   {}
   
   /**
+   * Signature.
+   */
+  const static signature_t signature;
+  
+  /**
    * Factory
    */
   static LogicElement_Generic* create( const params_t& p ) 

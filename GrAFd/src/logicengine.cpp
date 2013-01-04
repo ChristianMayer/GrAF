@@ -37,12 +37,13 @@ constexpr const char *const LogicEngine::logicStateName[]; // give it a home
 LogicEngine::LogicEngine( size_t maxSize, int logicId ) :
   thisLogicId( logicId ),
   logicState( STOPPED ),
-  rerun( false )
+  rerun( false ),
+  variableRegistry( {std::pair<std::string, variableRegistryStorage>( "ground", { 0, variableType::getType<float>(), &LogicEngine::readString<float> } )} )
 {
   elementList = new LogicElement_Generic*[ maxSize ];
   elementCount = 0;
   mainTask = elementList;
-  globVar = new raw_t[10000];
+  globVar = new raw_t[10000]; // FIXME make dynamic!!!
   variableCount = variableStart();
   
   // make sure "ground" is zero:
@@ -140,10 +141,27 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
 {
   std::string line;
 
+  typedef std::map< std::string, std::pair<const LogicElement_Generic::signature_t&, LogicElement_Generic::FactoryType> > le_map;
+  static const le_map lookup {
+    { "const<float>"   , le_map::value_type::second_type( LogicElement_Const<float>   ::signature, LogicElement_Const<float>   ::create ) },
+    { "move<float>"    , le_map::value_type::second_type( LogicElement_Move<float>    ::signature, LogicElement_Move<float>    ::create ) },
+    { "mul<float>"     , le_map::value_type::second_type( LogicElement_Mul<float>     ::signature, LogicElement_Mul<float>     ::create ) },
+    { "muladd<float>"  , le_map::value_type::second_type( LogicElement_MulAdd<float>  ::signature, LogicElement_MulAdd<float>  ::create ) },
+    { "rel<bool,float>", le_map::value_type::second_type( LogicElement_Rel<bool,float>::signature, LogicElement_Rel<bool,float>::create ) },
+    { "jumptrue<bool>" , le_map::value_type::second_type( LogicElement_JumpTrue<bool> ::signature, LogicElement_JumpTrue<bool> ::create ) },
+    { "send<float>"    , le_map::value_type::second_type( LogicElement_Send<float>    ::signature, LogicElement_Send<float>    ::create ) },
+    { "sum<float>"     , le_map::value_type::second_type( LogicElement_Sum<float>     ::signature, LogicElement_Sum<float>     ::create ) }
+  };
+  //le_map::value_type;le_map::value_type::second_type;
+  /*
   typedef std::map< std::string, LogicElement_Generic::FactoryType > le_map;
-  le_map lookup;
-  lookup["const<float>"] = LogicElement_Const<float>::create;
-  lookup["const<int>"] = LogicElement_Const<int>::create;
+  le_map lookup {
+    { "const<float>", LogicElement_Const<float>::create }
+  };*/
+  
+  //lookup["const<float>"] = std::make_pair( LogicElement_Const<float>::signature, LogicElement_Const<float>::create );
+  
+  /*lookup["const<int>"] = LogicElement_Const<int>::create;
   lookup["jump"] = LogicElement_Jump::create;
   lookup["jumptrue<int>"] = LogicElement_JumpTrue<int>::create;
   lookup["move<float>"] = LogicElement_Move<float>::create;
@@ -153,7 +171,7 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
   lookup["mulsub<float>"] = LogicElement_MulSub<float>::create;
   lookup["rel<int,float>"] = LogicElement_Rel<int,float>::create;
   lookup["sum<float>"] = LogicElement_Sum<float>::create;
-  lookup["sum<int>"] = LogicElement_Sum<int>::create;
+  lookup["sum<int>"] = LogicElement_Sum<int>::create;*/
   
   while( in.good() )
   {
@@ -172,16 +190,19 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
       // variable definition found
       auto found = line.find( " ", 4 );
       if( found == std::string::npos )
-        throw( JSON::parseError( "Implementation error at variable definition: '" + line + "'" ) );
+        throw( JSON::parseError( "Implementation error at variable definition: '" + line + "'", __LINE__ ,__FILE__ ) );
       
       std::string type = line.substr( 4, found - 4 );
       std::string name = prefix + line.substr( found + 1 );
-      if( "int" == type )
+      logger << "register '" << name << "' with type '" << type << "'\n"; logger.show();
+      if( "bool" == type )
+        registerVariable<bool>( name );
+      else if( "int" == type )
         registerVariable<int>( name );
       else if( "float" == type )
         registerVariable<float>( name );
       else
-        throw( JSON::parseError( "Implementation error at variable definition, unknown type '" + type + "' in '" + line + "'" ) );
+        throw( JSON::parseError( "Implementation error at variable definition, unknown type '" + type + "' in '" + line + "'", __LINE__ ,__FILE__ ) );
       
       continue;
     }
@@ -199,14 +220,37 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
     if( line.length() == 0 )
       continue;  // nothing to do in a empty line
       
-    //logger << "add command: '" << line << "'" << std::endl;
-    
+    logger << "add command: '" << line << "'" << std::endl;
+
+    size_t paramStart = line.find( "(" );
+    auto instruction = lookup.find( line.substr( 0, paramStart ) );
+    if( lookup.end() == instruction )
+    {
+      throw( JSON::parseError( "Command '" + line.substr( 0, paramStart ) + "' not found!", __LINE__ ,__FILE__ ) );
+    }
+      
     // find parameters
     size_t found;
+    paramStart++; // move post '('
     std::vector<std::string> params;
-    size_t paramStart = line.find( "(" ) + 1;
     auto getParam = [&]( size_t start, size_t end ) -> std::string {
-      std::string var = prefix + line.substr( start, end - start );
+      std::string pureVar = line.substr( start, end - start );
+      switch( instruction->second.first.at(params.size()) )
+      {
+        case LogicElement_Generic::VARIABLE_T:
+          if( '"' == pureVar[0] )
+            return pureVar.substr( 1, pureVar.length()-2 );
+          return pureVar;
+          
+        default:
+          ;// just continue outside...
+      } 
+      
+      // case LogicElement_Generic::OFFSET:
+      if( std::all_of(pureVar.begin(), pureVar.end(), ::isdigit) )
+        return pureVar;
+
+      std::string var = prefix + pureVar;
       if( symbolicVariables )
       {
         auto translationEntry = translation.find( var );
@@ -215,9 +259,9 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
         auto variable = variableRegistry.find( var );
         
         if( variableRegistry.end() == variable ) // if not found: retry global
-          variable = variableRegistry.find( line.substr( start, end - start ) );
+          variable = variableRegistry.find( pureVar );
         
-        if( variableRegistry.end() == variable ) throw( JSON::parseError( "Variable '" + var + "' not found!" ) );
+        if( variableRegistry.end() == variable ) throw( JSON::parseError( "Variable '" + var + "' not found! Connection missing?", __LINE__ ,__FILE__ ) );
         return std::to_string( variable->second.offset );
       }
       else
@@ -239,17 +283,7 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
       logger << "Syntax error! '" << line << "'" << std::endl;
     }
     
-    std::string le = line.substr( 0, line.find( "(" ) );
-    
-    LogicElement_Generic::FactoryType ft = lookup[ le ];
-    if( ft != nullptr )
-      addElement( ft( params ) );
-    else {
-      // FIXME thow error!
-      // throw "Syntax error!";
-      logger << "Command '" << le << "' not found! Line: '" << line << "'" << std::endl;
-    }
-    //logger << "added le '" << le << "'"<<std::endl; logger.show(); line = "foo";
+    addElement( instruction->second.second( params ) ); // add by calling the Factory function
   }
 }
 

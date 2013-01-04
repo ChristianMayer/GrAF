@@ -162,7 +162,7 @@ void Graph::parseString( istream& in )
         GraphSignal::grepSignal( in1, *this );
       }
       else
-        throw( JSON::parseError( "Bad file structure, only 'blocks' and 'signals' allowed!", in1 ) );
+        throw( JSON::parseError( "Bad file structure, only 'blocks' and 'signals' allowed!", in1, __LINE__ ,__FILE__ ) );
     } );
   }
   catch( JSON::parseError e )

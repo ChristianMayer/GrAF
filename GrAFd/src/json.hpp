@@ -97,6 +97,11 @@ namespace JSON
   std::string escape( const std::string& str, bool keepNewline = false );
   
   /**
+   * Unescape the string.
+   */
+  std::string unescape( const std::string& str );
+  
+  /**
    * The object that will be thrown when a parsing error will happen.
    */
   struct parseError
@@ -113,16 +118,36 @@ namespace JSON
      * Boolean to indicate if this parseError has a stream information included.
      */
     bool hasStream;
+    /**
+     * The line number where the exception was thrown (-1 indicates no line known).
+     */
+    int sourceLineNo;
+    /**
+     * The source filename where the exception was thown.
+     */
+    std::string sourceFile;
     
     /**
      * Throw a JSON::parseError without a corresponding istream.
      */
-    parseError( const std::string& t ) : text( t ), stream( *static_cast<std::istream*>(nullptr) ), hasStream( false ) {}
+    parseError( const std::string& t, int line, const std::string& file = "" ) 
+    : text( t ), 
+      stream( *static_cast<std::istream*>(nullptr) ), 
+      hasStream( false ),
+      sourceLineNo( line ),
+      sourceFile( file )
+    {}
     /**
      * Throw a JSON::parseError with error message and the stream s at the
      * position of the parse error.
      */
-    parseError( const std::string& t, std::istream& s ) : text( t ), stream( s ), hasStream( true ) {}
+    parseError( const std::string& t, std::istream& s, int line, const std::string& file = "" ) 
+    : text( t ), 
+      stream( s ), 
+      hasStream( true ),
+      sourceLineNo( line ),
+      sourceFile( file )
+    {}
     
     /**
      * Return the offending line and change @param errorLineNo and 

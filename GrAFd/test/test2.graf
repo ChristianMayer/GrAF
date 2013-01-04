@@ -36,6 +36,16 @@
       "type": "MainLib/scope",
       "x": 350, "y": 150, "width": 600, "height": 300,
       "parameters": {}
+    },
+    "zeroDetect": {
+      "type": "MainLib/zeroDetect",
+      "x": 350, "y": 550, "width": 150, "height": 50,
+      "parameters": {}
+    },
+    "sendMessage": {
+      "type": "MainLib/sendMessage",
+      "x": 750, "y": 550, "width": 150, "height": 50,
+      "parameters": {}
     }
   },
   "signals": [
@@ -46,6 +56,8 @@
     [ "Integral2", 0, "Gain2"     , 0, {} ],
     [ "Gain2"    , 0, "Gain1"     , 0, {} ],
     [ "Integral2", 0, "Display22" , 0, {} ],
-    [ "Integral2", 0, "Scope_2"   , 0, {} ]
+    [ "Integral2", 0, "Scope_2"   , 0, {} ],
+    [ "Integral2", 0, "zeroDetect", 0, {} ],
+    [ "zeroDetect", 0, "sendMessage", 0, {} ]
   ]
 }

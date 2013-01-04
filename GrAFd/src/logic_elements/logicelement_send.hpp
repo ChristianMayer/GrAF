@@ -42,6 +42,11 @@ public:
   {}
   
   /**
+   * Signature.
+   */
+  const static signature_t signature;
+  
+  /**
    * Factory
    */
   static LogicElement_Generic* create( const params_t& p ) 
@@ -78,5 +83,8 @@ public:
     stream_out << ">( " << in1 << ", " << target << " )" << std::endl; 
   }
 };
+
+template <typename T>
+const typename LogicElement_Send<T>::signature_t LogicElement_Send<T>::signature { OFFSET, VARIABLE_T };
 
 #endif // LOGICELEMENT_SEND_HPP

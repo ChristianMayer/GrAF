@@ -41,10 +41,19 @@ public:
    */
   typedef const iterator const_iterator;
   
+  enum parameter_t {
+    OFFSET,
+    VARIABLE_T
+  };
+  /**
+   * 
+   */
+  typedef std::vector<parameter_t> signature_t;
+  
   /**
    * Type of parameters for creating a LogicElement though the factory.
    */
-  typedef std::vector< std::string > params_t;
+  typedef std::vector<std::string> params_t;
   /**
    * Type of the factory function to create a LogicElement
    */

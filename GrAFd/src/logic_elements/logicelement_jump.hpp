@@ -38,6 +38,11 @@ public:
   {}
   
   /**
+   * Signature.
+   */
+  const static signature_t signature;
+  
+  /**
    * Factory
    */
   static LogicElement_Generic* create( const params_t& p ) 
@@ -63,6 +68,8 @@ public:
   }
 };
 
+//const typename LogicElement_Jump::signature_t LogicElement_Jump::signature { OFFSET };
+
 /**
  * A LogicElement that will conditionally jump the instruction pointer.
  */
@@ -80,6 +87,11 @@ public:
   LogicElement_JumpTrue( const long int _offset, const raw_offset_t _in1 ) 
   : offset( _offset ), in1( _in1 )
   {}
+  
+  /**
+   * Signature.
+   */
+  const static signature_t signature;
   
   /**
    * Factory
@@ -113,6 +125,9 @@ public:
   }
 };
 
+template <typename T>
+const typename LogicElement_JumpTrue<T>::signature_t LogicElement_JumpTrue<T>::signature { OFFSET, OFFSET };
+
 /**
  * A LogicElement that will conditionally jump the instruction pointer.
  */
@@ -130,6 +145,11 @@ public:
   LogicElement_JumpZero( const long int _offset, const raw_offset_t _in1 ) 
   : offset( _offset ), in1( _in1 )
   {}
+  
+  /**
+   * Signature.
+   */
+  const static signature_t signature;
   
   /**
    * Factory
@@ -163,6 +183,9 @@ public:
   }
 };
 
+template <typename T>
+const typename LogicElement_JumpZero<T>::signature_t LogicElement_JumpZero<T>::signature { OFFSET, OFFSET };
+
 /**
  * A LogicElement that will conditionally jump the instruction pointer.
  */
@@ -182,6 +205,11 @@ public:
                      const raw_offset_t _in1, const raw_offset_t _in2 ) 
   : offset( _offset ), in1( _in1 ), in2( _in2 )
   {}
+  
+  /**
+   * Signature.
+   */
+  const static signature_t signature;
   
   /**
    * Factory
@@ -216,6 +244,9 @@ public:
   }
 };
 
+template <typename T>
+const typename LogicElement_JumpEqual<T>::signature_t LogicElement_JumpEqual<T>::signature { OFFSET, OFFSET, OFFSET };
+
 /**
  * A LogicElement that will conditionally jump the instruction pointer.
  */
@@ -235,6 +266,11 @@ public:
                      const raw_offset_t _in1, const raw_offset_t _in2 ) 
   : offset( _offset ), in1( _in1 ), in2( _in2 )
   {}
+  
+  /**
+   * Signature.
+   */
+  const static signature_t signature;
   
   /**
    * Factory
@@ -268,5 +304,8 @@ public:
     stream_out << ">( " << offset << ", " << in1 << ", " << in2 << " )" << std::endl; 
   }
 };
+
+template <typename T>
+const typename LogicElement_JumpNotEqual<T>::signature_t LogicElement_JumpNotEqual<T>::signature { OFFSET, OFFSET, OFFSET };
 
 #endif // LOGICELEMENT_JUMP_HPP

@@ -28,7 +28,7 @@ class LogicEngine;
 /**
  * A LogicElement that will dump the current LogicEngine - only for debugging.
  */
-class LogicElement_Dump : public LogicElement_Generic
+class LogicElement_Dump : LogicElement_Generic
 {
   const LogicEngine& le;
   
@@ -38,6 +38,11 @@ public:
    */
   LogicElement_Dump( const LogicEngine& _le ) : le( _le )
   {}
+  
+  /**
+   * Signature.
+   */
+  const static signature_t signature;
   
   /**
    * Factory

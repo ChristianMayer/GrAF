@@ -26,7 +26,9 @@ using namespace std;
 
 void GraphBlock::Port::setType( const string& t )
 {
-  if( "event" == t )
+  if( "continuous" == t )
+    type = CONTINUOUS;
+  else if( "event" == t )
     type = EVENT;
   else if( "state" == t )
     type = STATE;
@@ -36,6 +38,8 @@ string GraphBlock::Port::getType( void ) const
 {
   switch( type )
   {
+    case CONTINUOUS:
+      return "continuous";
     case EVENT:
       return "event";
     case STATE:
@@ -54,7 +58,7 @@ void GraphBlock::grepBlock( istream& in, Graph& graph )
     JSON::readJsonObject( in1, [&thisBlock]( istream& in2, const string& key ){
       if       ( "type"       == key )
       {
-        if( "" == (thisBlock.type = JSON::readJsonString(in2) ) ) throw( JSON::parseError(  "String for block parameter 'type' expected", in2 ) );
+        if( "" == (thisBlock.type = JSON::readJsonString(in2) ) ) throw( JSON::parseError(  "String for block parameter 'type' expected", in2, __LINE__ ,__FILE__ ) );
       } else if( "x"          == key )
       {
         in2 >> thisBlock.x;
@@ -86,11 +90,11 @@ void GraphBlock::grepBlock( istream& in, Graph& graph )
               break;
               
             default:
-              throw( JSON::parseError( "Paramenter entry type unexpected", in3 ) );
+              throw( JSON::parseError( "Paramenter entry type unexpected", in3, __LINE__ ,__FILE__ ) );
           }
         });
       } else
-        throw( JSON::parseError( "Block paramenter expected", in2 ) );
+        throw( JSON::parseError( "Block paramenter expected", in2, __LINE__ ,__FILE__ ) );
     });
     
     // now the memory contains the Graph as read - but to make it runnable
@@ -98,7 +102,7 @@ void GraphBlock::grepBlock( istream& in, Graph& graph )
     // algebraic loop
     if( !graph.lib.hasElement( thisBlock.type ) )
     {
-      throw( JSON::parseError( "Block of type '" + thisBlock.type + "' not found in library", in1 ) );
+      throw( JSON::parseError( "Block of type '" + thisBlock.type + "' not found in library", in1, __LINE__ ,__FILE__ ) );
     }
     const GraphBlock &libBlock = graph.libLookup( thisBlock );
     
@@ -155,14 +159,14 @@ void GraphBlock::readJsonBlock( std::istream& in, const std::string& blockName )
       int pos = 0;
       JSON::readJsonArray( in, [&]( istream& in ){
         in >> color[pos++];
-        if( pos > 3 ) throw JSON::parseError( "More than three colors found!", in );
+        if( pos > 3 ) throw JSON::parseError( "More than three colors found!", in, __LINE__ ,__FILE__ );
       });
     } else if( "background" == name )
     {
       int pos = 0;
       JSON::readJsonArray( in, [&]( istream& in ){
         in >> background[pos++];
-        if( pos > 3 ) throw JSON::parseError( "More than three colors found!", in );
+        if( pos > 3 ) throw JSON::parseError( "More than three colors found!", in, __LINE__ ,__FILE__ );
       });
     } else if( "inPorts" == name )
     {
@@ -174,7 +178,7 @@ void GraphBlock::readJsonBlock( std::istream& in, const std::string& blockName )
           else if( "type" == name )
             p.setType( JSON::readJsonString(in) );
           else
-            throw( JSON::parseError( "unknown key '" + name + "' in port", in ) );
+            throw( JSON::parseError( "unknown key '" + name + "' in port", in, __LINE__ ,__FILE__ ) );
         });
         inPorts.push_back( p );
       });
@@ -188,7 +192,7 @@ void GraphBlock::readJsonBlock( std::istream& in, const std::string& blockName )
           else if( "type" == name )
             p.setType( JSON::readJsonString(in) );
           else
-            throw( JSON::parseError( "unknown key '" + name + "' in port", in ) );
+            throw( JSON::parseError( "unknown key '" + name + "' in port", in, __LINE__ ,__FILE__ ) );
         });
         outPorts.push_back( p );
       });
@@ -207,10 +211,10 @@ void GraphBlock::readJsonBlock( std::istream& in, const std::string& blockName )
               in >> number;
               parameters[name] = number;
             } else 
-              throw( JSON::parseError( "Unknown parameterType '"+parameterType+"' in for parameter '"+name+"' section", in ) );
+              throw( JSON::parseError( "Unknown parameterType '"+parameterType+"' in for parameter '"+name+"' section", in, __LINE__ ,__FILE__ ) );
           }
           else
-            throw( JSON::parseError( "Unknown key '"+key+"' in for parameter '"+name+"' section", in ) );
+            throw( JSON::parseError( "Unknown key '"+key+"' in for parameter '"+name+"' section", in, __LINE__ ,__FILE__ ) );
         });
       });
     } else if( "init" == name )
@@ -219,8 +223,8 @@ void GraphBlock::readJsonBlock( std::istream& in, const std::string& blockName )
     } else if( "implementation" == name )
     {
       implementation = JSON::readJsonString( in );
-    }else {
-      throw( JSON::parseError( "Unknown key '"+name+"' for block", in ) );
+    } else {
+      throw( JSON::parseError( "Unknown key '"+name+"' for block", in, __LINE__ ,__FILE__ ) );
     }
   });
 }

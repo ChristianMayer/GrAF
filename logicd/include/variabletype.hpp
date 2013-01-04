@@ -24,12 +24,14 @@ namespace variableType {
   enum type : uint8_t
   {
     UNKNOWN = 0,
-    INT     = 1,
-    FLOAT   = 2,
-    STRING  = 3
+    BOOL    = 1,
+    INT     = 2,
+    FLOAT   = 3,
+    STRING  = 4
   };
   
   template <typename T> inline type getType             () { return UNKNOWN; }
+  template <>           inline type getType<bool>       () { return BOOL;    }
   template <>           inline type getType<int>        () { return INT;     }
   template <>           inline type getType<float>      () { return FLOAT;   }
   template <>           inline type getType<std::string>() { return STRING;  }
@@ -40,6 +42,8 @@ namespace variableType {
       case UNKNOWN:
       default:
         return "unknown";
+      case BOOL:
+        return "bool";
       case INT:
         return "int";
       case FLOAT:
@@ -50,6 +54,10 @@ namespace variableType {
   }
 
   template <type T> struct typeOf {};
+  template <> struct typeOf<BOOL>
+  {
+    typedef bool type;
+  };
   template <> struct typeOf<INT>
   {
     typedef int type;
@@ -67,6 +75,8 @@ namespace variableType {
       default:
       case STRING: // FIXME
         return 0;
+      case BOOL:
+        return sizeof(bool);
       case INT:
         return sizeof(int);
       case FLOAT:
@@ -80,6 +90,7 @@ class variable_t
   variableType::type type;
   union 
   {
+    bool boolValue;
     int intValue;
     float floatValue;
     std::string* stringValue;
@@ -108,6 +119,10 @@ public:
       default:
         break;
         
+      case variableType::BOOL:
+        boolValue = rhs.getBool();
+        break;
+        
       case variableType::INT:
         intValue = rhs.getInt();
         break;
@@ -123,6 +138,8 @@ public:
     return *this;
   }
   
+  variable_t( bool b ) : type( variableType::BOOL ), boolValue( b )
+  {}
   variable_t( int i ) : type( variableType::INT ), intValue( i )
   {}
   variable_t( float f ) : type( variableType::FLOAT ), floatValue( f )
@@ -147,6 +164,9 @@ public:
       default:
         return 0;
         
+      case variableType::BOOL:
+        return sizeof( bool );
+        
       case variableType::INT:
         return sizeof( int );
         
@@ -158,6 +178,7 @@ public:
     }
   }
   
+  bool        getBool  ( void ) const { return boolValue;    }
   int         getInt   ( void ) const { return intValue;     }
   float       getFloat ( void ) const { return floatValue;   }
   std::string getString( void ) const { return *stringValue; }
@@ -174,6 +195,9 @@ public:
       case variableType::UNKNOWN:
       default:
         return "<UNKNOWN>";
+        
+      case variableType::BOOL:
+        return boolValue ? "true" : "false";
         
       case variableType::INT:
         return std::to_string( intValue );
