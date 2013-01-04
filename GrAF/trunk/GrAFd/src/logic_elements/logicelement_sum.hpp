@@ -41,6 +41,11 @@ public:
   {}
   
   /**
+   * Signature.
+   */
+  const static signature_t signature;
+  
+  /**
    * Factory
    */
   static LogicElement_Generic* create( const params_t& p ) 
@@ -75,5 +80,8 @@ public:
     stream_out << ">( " << out << ", " << in1 << ", " << in2 << " )" << std::endl; 
   }
 };
+
+template <typename T>
+const typename LogicElement_Sum<T>::signature_t LogicElement_Sum<T>::signature { OFFSET, OFFSET, OFFSET };
 
 #endif // LOGICELEMENT_SUM_HPP

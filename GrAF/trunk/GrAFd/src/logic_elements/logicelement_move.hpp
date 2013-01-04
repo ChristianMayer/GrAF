@@ -38,6 +38,11 @@ public:
   {}
   
   /**
+   * Signature.
+   */
+  const static signature_t signature;
+  
+  /**
    * Factory
    */
   static LogicElement_Generic* create( const params_t& p ) 
@@ -69,5 +74,8 @@ public:
     stream_out << ">( " << out  << ", " << in << " )" << std::endl; 
   }
 };
+
+template <typename T>
+const typename LogicElement_Move<T>::signature_t LogicElement_Move<T>::signature { OFFSET, OFFSET };
 
 #endif // LOGICELEMENT_MOVE_HPP

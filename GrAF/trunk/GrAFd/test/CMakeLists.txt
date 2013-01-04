@@ -6,7 +6,7 @@ include_directories(../src /usr/local/include)
 
 add_executable( GrAFd_test logicengine_test.cpp ../src/logicengine.cpp ../src/logger.cpp )
 
-TARGET_LINK_LIBRARIES( GrAFd_test  ${LIBS} ${Boost_LIBRARIES} boost_unit_test_framework)
+TARGET_LINK_LIBRARIES( GrAFd_test  ${LIBS} ${Boost_LIBRARIES} boost_unit_test_framework ${ZEROMQ_LIBRARIES} )
 
 # Boost test needs the RTTI...
 STRING(REPLACE "-fno-rtti" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})

@@ -26,16 +26,16 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "inPorts": [      
-      { 
-        "name": "in1",
-        "type": "event"
-      }
+        { 
+          "name": "in1",
+          "type": "continuous"
+        }
       ],
       "outPorts": [
-      { 
-        "name": "out1",
-        "type": "state"
-      }
+        { 
+          "name": "out1",
+          "type": "state"
+        }
       ],
       "parameters":{},
       "implementation":"
@@ -52,10 +52,10 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "inPorts": [
-      { 
-        "name": "in1",
-        "type": "event"
-      }
+        { 
+          "name": "in1",
+          "type": "continuous"
+        }
       ],
       "outPorts": [],
       "parameters":{}
@@ -68,16 +68,16 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "inPorts": [
-      { 
-        "name": "in1",
-        "type": "event"
-      }
+        { 
+          "name": "in1",
+          "type": "continuous"
+        }
       ],
       "outPorts": [
-      { 
-        "name": "out1",
-        "type": "state"
-      }
+        { 
+          "name": "out1",
+          "type": "state"
+        }
       ],
       "parameters":{},
       "implementation":"
@@ -96,10 +96,10 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "inPorts": [
-      { 
-        "name": "in1",
-        "type": "event"
-      }
+        { 
+          "name": "in1",
+          "type": "continuous"
+        }
       ],
       "outPorts": [],
       "parameters":{}
@@ -115,7 +115,7 @@
       "outPorts": [
         { 
           "name": "out1",
-          "type": "event"
+          "type": "continuous"
         }
       ],
       "parameters": {
@@ -136,20 +136,20 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "inPorts": [
-      { 
-        "name": "in1",
-        "type": "event"
-      },
-      { 
-        "name": "in2",
-        "type": "event"
-      }
+        { 
+          "name": "in1",
+          "type": "continuous"
+        },
+        { 
+          "name": "in2",
+          "type": "continuous"
+        }
       ],
       "outPorts": [
-      { 
-        "name": "out1",
-        "type": "event"
-      }
+        { 
+          "name": "out1",
+          "type": "continuous"
+        }
       ],
       "parameters":{},
       "implementation":"
@@ -178,13 +178,13 @@
       "inPorts": [
         { 
           "name": "in",
-          "type": "event"
+          "type": "continuous"
         }
       ],
       "outPorts": [
         { 
           "name": "out",
-          "type": "event"
+          "type": "continuous"
         }
       ],
       "parameters": {
@@ -195,6 +195,58 @@
       },
       "implementation":"
       mul<float>( out, gain, in )
+      "
+    },
+    "zeroDetect": {
+      "width": 75,
+      "height": 75,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+        { 
+          "name": "in",
+          "type": "continuous"
+        }
+      ],
+      "outPorts": [
+        { 
+          "name": "out",
+          "type": "event"
+        }
+      ],
+      "parameters": {
+      },
+      "implementation":"
+        var float old
+        var bool rel
+        mul<float>( old, old, in )
+        rel<bool, float>( rel, old, ground, \"GREATER\" )
+        jumptrue<bool>( rel, 2 )
+        send<float>( in, \"foo:zeroDetect\" )
+        move<float>( old, in ) 
+      "
+    },
+    "sendMessage": {
+      "width": 75,
+      "height": 75,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+        { 
+          "name": "in",
+          "type": "event"
+        }
+      ],
+      "outPorts": [
+      ],
+      "parameters": {
+      },
+      "implementation":"
+        send<float>( in, \"foo:bar\" )
       "
     }
   }

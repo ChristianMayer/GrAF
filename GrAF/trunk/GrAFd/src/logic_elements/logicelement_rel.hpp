@@ -88,6 +88,11 @@ public:
   {}
   
   /**
+   * Signature.
+   */
+  const static signature_t signature;
+  
+  /**
    * Factory
    */
   static LogicElement_Generic* create( const params_t& p ) 
@@ -150,5 +155,8 @@ public:
     stream_out << ">( " << out << ", " << in1 << ", " << in2 << ", " << type2string(type) << " )" << std::endl; 
   }
 };
+
+template <typename Tout, typename Tin>
+const typename LogicElement_Rel<Tout,Tin>::signature_t LogicElement_Rel<Tout,Tin>::signature { OFFSET, OFFSET, OFFSET, VARIABLE_T };
 
 #endif // LOGICELEMENT_REL_HPP

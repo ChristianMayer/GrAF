@@ -28,7 +28,7 @@ using namespace std;
 #ifdef THROW
 #  error THROW macro already defined!
 #endif
-#define THROW( text, pos ) throw( JSON::parseError( (text), (pos) ) )
+#define THROW( text, pos ) throw( JSON::parseError( (text), (pos), __LINE__ ,__FILE__ ) )
 
 JSON::Type JSON::identifyNext( std::istream& in )
 {
@@ -122,7 +122,7 @@ string JSON::readJsonString( istream& in )
     in.read( &ret[0], endPos - startPos - 1 );
     in.get(); // move past ending '"'
 
-    return ret;
+    return unescape( ret );
   }
   
   in.unget();
@@ -180,6 +180,7 @@ void JSON::readJsonObject( istream& in, jsonNamedObjectHandler_t entryHandler )
 string JSON::escape( const string& str, bool keepNewline )
 {
   string ret;
+  ret.reserve( 2 * str.length() ); // prepare for enough size
   
   size_t pos = 0;
   while( pos != string::npos )
@@ -188,7 +189,21 @@ string JSON::escape( const string& str, bool keepNewline )
       ret += "\"";
       
     size_t nextPos = str.find_first_of( "\n", pos );
-    ret += str.substr( pos, nextPos - pos ); // TODO escape '"'
+    while( (pos < nextPos) && (pos < str.length()) )
+    {
+      char c = str[pos];
+      switch( c )
+      {
+        case '"':
+          ret += "\\\"";
+          break;
+          
+        default:
+          ret += c;
+      }
+      pos++;
+    }
+    
     if( nextPos != string::npos )
     {
       if( keepNewline )
@@ -200,6 +215,41 @@ string JSON::escape( const string& str, bool keepNewline )
       ret += "\"";
     }
     pos = nextPos;
+  }
+  
+  return ret;
+}
+
+string JSON::unescape( const string& str )
+{
+  string ret;
+  ret.reserve( str.length() );
+  
+  bool escape = false;
+  for( auto it = str.cbegin(); it != str.cend(); it++ )
+  {
+    if( escape )
+    {
+      switch( *it )
+      {
+        case '\\':
+          ret.push_back( '\\' );
+          break;
+        case 'n':
+          ret.push_back( '\n' );
+          break;
+        case '"':
+          ret.push_back( '"' );
+          break;
+        default:
+          ret.push_back( '\\' );
+          ret.push_back( *it );
+      }
+      escape = false;
+    } else if( '\\' == *it )
+      escape = true;
+    else
+      ret.push_back( *it );
   }
   
   return ret;

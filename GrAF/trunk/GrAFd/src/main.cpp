@@ -171,7 +171,7 @@ int main( int argc, const char *argv[] )
   {
     int lineNo, errorPos;
     string wrongLine = e.getErrorLine( lineNo, errorPos ) ;
-    logger << "!!! caugt error \"" << e.text << "\" in line " << lineNo << " at postion " << errorPos << ":\n";
+    logger << "!!! caugt error \"" << e.text << "\" in line " << lineNo << " at postion " << errorPos << " (" << e.sourceFile << ":" << e.sourceLineNo << "):\n";
     logger << "!!! " << wrongLine << "\n";
     logger << "!!!";
     while( 1 < errorPos-- )

@@ -38,6 +38,11 @@ public:
   {}
   
   /**
+   * Signature.
+   */
+  const static signature_t signature;
+  
+  /**
    * Factory
    */
   static LogicElement_Generic* create( const params_t& p ) 
@@ -70,6 +75,9 @@ public:
   }
 };
 
+template <typename T>
+const typename LogicElement_Mul<T>::signature_t LogicElement_Mul<T>::signature { OFFSET, OFFSET, OFFSET };
+
 /**
  * A LogicElement that will multiplicate two values and add it to the 
  * @param _out value.
@@ -86,6 +94,11 @@ public:
    */
   LogicElement_MulAdd( const raw_offset_t _out, const raw_offset_t _in1, const raw_offset_t _in2 ) : out(_out), in1(_in1), in2(_in2)
   {}
+  
+  /**
+   * Signature.
+   */
+  const static signature_t signature;
   
   /**
    * Factory
@@ -120,6 +133,9 @@ public:
   }
 };
 
+template <typename T>
+const typename LogicElement_MulAdd<T>::signature_t LogicElement_MulAdd<T>::signature { OFFSET, OFFSET, OFFSET };
+
 /**
  * A LogicElement that will multiplicate two values and substract it from the 
  * @param _out value.
@@ -136,6 +152,11 @@ public:
    */
   LogicElement_MulSub( const raw_offset_t _out, const raw_offset_t _in1, const raw_offset_t _in2 ) : out(_out), in1(_in1), in2(_in2)
   {}
+  
+  /**
+   * Signature.
+   */
+  const static signature_t signature;
   
   /**
    * Factory
@@ -172,5 +193,8 @@ public:
     stream_out << ">( " << out << ", " << in1 << ", " << in2 << " )" << std::endl; 
   }
 };
+
+template <typename T>
+const typename LogicElement_MulSub<T>::signature_t LogicElement_MulSub<T>::signature { OFFSET, OFFSET, OFFSET };
 
 #endif // LOGICELEMENT_MUL_HPP

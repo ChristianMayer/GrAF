@@ -64,6 +64,7 @@ struct GraphBlock
      * The possible port types.
      */
     enum portType {
+      CONTINUOUS,
       EVENT,
       STATE
     } type; ///< The type of the port.

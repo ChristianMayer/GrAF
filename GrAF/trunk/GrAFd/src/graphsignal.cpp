@@ -50,7 +50,7 @@ void GraphSignal::grepSignal( std::istream& in, Graph& graph )
           });
           break;
         default:
-          throw( JSON::parseError( "Wrong number of entries in signals section!", in2 ) );
+          throw( JSON::parseError( "Wrong number of entries in signals section!", in2, __LINE__ ,__FILE__ ) );
       }
     });
   

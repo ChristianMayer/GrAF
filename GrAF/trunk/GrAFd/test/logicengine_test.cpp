@@ -6,6 +6,7 @@
 #include "logic_elements.hpp"
 
 Logger logger;
+zmq::socket_t *sender;
 
 /**
  * first test
