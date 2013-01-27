@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -37,8 +37,8 @@ LogicEngine::LogicEngine( size_t maxSize, int logicId ) :
   thisLogicId( logicId ),
   logicState( STOPPED ),
   rerun( false ),
-  lastVariableImport( MessageRegister::now() ),
-  variableRegistry( {std::pair<std::string, variableRegistryStorage>( "ground", { ground(), variableType::getType<float>(), &LogicEngine::readString<float> } )} )
+  variableRegistry( {std::pair<std::string, variableRegistryStorage>( "ground", { ground(), variableType::getType<float>(), &LogicEngine::readString<float> } )} ),
+  lastVariableImport( MessageRegister::now() )
 {
   elementList = new LogicElement_Generic*[ maxSize ];
   elementCount = 0;
@@ -57,8 +57,8 @@ LogicEngine::LogicEngine( LogicEngine&& other )
 : thisLogicId( other.thisLogicId ),
   logicState( other.logicState.load() ),
   rerun( other.rerun.load() ),
-  lastVariableImport( std::move( other.lastVariableImport ) ),
-  mainTask( std::move( other.mainTask ) )
+  mainTask( std::move( other.mainTask ) ),
+  lastVariableImport( std::move( other.lastVariableImport ) )
 {
   std::swap( elementList, other.elementList );
   std::swap( elementCount, other.elementCount );
@@ -102,11 +102,32 @@ raw_offset_t LogicEngine::registerVariable( const std::string& name, variableTyp
     }*/
    
     default:
-      throw( JSON::parseError( "Unsupported Type: '" + variableType::getTypeName( type ) + "'", __LINE__ ,__FILE__ ) );
+      throw( JSON::parseError( std::string("Unsupported Type: '") + variableType::getTypeName( type ) + "'", __LINE__ ,__FILE__ ) );
   }
   
   // will never reach this
   return 0; 
+}
+
+raw_offset_t LogicEngine::registerVariable( const std::string& name, const variable_t& variable )
+{
+  raw_offset_t thisVariable( registerVariable( name, variable.getType() ) );
+  write( thisVariable, variable );
+  return thisVariable;
+}
+
+void LogicEngine::copyImportedVariables( MessageRegister::timestamp_t timestamp )
+{
+  for( auto it = importRegistry.begin(); it != importRegistry.end(); ++it )
+  {
+    register raw_t* var_p    = globVar + it->second.offset;
+    register raw_t* status_p = var_p + variableType::sizeOf(it->second.type);
+    
+    *reinterpret_cast<int*>( status_p ) =
+    registry.copy_value( it->first, it->second.type, var_p, lastVariableImport );
+  }
+  
+  lastVariableImport = timestamp;
 }
 
 void LogicEngine::dump( const std::string& prefix ) const

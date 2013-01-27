@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ private:
   typedef std::map<std::string, variableRegistryStorage> variableRegistry_t;
   variableRegistry_t variableRegistry;
   variableRegistry_t importRegistry;
-  MessageRegister::timestamp_t lastVariableImport;
+  typename MessageRegister::timestamp_t lastVariableImport;
   typedef std::chrono::duration<float, std::ratio<1>> seconds_float;
   
 public:
@@ -229,44 +229,25 @@ public:
    * Register an anonymous variable of size T.
    */
   template<typename T>
-  raw_offset_t registerVariable()
-  {
-    return variableCount += sizeof( T );
-  }
+  raw_offset_t registerVariable();
   
   /**
    * Register an anonymous variable of size T with the passed @p value.
    */
   template<typename T>
-  raw_offset_t registerVariable( const T& value )
-  {
-    raw_offset_t thisVariable( registerVariable<T>() );
-    write( thisVariable, value );
-    return thisVariable;
-  }
+  raw_offset_t registerVariable( const T& value );
   
   /**
    * Register variable name of size T.
    */
   template<typename T>
-  raw_offset_t registerVariable( const std::string& name )
-  {
-    register raw_offset_t thisVariable = variableCount;
-    variableRegistry[ name ] = { thisVariable, variableType::getType<T>(), &LogicEngine::readString<T> };
-    variableCount += sizeof( T );
-    return thisVariable;
-  }
+  raw_offset_t registerVariable( const std::string& name );
   
   /**
    * Register variable @p name of size @p T with the passed @p value.
    */
   template<typename T>
-  raw_offset_t registerVariable( const std::string& name, const T& value )
-  {
-    raw_offset_t thisVariable( registerVariable<T>( name ) );
-    write( thisVariable, value );
-    return thisVariable;
-  }
+  raw_offset_t registerVariable( const std::string& name, const T& value );
   
   /**
    * Register variable @p name of type @p type.
@@ -282,47 +263,18 @@ public:
    * @param name     The name of the variable.
    * @param variable The variable.
    */
-  raw_offset_t registerVariable( const std::string& name, const variable_t& variable )
-  {
-    raw_offset_t thisVariable( registerVariable( name, variable.getType() ) );
-    write( thisVariable, variable );
-    return thisVariable;
-  }
+  raw_offset_t registerVariable( const std::string& name, const variable_t& variable );
   
   /**
    * Import a variable of size T. I.e. get it from the bus.
    */
   template<typename T>
-  raw_offset_t importVariable( const std::string& name )
-  {
-    if( 0 != importRegistry.count( name ) )
-    {
-      // already imported
-      return variableRegistry[ name ].offset;
-    }
-    raw_offset_t pos = registerVariable<T>( name );
-    registerVariable<int>( name + "_status" );
-    importRegistry[ name ] = variableRegistry[ name ];
-    //TODO update and reenable: registry.subscribe( name, variableType::getType<T>(), thisLogicId );
-    return pos;
-  }
+  raw_offset_t importVariable( const std::string& name );
   
   /**
    * Get all bus variables
    */
-  void copyImportedVariables( MessageRegister::timestamp_t timestamp )
-  {
-    for( auto it = importRegistry.begin(); it != importRegistry.end(); ++it )
-    {
-      register raw_t* var_p    = globVar + it->second.offset;
-      register raw_t* status_p = var_p + variableType::sizeOf(it->second.type);
-      
-      *reinterpret_cast<int*>( status_p ) =
-        registry.copy_value( it->first, it->second.type, var_p, lastVariableImport );
-    }
-    
-    lastVariableImport = timestamp;
-  }
+  void copyImportedVariables( MessageRegister::timestamp_t timestamp );
   
   /**
    * Show all (named) variables
@@ -451,5 +403,51 @@ public:
    */
   static size_t instructionsCount( const std::string& src );
 };
+
+template<typename T>
+raw_offset_t LogicEngine::registerVariable()
+{
+  return variableCount += sizeof( T );
+}
+
+template<typename T>
+raw_offset_t LogicEngine::registerVariable( const T& value )
+{
+  raw_offset_t thisVariable( registerVariable<T>() );
+  write( thisVariable, value );
+  return thisVariable;
+}
+
+template<typename T>
+raw_offset_t LogicEngine::registerVariable( const std::string& name )
+{
+  register raw_offset_t thisVariable = variableCount;
+  variableRegistry[ name ] = { thisVariable, variableType::getType<T>(), &LogicEngine::readString<T> };
+  variableCount += sizeof( T );
+  return thisVariable;
+}
+
+template<typename T>
+raw_offset_t LogicEngine::registerVariable( const std::string& name, const T& value )
+{
+  raw_offset_t thisVariable( registerVariable<T>( name ) );
+  write( thisVariable, value );
+  return thisVariable;
+}
+
+template<typename T>
+raw_offset_t LogicEngine::importVariable( const std::string& name )
+{
+  if( 0 != importRegistry.count( name ) )
+  {
+    // already imported
+    return variableRegistry[ name ].offset;
+  }
+  raw_offset_t pos = registerVariable<T>( name );
+  registerVariable<int>( name + "_status" );
+  importRegistry[ name ] = variableRegistry[ name ];
+  //TODO update and reenable: registry.subscribe( name, variableType::getType<T>(), thisLogicId );
+  return pos;
+}
 
 #endif // LOGICENGINE_HPP

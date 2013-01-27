@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -86,19 +86,7 @@ public:
   /**
    * Set the global log level.
    */
-  void setLogLevel( logLevels l )
-  {
-    if( l < ERROR || l > ALL )
-      globalLogLevel = ALL;
-    else    
-      globalLogLevel = l;
-    
-    if( l >= INFO )
-    {
-      *this << "Set log level to " << getLogLevelName() << std::endl;
-      show();
-    }
-  }
+  void setLogLevel( logLevels l );
   
   /**
    * @return a const char pointer to the current log level.
@@ -113,44 +101,19 @@ public:
    * @return an ostream that the logging information can be written to and that
    * will output it when the logLevel l is high enough.
    */
-  std::ostream& operator()( logLevels l )
-  {
-    auto it = thisStream();
-    
-    it->second.logLevel = l;
-    if( it->second.logLevel <= globalLogLevel )
-      return *it->second.stream;
-    
-    return nullstream;
-  }
+  std::ostream& operator()( logLevels l );
   
   /**
    * Stream t to the current logger.
    */
   template<typename T>
-  std::ostream& operator<<( const T &t )
-  {
-    auto it = thisStream();
-    
-    if( it->second.logLevel <= globalLogLevel )
-      return *it->second.stream << t;
-    
-    return nullstream;
-  }
+  std::ostream& operator<<( const T &t );
 
   /**
    * Stream t to the current logger:
    * handle stuff like std::endl
    */
-  std::ostream& operator<<( std::ostream& (*func)(std::ostream&) )
-  {
-    auto it = thisStream();
-    
-    if( it->second.logLevel <= globalLogLevel )
-      return func(*it->second.stream);
-    
-    return nullstream;
-  }
+  std::ostream& operator<<( std::ostream& (*func)(std::ostream&) );
   
   /**
    * Output the buffered current logger to the user.
@@ -175,72 +138,34 @@ private:
   /**
    * Create a new logger stream for the current thread.
    */
-  map_t::iterator createStream( void )
-  {
-    // Lock already done in thisStream()!
-    //std::lock_guard<std::mutex> lock( map_mutex ); // RAII
-    auto res = streams.insert( 
-      map_t::value_type(
-        std::this_thread::get_id(), 
-        { new std::ostringstream(), ALL, currentReadableID++ } 
-      ) 
-    );
-    if( !res.second )
-      throw "Creation of new thread logger failed!";
-    
-    return res.first;
-  }
+  map_t::iterator createStream( void );
   
   /**
    * @return the current stream for this thread.
    */
-  map_t::iterator thisStream( void )
-  {
-    std::lock_guard<std::mutex> lock( map_mutex ); // RAII
-    auto it = streams.find( std::this_thread::get_id() );
-    if( streams.end() == it )
-      it = createStream();
-    
-    return it;
-  }
+  map_t::iterator thisStream( void );
   
   /**
    * Show the stream belonging to it to the user.
    */
-  void showThread( const map_t::const_iterator& it )
-  {
-    std::lock_guard<std::mutex> lock( cout_mutex ); // RAII
-    
-    const std::string& str = it->second.stream->str();
-    std::string::size_type start = 0;
-    std::string::size_type end;
-    
-    while( (end = str.find( '\n', start )) != std::string::npos )
-    {
-      if( showTimestamp )
-        printTimestamp();
-      std::cout << it->second.readableID << ": " << str.substr( start, end - start ) << "\n";
-      start = end + 1;            // new start is right after the '\n'
-    }
-    it->second.stream->str( "" ); // clear stringstream buffer
-  }
+  void showThread( const map_t::const_iterator& it );
   
   /**
    * Print the a timestamp to std::cout.
    */
-  void printTimestamp( void ) const
-  {
-    timeval currentTime;
-    gettimeofday(&currentTime, NULL);
-    int milli = currentTime.tv_usec / 1000;
-    
-    char buffer[80];
-    strftime( buffer, 80, "%Y-%m-%d %H:%M:%S", localtime( &currentTime.tv_sec ) );
-    
-    std::cout << "[" << buffer << "." << std::setw(3) << std::setfill('0') << milli << "] ";
-  }
-  
+  void printTimestamp( void ) const;
 };
+
+template<typename T>
+std::ostream& Logger::operator<<( const T &t )
+{
+  auto it = thisStream();
+  
+  if( it->second.logLevel <= globalLogLevel )
+    return *it->second.stream << t;
+  
+  return nullstream;
+}
 
 extern class Logger logger;
 

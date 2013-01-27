@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -67,15 +67,18 @@ public:
   /**
    * Export the content in noGrAF format.
    */
-  void dump( std::ostream& stream_out ) const 
-  {
-    stream_out << "move<";
-    stream_out << variableType::getTypeName(variableType::getType<T>());
-    stream_out << ">( " << out  << ", " << in << " )" << std::endl; 
-  }
+  void dump( std::ostream& stream_out ) const;
 };
 
 template <typename T>
 const typename LogicElement_Move<T>::signature_t LogicElement_Move<T>::signature { OFFSET, OFFSET };
+
+template <typename T>
+void LogicElement_Move<T>::dump( std::ostream& stream_out ) const 
+{
+  stream_out << "move<";
+  stream_out << variableType::getTypeName(variableType::getType<T>());
+  stream_out << ">( " << out  << ", " << in << " )" << std::endl; 
+}
 
 #endif // LOGICELEMENT_MOVE_HPP

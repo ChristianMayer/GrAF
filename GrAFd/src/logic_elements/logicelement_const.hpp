@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -68,15 +68,18 @@ public:
   /**
    * Export the content in noGrAF format.
    */
-  void dump( std::ostream& stream_out ) const 
-  {
-    stream_out << "const<";
-    stream_out << variableType::getTypeName(variableType::getType<T>());
-    stream_out << ">( " << out << ", " << value << " )" << std::endl; 
-  }
+  void dump( std::ostream& stream_out ) const;
 };
 
 template <typename T>
 const typename LogicElement_Const<T>::signature_t LogicElement_Const<T>::signature { OFFSET, VARIABLE_T };
+
+template <typename T>
+void LogicElement_Const<T>::dump( std::ostream& stream_out ) const 
+{
+  stream_out << "const<";
+  stream_out << variableType::getTypeName(variableType::getType<T>());
+  stream_out << ">( " << out << ", " << value << " )" << std::endl; 
+}
 
 #endif // LOGICELEMENT_CONST_HPP

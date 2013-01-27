@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -35,8 +35,8 @@ GraphLib Graph::lib; // give the static variable a home
 
 Graph::Graph( istream& stream )
 : meta({
-    { "step-size",  0.0 },
-    { "stop-time", -1.0 },
+    { "step-size", variable_t(  0.0 ) },
+    { "stop-time", variable_t( -1.0 ) },
   }),
   scheduler( nullptr )
 {
@@ -269,7 +269,7 @@ void Graph::grepMeta( istream& in )
     switch( JSON::identifyNext( in1 ) )
     {
       case JSON::BOOL:
-        entry->second = JSON::readJsonBool( in1 );
+        entry->second = variable_t( JSON::readJsonBool( in1 ) );
         break;
         
       case JSON::NUMBER:
@@ -297,7 +297,7 @@ void Graph::grepMeta( istream& in )
         break;
         
       case JSON::STRING:
-        entry->second = JSON::readJsonString( in1 );
+        entry->second = variable_t( JSON::readJsonString( in1 ) );
         break;
         
       default:

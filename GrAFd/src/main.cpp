@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ int main( int argc, const char *argv[] )
     //auto leG1 = scriptPool.back();
     //graphs.insert( make_pair( "G1", Graph( *leG1, test1 ) ) );
     //graphs.insert( make_pair( "G1", move( Graph( test1 ) ) ) ); 
-    auto G1 = graphs.insert( make_pair( "G1", Graph( test1 ) ) ); 
+    graphs.insert( make_pair( "G1", Graph( test1 ) ) ); 
     //graphs["G1"] = move( Graph( test1 ) );
     //graphs.insert( { string("G1"), Graph( test1 ) } ); 
     //graphs.emplace( make_pair( "G1", Graph( test1 ) ) ); 
