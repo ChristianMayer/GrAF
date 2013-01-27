@@ -36,11 +36,11 @@ class Graph;
 struct GraphBlock
 {
   /**
-   * Fill the GraphBlock from a JSON structure in the std::istream at @p in.
+   * Fill the GraphBlock from a JSON structure in the std::istream at @p in - used for library.
    */
   void readJsonBlock( std::istream& in, const std::string& blockName );
   /**
-   * Read a GraphBlock from @p in and insert it in the @p graph.
+   * Read a GraphBlock from @p in and insert it in the @p graph - used for logic.
    */
   static void grepBlock( std::istream& in, Graph& graph );
   

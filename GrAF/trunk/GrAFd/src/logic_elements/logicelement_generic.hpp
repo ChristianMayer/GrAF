@@ -26,6 +26,8 @@
 
 #include "variabletype.hpp"
 
+class LogicEngine;
+
 /**
  * The base class of all LogicElements defining the interface.
  */
@@ -43,12 +45,14 @@ public:
   
   enum parameter_t {
     OFFSET,
+    STRING,
     VARIABLE_T
   };
   /**
    * 
    */
   typedef std::vector<parameter_t> signature_t;
+  typedef LogicEngine* const ownerPtr_t;
   
   /**
    * Type of parameters for creating a LogicElement though the factory.
@@ -57,7 +61,7 @@ public:
   /**
    * Type of the factory function to create a LogicElement
    */
-  typedef LogicElement_Generic* (*FactoryType)( const params_t& );
+  typedef LogicElement_Generic* (*FactoryType)( ownerPtr_t, const params_t& );
   
   /**
    * Global valid position of "ground", a variable that will allways be

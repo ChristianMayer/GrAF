@@ -21,6 +21,7 @@
 
 #include "logic_elements/logicelement_const.hpp"
 #include "logic_elements/logicelement_dump.hpp"
+#include "logic_elements/logicelement_get.hpp"
 #include "logic_elements/logicelement_jump.hpp"
 #include "logic_elements/logicelement_move.hpp"
 #include "logic_elements/logicelement_mul.hpp"

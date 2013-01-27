@@ -45,7 +45,7 @@ public:
   /**
    * Factory
    */
-  static LogicElement_Generic* create( const params_t& p ) 
+  static LogicElement_Generic* create( ownerPtr_t, const params_t& p ) 
   { 
     using boost::lexical_cast;
     return new LogicElement_Jump( lexical_cast<long int>(p[0]) ); 
@@ -96,7 +96,7 @@ public:
   /**
    * Factory
    */
-  static LogicElement_Generic* create( const params_t& p ) 
+  static LogicElement_Generic* create( ownerPtr_t, const params_t& p ) 
   { 
     using boost::lexical_cast;
     return new LogicElement_JumpTrue<T>( lexical_cast<long int>(p[0]), 
@@ -154,7 +154,7 @@ public:
   /**
    * Factory
    */
-  static LogicElement_Generic* create( const params_t& p ) 
+  static LogicElement_Generic* create( ownerPtr_t, const params_t& p ) 
   { 
     using boost::lexical_cast;
     return new LogicElement_JumpZero<T>( lexical_cast<long int>(p[0]), 
@@ -214,7 +214,7 @@ public:
   /**
    * Factory
    */
-  static LogicElement_Generic* create( const params_t& p ) 
+  static LogicElement_Generic* create( ownerPtr_t, const params_t& p ) 
   { 
     using boost::lexical_cast;
     return new LogicElement_JumpEqual<T>( lexical_cast<long int>(p[0]), 
@@ -275,7 +275,7 @@ public:
   /**
    * Factory
    */
-  static LogicElement_Generic* create( const params_t& p ) 
+  static LogicElement_Generic* create( ownerPtr_t, const params_t& p ) 
   { 
     using boost::lexical_cast;
     return new LogicElement_JumpNotEqual<T>( lexical_cast<long int>(p[0]), 

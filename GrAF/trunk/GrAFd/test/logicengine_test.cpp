@@ -7,6 +7,7 @@
 
 Logger logger;
 zmq::socket_t *sender;
+MessageRegister registry;
 
 /**
  * first test

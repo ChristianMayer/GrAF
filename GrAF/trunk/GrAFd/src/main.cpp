@@ -18,14 +18,17 @@
 
 #include <iostream>
 #include <fstream>
+/*
 #include <deque>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+*/
 
 #include <boost/shared_ptr.hpp>
 
 #include "globals.h"
+#include "utilities.hpp"
 
 #include "message.hpp"
 #include "graph.hpp"
@@ -35,6 +38,7 @@
 #include "json.hpp"
 #include "asyncsocket.hpp"
 #include "editorhandler.hpp"
+#include "worker.hpp"
 
 using namespace std;
 
@@ -42,6 +46,7 @@ Logger logger;
 MessageRegister registry;
 zmq::socket_t *sender;
 graphs_t graphs;
+Worker* worker;
 
 void showHelp( void )
 {
@@ -57,6 +62,7 @@ void showHelp( void )
 int main( int argc, const char *argv[] )
 {
   string logicNamespace = "logic";
+  size_t poolSize = 5;
   int verbose = 0;
   while( argc-- > 1 )
   {
@@ -85,58 +91,9 @@ int main( int argc, const char *argv[] )
   sender = new zmq::socket_t( context, ZMQ_REQ );
   sender->connect( "ipc:///tmp/logicd.ipc" );
   
-  //typedef boost::shared_ptr<LogicEngine> LogicEngine_ptr;
-  //vector<LogicEngine_ptr> scriptPool;
-  
   // Setup the thread pool
-  vector<thread> workers;                // list of the workers
-  typedef deque<graphs_t::iterator> tasks_t;
-  tasks_t tasks;                         // deque of the tasks to do
-  mutex queue_mutex;
-  condition_variable condition;
-  bool stop = false;
-  const size_t poolSize = 5;
-  for( size_t i = 0; i < poolSize; ++i ) // fill thread pool
-  {
-    workers.push_back( thread( [&,i]()   // create worker thread by a Lambda
-    {
-      logger( Logger::ALL ) << "thread #" << i << " created;\n";
-      logger.show();
-      
-      while(true)
-      {
-        //int task;
-        tasks_t::value_type task;
-        {
-          // acquire lock
-          unique_lock<mutex> lock( queue_mutex );
-
-          // look for a work item
-          while( !stop && tasks.empty() )
-          {
-            // if there are none wait for notification
-            condition.wait( lock );
-          }
-
-          if( stop ) // exit if the pool is stopped
-            return;
-
-          // get the task from the queue
-          task = tasks.front();
-          tasks.pop_front();
-        }   // release lock
-
-        // execute the task
-        logger << "Task: " << task->first << "; state: " << task->second.le->getStateName() << ";\n"; logger.show();
-        task->second.le->startLogic();
-        logger( Logger::INFO ) << "Task: " << task->first << "; state: " << task->second.le->getStateName() << ";\n"; logger.show();
-        task->second.le->scheduleRun();
-        //scrstartLogic();iptPool[ task ]->dump( "Task " + to_string( task ) + ": " ); 
-        task->second.le->stopLogic();
-        logger << "Task: " << task->first << "; state: " << task->second.le->getStateName() << ";\n"; logger.show();
-      }
-    } ) );
-  }
+  assert_main_thread( true ); // initalize assert
+  worker = new Worker( poolSize );
   
   ///////////////////////////////////////////////////////////////////////////
   //
@@ -154,11 +111,12 @@ int main( int argc, const char *argv[] )
     //auto leG1 = scriptPool.back();
     //graphs.insert( make_pair( "G1", Graph( *leG1, test1 ) ) );
     //graphs.insert( make_pair( "G1", move( Graph( test1 ) ) ) ); 
-    graphs.insert( make_pair( "G1", Graph( test1 ) ) ); 
+    auto G1 = graphs.insert( make_pair( "G1", Graph( test1 ) ) ); 
     //graphs["G1"] = move( Graph( test1 ) );
     //graphs.insert( { string("G1"), Graph( test1 ) } ); 
     //graphs.emplace( make_pair( "G1", Graph( test1 ) ) ); 
     graphs.at("G1").dump();
+    graphs.at("G1").init( io_service );
     logger << "---------------------------------------\n";
     logger << "test2:" << endl; logger.show();
     //scriptPool.push_back( LogicEngine_ptr( new LogicEngine( 200, scriptPool.size() ) ) );
@@ -166,6 +124,7 @@ int main( int argc, const char *argv[] )
     //graphs.insert( make_pair( "G2", Graph( *leG2, test2 ) ) ); 
     graphs.insert( make_pair( "G2", Graph( test2 ) ) );
     graphs.at("G2").dump();
+    graphs.at("G2").init( io_service );
   }
   catch( JSON::parseError e )
   {
@@ -201,51 +160,44 @@ int main( int argc, const char *argv[] )
         if( logicNamespace + ":" == msg.getSource().substr( 0, logicNamespace.length()+1 ) )
           return;
         
-        logger << "Got message from [" << msg.getDestination() << "]\n"; logger.show();
-        logger << "src: '" << msg.getSource() << "' => '" << msg.getVariable().getAsString() << "'\n";logger.show();
+        logger << "ZMQ - Got message from [" << msg.getDestination() << "]\n"; logger.show();
+        logger << "ZMQ - src: '" << msg.getSource() << "' => '" << msg.getVariable().getAsString() << "'\n";logger.show();
         auto message = registry.update( msg.getDestination(), msg.getVariable() );
         if( registry.is_valid( message ) )
         {
           for( auto script = message->second.subscribers.cbegin(); script != message->second.subscribers.cend(); ++script )
           {
-            logger << "Running script #" << (*script)->first << ";\n"; logger.show();
-            string prefix = "Task " + (*script)->first + ": ";
+            //logger << "Running script #" << (*script)->first << ";\n"; logger.show();
+            //string prefix = "Task " + (*script)->first + ": ";
             //logger << "script #" << (*script)->first << "; state: " << scriptPool[ *script ]->getState() << ";\n"; logger.show();
-            logger << "script #" << (*script)->first << "; state: " << (*script)->second.le->getState() << ";\n"; logger.show();
-            if( !(*script)->second.le->enableVariables() )
+            logger << "ZMQ - 1: script #" << (*script).first << "; state: " << (*script).first->getStateName() << ";\n"; logger.show();
+            if( !(*script).first->enableVariables() || !(*script).first->startLogic() )
             {
-              logger << "enableVariables() failed -> scheduleRerun()\n"; logger.show();
-              (*script)->second.le->scheduleRerun();
+              logger << "ZMQ - enableVariables() failed -> scheduleRerun()\n"; logger.show();
+              (*script).first->scheduleRerun();
               return;
             }
-            logger << "script #" << (*script)->first << "; state: " << (*script)->second.le->getState() << ";\n"; logger.show();
-            (*script)->second.le->scheduleRun( message->second.timestamp );
+            logger << "ZMQ - 2: script #" << script->first << "; state: " << (*script).first->getStateName() << ";\n"; logger.show();
+            (*script).first->scheduleRun( message->second.timestamp );
+            logger << "ZMQ - 3: script #" << script->first << "; state: " << (*script).first->getStateName() << ";\n"; logger.show();
             
-            // add script to task que
-            { 
-              // acquire lock
-              unique_lock<mutex> lock( queue_mutex );
-              
-              // add the task
-              tasks.push_back( *script );
-            } // release lock
-            
-            // wake up one thread
-            condition.notify_one();
-            
+            worker->enque_task( script->first );
           }
         } else {
-          logger << "not valid\n"; logger.show();
+          logger << "ZMQ - not valid\n"; logger.show();
         }
       } else {
         break;
       }
     }
-    logger << "Message from ZMQ handled. Callback ende.\n"; logger.show();  
+    logger << "ZMQ - Message from ZMQ handled. Callback ende.\n"; logger.show();  
   });
   
   EditorHandler editor_handler( io_service, 9998 );
-  logger << "!!!!! start main loop\n"; logger.show();
+  logger << 
+    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"
+    "!!!!!!!!!! start main loop !!!!!!!!!!\n"
+    "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n"; logger.show();
 
   try {
     io_service.run();
@@ -260,15 +212,11 @@ int main( int argc, const char *argv[] )
   //  clean up
   //
   
-  // stop all threads
-  stop = true;
-  condition.notify_all();
-  
-  // and join them
-  for( size_t i = 0; i < workers.size(); ++i )
-    workers[ i ].join();
+  // stop all threads and join them:
+  delete worker; // the destructor does all of that for us
   
   delete sender;
+
   
   return 0;
 }

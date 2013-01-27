@@ -24,6 +24,7 @@
 #include <config.h>
 
 #include <map>
+#include <boost/concept_check.hpp>
 //#include "message.hpp"
 
 #pragma GCC diagnostic push
@@ -45,5 +46,6 @@ typedef std::map<std::string, class Graph> graphs_t;
 extern class MessageRegister registry;
 extern zmq::socket_t* sender;
 extern graphs_t graphs;
+extern class Worker* worker;
 
 #endif // CONFIGHANDLER

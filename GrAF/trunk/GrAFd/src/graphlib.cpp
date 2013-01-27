@@ -56,11 +56,11 @@ void GraphLib::addSource( const string& file )
 
   try {
     libSource >> JSON::consumeEmpty;
-    JSON::readJsonObject( libSource, [this]( istream & in, const string & libName )
+    JSON::readJsonObject( libSource, [this]( istream &in, const string &libName )
     {
-      JSON::readJsonObject( in, [&libName,this]( istream & in, const string & blockName )
+      JSON::readJsonObject( in, [this, &libName]( istream &in1, const string &blockName )
       {
-        lib[ libName + "/" + blockName ].readJsonBlock( in, blockName );
+        lib[ libName + "/" + blockName ].readJsonBlock( in1, blockName );
       } );
     } );
   } catch( JSON::parseError e )

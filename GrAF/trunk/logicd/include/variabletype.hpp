@@ -20,6 +20,9 @@
 #ifndef VARIABLETYPE_HPP
 #define VARIABLETYPE_HPP
 
+#include <cassert>
+#include <string>
+
 namespace variableType {
   enum type : uint8_t
   {
@@ -52,7 +55,7 @@ namespace variableType {
         return "string";
     }
   }
-
+  
   template <type T> struct typeOf {};
   template <> struct typeOf<BOOL>
   {
@@ -97,22 +100,93 @@ class variable_t
   };
   
 public:
-  variable_t() : type( variableType::UNKNOWN ), intValue( 0 )
+  /**
+   * Default constructor.
+   */
+  variable_t()
+  : type( variableType::UNKNOWN ),
+    intValue( 0 )
   {}
+  
+  /**
+   * Destructor.
+   */
   ~variable_t()
   {
     if( variableType::STRING == type )
       delete stringValue;
   }
+  
   /**
-   * Assignment operator
+   * Copy operator
    */
-  variable_t& operator=(const variable_t& rhs) 
+  variable_t( const variable_t& other )
+  : type( other.type )
+  {
+    switch( type )
+    {
+      case variableType::UNKNOWN:
+      default:
+        return;
+        
+      case variableType::BOOL:
+        boolValue = other.boolValue;
+        return;
+        
+      case variableType::INT:
+        intValue = other.intValue;
+        return;
+        
+      case variableType::FLOAT:
+        floatValue = other.floatValue;
+        return;
+        
+      case variableType::STRING:
+        stringValue = new std::string( *other.stringValue );
+        return;
+    }
+  }
+  
+  /**
+   * Move operator
+   */
+  variable_t( variable_t&& other )
+  : type( other.type )
+  {
+    switch( type )
+    {
+      case variableType::UNKNOWN:
+      default:
+        return;
+        
+      case variableType::BOOL:
+        boolValue = other.boolValue;
+        return;
+        
+      case variableType::INT:
+        intValue = other.intValue;
+        return;
+        
+      case variableType::FLOAT:
+        floatValue = other.floatValue;
+        return;
+        
+      case variableType::STRING:
+        stringValue = new std::string;
+        stringValue->swap( *other.stringValue );
+        return;
+    }
+  }
+  
+  /**
+   * Copy Assignment operator
+   */
+  variable_t& operator=( const variable_t& other ) 
   {
     if( variableType::STRING == type )
       delete stringValue;
     
-    type = rhs.getType();
+    type = other.getType();
     switch( type )
     {
       case variableType::UNKNOWN:
@@ -120,19 +194,51 @@ public:
         break;
         
       case variableType::BOOL:
-        boolValue = rhs.getBool();
+        boolValue = other.getBool();
         break;
         
       case variableType::INT:
-        intValue = rhs.getInt();
+        intValue = other.getInt();
         break;
         
       case variableType::FLOAT:
-        floatValue = rhs.getFloat();
+        floatValue = other.getFloat();
         break;
         
       case variableType::STRING:
-        stringValue = new std::string( rhs.getString() );
+        stringValue = new std::string( other.getString() );
+        break;
+    }
+    return *this;
+  }
+  
+  /**
+   * Move assignment.
+   */
+  variable_t& operator=( variable_t&& other )
+  {
+    type = other.type;
+    switch( type )
+    {
+      case variableType::UNKNOWN:
+      default:
+        break;
+        
+      case variableType::BOOL:
+        boolValue = other.boolValue;
+        break;
+        
+      case variableType::INT:
+        intValue = other.intValue;
+        break;
+        
+      case variableType::FLOAT:
+        floatValue = other.floatValue;
+        break;
+        
+      case variableType::STRING:
+        stringValue = new std::string;
+        stringValue->swap( *other.stringValue );
         break;
     }
     return *this;
@@ -178,10 +284,10 @@ public:
     }
   }
   
-  bool        getBool  ( void ) const { return boolValue;    }
-  int         getInt   ( void ) const { return intValue;     }
-  float       getFloat ( void ) const { return floatValue;   }
-  std::string getString( void ) const { return *stringValue; }
+  bool        getBool  ( void ) const { assert( variableType::BOOL   == type ); return boolValue;    }
+  int         getInt   ( void ) const { assert( variableType::INT    == type ); return intValue;     }
+  float       getFloat ( void ) const { assert( variableType::FLOAT  == type ); return floatValue;   }
+  std::string getString( void ) const { assert( variableType::STRING == type ); return *stringValue; }
   
   /**
    * Return the value printed to a string.
@@ -190,28 +296,73 @@ public:
    */
   std::string getAsString( bool JSON = false ) const 
   {
+    std::string retVal;
     switch( type )
     {
       case variableType::UNKNOWN:
       default:
-        return "<UNKNOWN>";
+        retVal = "<UNKNOWN>";
+        break;
         
       case variableType::BOOL:
-        return boolValue ? "true" : "false";
+        retVal = boolValue ? "true" : "false";
+        break;
         
       case variableType::INT:
-        return std::to_string( intValue );
+        retVal = std::to_string( intValue );
+        break;
         
       case variableType::FLOAT:
-        return std::to_string( floatValue );
+        retVal = std::to_string( floatValue );
+        break;
         
       case variableType::STRING:
         if( JSON )
-          return "\"" + *stringValue + "\"";
+          retVal = "\"" + *stringValue + "\"";
         else
-          return *stringValue;
+          retVal = *stringValue;
+        break;
+    }
+    return retVal;
+  }
+  
+  /**
+   * Write the value to raw memory.
+   */
+  void getRaw( void* raw ) const
+  {
+    switch( type )
+    {
+      case variableType::UNKNOWN:
+      case variableType::STRING:
+        return;
+        
+      case variableType::BOOL:
+        *reinterpret_cast<bool*>( raw ) = boolValue;
+        return;
+        
+      case variableType::INT:
+        *reinterpret_cast<int*>( raw ) = intValue;
+        return;
+        
+      case variableType::FLOAT:
+        *reinterpret_cast<float*>( raw ) = floatValue;
+        return;
     }
   }
 };
+
+namespace variableType {
+  template <typename T> inline 
+  T get( const variable_t& v ) { return T(); }
+  template <>           inline 
+  bool        get<bool>        ( const variable_t& v ) { return v.getBool();   }
+  template <>           inline 
+  int         get<int>         ( const variable_t& v ) { return v.getInt();    }
+  template <>           inline 
+  float       get<float>       ( const variable_t& v ) { return v.getFloat();  }
+  template <>           inline 
+  std::string get<std::string> ( const variable_t& v ) { return v.getString(); }
+}
 
 #endif // VARIABLETYPE_HPP

@@ -21,14 +21,24 @@
 #include <string>
 #include <boost/algorithm/string/predicate.hpp>
 
+#include "globals.h"
+#include "utilities.hpp"
+
 #include "json.hpp"
 #include "logger.hpp"
+#include "messageregister.hpp"
+#include "worker.hpp"
 
 using namespace std;
 
 GraphLib Graph::lib; // give the static variable a home
 
 Graph::Graph( istream& stream )
+: meta({
+    { "step-size",  0.0 },
+    { "stop-time", -1.0 },
+  }),
+  scheduler( nullptr )
 {
   parseString( stream );
   
@@ -43,27 +53,53 @@ Graph::Graph( istream& stream )
     auto &libBlock = libLookup( block );
     
     if( block.isStateCopy )
+    {
+      instructions += LogicEngine::instructionsCount( libBlock.implementation );
       continue;
+    }
     
-    instructions += le->instructionsCount( libBlock.init );
-    instructions += le->instructionsCount( libBlock.implementation );
+    instructions += LogicEngine::instructionsCount( libBlock.init );
+    instructions += LogicEngine::instructionsCount( libBlock.implementation );
   }
   
-  le = new LogicEngine( instructions, -1 );
+  logicengines.emplace_back( instructions );
+  
+  le = &(logicengines.back()); //new LogicEngine( instructions, -1 );
   le->registerVariable<float>( "__dt" );
+  map<string, string> parameterTranslation;
   
   // Register the variables
   for( auto i = topo_order.crbegin(); i != topo_order.crend(); ++i )
   {
     auto &block = g[*i];
     auto &libBlock = libLookup( g[*i] );
-    
+
     // register parameters
     if( !block.isStateCopy )
     {    
       for( auto it = block.parameters.cbegin(); it != block.parameters.cend(); it++ )
       {
-        le->registerVariable( block.name + "/" + it->first, it->second.getType() );
+        if( variableType::STRING == it->second.getType() )
+        { 
+          auto p = libBlock.parameters.find( it->first );
+          if( libBlock.parameters.end() == p )
+            throw JSON::parseError( "Parameter '" + it->first + "' not found!", __LINE__ ,__FILE__ );
+          
+          if( variableType::STRING != p->second.getType() )
+          {
+            if( "__dt" == it->second.getString() )
+            {
+              parameterTranslation[ block.name + "/" + it->first ] = "__dt";
+              logger << "map '" << (block.name + "/" + it->first) << "' to __dt\n"; logger.show();
+            } else
+              throw JSON::parseError( "String parameter for number value only for '__dt' implemented!", __LINE__ ,__FILE__ );
+          } else {
+            logger << "##### '" << (block.name + "/" + it->first) << "' - '" << it->second.getAsString() << "'\n"; logger.show();
+            //le->registerVariable( block.name + "/" + it->first, it->second );
+            parameterTranslation[ block.name + "/" + it->first ] = it->second.getAsString();
+          }
+        } else
+          le->registerVariable( block.name + "/" + it->first, it->second );
       }
     }
     
@@ -76,10 +112,10 @@ Graph::Graph( istream& stream )
   }
   
   // setup the LogicEngine
-  auto setupLogicEngine = [this]( std::vector<vertex_t>::const_reverse_iterator i, bool doInit )
+  auto setupLogicEngine = [this, &parameterTranslation]( std::vector<vertex_t>::const_reverse_iterator i, bool doInit )
   {
-    auto &block = g[*i];
-    auto &libBlock = libLookup( block );
+    const auto &block = g[*i];
+    const auto &libBlock = libLookup( block );
     string implementation = block.implementation;
     if( "" == implementation )
       implementation = libBlock.implementation;
@@ -87,15 +123,15 @@ Graph::Graph( istream& stream )
     if( "" == init )
       init = libBlock.init;
     
-   // find source of inPorts
-    map<string, string> inPortTranslation;
+    // find source of inPorts
+    map<string, string> inPortTranslation( parameterTranslation );
     
     DirecetedGraph_t::in_edge_iterator begin, end;
     for( boost::tie(begin, end) = boost::in_edges( *i, g ); begin != end; begin++ )
     {
-      auto source = g[ boost::source( *begin, g ) ];
-      auto libSource = libLookup( source );
-      inPortTranslation[ block.name + "/" + libBlock.inPorts[ g[*begin].toPort ].name ] = source.name + "/" + libSource.outPorts[ g[*begin].fromPort ].name;
+      const auto& source = g[ boost::source( *begin, g ) ];
+      const auto& libSource = libLookup( source );
+      inPortTranslation[ block.name + "/" + libBlock.inPorts.at( g[*begin].toPort ).name ] = source.name + "/" + libSource.outPorts.at( g[*begin].fromPort ).name;
     }
     stringstream impl( doInit ? init : implementation );
     le->import_noGrAF( impl, true, block.name + "/", inPortTranslation );
@@ -129,12 +165,52 @@ Graph::Graph( istream& stream )
     setupLogicEngine( i, false );
   }
   
+  bool prepareLE = le->enableVariables() && le->startLogic();
+  ASSERT_MSG( prepareLE, "ERROR: couldn't set state to run LogicEngine init!" );
+ logger << le->export_noGrAF() << "\n";logger.show(); // FIXME delete
+ le->dump();// FIXME delete
+  le->run_init();
+  
+  bool finishLE = le->stopLogic();
+  ASSERT_MSG( finishLE, "ERROR: couldn't set state to Stop after LogicEngine init!" );
 }
 
 Graph::~Graph()
 { 
-  if( nullptr != le )
-    delete le;
+  //if( nullptr != le )
+  //  delete le;
+  if( nullptr != scheduler )
+  {
+    delete scheduler;
+  }
+}
+
+Graph::Graph( Graph&& other )
+: g( std::move( other.g ) ),
+  blockLookup( std::move( blockLookup ) ),
+  meta( std::move( other.meta ) ),
+  logicengines( std::move( other.logicengines ) ),
+  scheduler( nullptr )
+  //le( nullptr )
+{
+  //std::swap( le, other.le );
+  le = &(logicengines.back());
+  //std::swap( scheduler, other.scheduler );
+  if( nullptr != other.scheduler )
+  {
+    other.scheduler->cancel();
+    //logger << "Starting schedule in " << this << " Move from "<< &other <<"\n"; logger.show();
+    schedule( other.scheduler->get_io_service() );
+    //scheduler->get_io_service().poll();
+    //delete other.scheduler;
+    //other.scheduler = 0;
+  }
+}
+
+void Graph::init( boost::asio::io_service& io_service )
+{
+  logger << "Init Graph " << this << "\n"; logger.show();
+  schedule( io_service );
 }
 
 void Graph::dump( void ) const
@@ -153,7 +229,11 @@ void Graph::parseString( istream& in )
     JSON::readJsonObject( in, [this]( istream& in1, const string& section )
     {
       in1 >> JSON::consumeEmpty;
-      if( "blocks" == section )
+      if( "meta" == section )
+      {
+        grepMeta( in1 );
+      }
+      else if( "blocks" == section )
       {
         GraphBlock::grepBlock( in1, *this );
       }
@@ -176,6 +256,86 @@ void Graph::parseString( istream& in )
       logger << " ";
     logger << "-^-" << endl;
     logger.show();
+  }
+}
+
+void Graph::grepMeta( istream& in )
+{
+  JSON::readJsonObject( in, [this]( istream& in1, const string& name ){
+    auto entry = meta.find( name );
+    if( meta.end() == entry )
+      throw JSON::parseError( "Meta entry '" + name + "' not known!", in1, __LINE__ ,__FILE__ );
+    
+    switch( JSON::identifyNext( in1 ) )
+    {
+      case JSON::BOOL:
+        entry->second = JSON::readJsonBool( in1 );
+        break;
+        
+      case JSON::NUMBER:
+        switch( entry->second.getType() )
+        {
+          case variableType::INT:
+            {
+              int value;
+              in1 >> value;
+              entry->second = variable_t( value );
+            }
+            break;
+            
+          case variableType::FLOAT:
+            {
+              float value;
+              in1 >> value;
+              entry->second = variable_t( value );
+            }
+            break;
+            
+          default:
+            throw JSON::parseError( "Meta entry '" + name + "' - number not expected!", in1, __LINE__ ,__FILE__ );
+        }
+        break;
+        
+      case JSON::STRING:
+        entry->second = JSON::readJsonString( in1 );
+        break;
+        
+      default:
+        throw JSON::parseError( "Meta entry '" + name + "' has unsupported type!", in1, __LINE__ ,__FILE__ );
+    };
+  });
+}
+
+void handle_schedule_call( const boost::system::error_code& error, const Graph* graph )
+{
+  logger << "TIME - LE called, error: '" << error << "' = '"<< error.message() <<"'; scheduler: "<< graph->scheduler<< "\n"; logger.show();
+  
+  if( boost::asio::error::operation_aborted == error )
+    return;
+
+  bool prepareLE = graph->le->enableVariables(); //startLogic()
+  ASSERT_MSG( prepareLE, "Couldn't set LogicEngine state from STOPPED to COPIED (is: " << LogicEngine::logicStateName[graph->le->getState()] << ")" );
+  
+  worker->enque_task( graph->le );
+  
+  // schedule next run
+  if( nullptr != graph->scheduler )
+  {
+    graph->scheduler->expires_at( graph->scheduler->expires_at() + graph->duration );
+    graph->scheduler->async_wait( bind( handle_schedule_call, placeholders::_1, graph ) );
+  }
+}
+
+void Graph::schedule( boost::asio::io_service& io_service )
+{
+  auto step_size = meta.at( "step-size" ).getFloat();
+  if( 0.0 < step_size )
+  {
+    logger << "Register LE "<<le<<" with cycle time of " << step_size << " (scheduler: "<<scheduler<<") in Graph "<<this<<"\n"; logger.show();
+    
+    duration = std::chrono::duration_cast<scheduler_t::duration>( chrono::duration<float, ratio<1>>{ step_size } );
+    scheduler = new scheduler_t( io_service, duration );
+    scheduler->async_wait( bind( handle_schedule_call, placeholders::_1, this ) );
   }
 }
 
