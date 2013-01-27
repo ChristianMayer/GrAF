@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@
 
 #include "variabletype.hpp"
 
-#include "graph.hpp"
+//#include "graph.hpp"
 
 /*
 static const char *message_status_string[3] = 
@@ -111,18 +111,7 @@ public:
    * Update registry with a new value.
    * @returns a const_iterator to the enty.
    */
-  map_t::const_iterator update( const std::string& dst, const variable_t& v )
-  {
-    map_t::iterator entry = registry.find( key(v.getType(),dst) );
-    
-    if( entry != registry.end() )
-    {
-      entry->second.value     = v;
-      entry->second.timestamp = timestamp_t::clock().now();
-    }
-    
-    return entry;
-  }
+  map_t::const_iterator update( const std::string& dst, const variable_t& v );
   
   /**
    * Check if an iterator is valid.
@@ -136,32 +125,7 @@ public:
    * Copy value.
    * @return Status of the message.
    */
-  message_status copy_value( const std::string& dst, const variableType::type type, void* target, const timestamp_t& timestamp ) const
-  {
-    map_t::const_iterator it = registry.find( key(type,dst) );
-    
-    if( it->second.value.getType() != type )
-      return INVALID_MSG;
-    
-    switch( type )
-    {
-      case variableType::INT:
-        *reinterpret_cast<int*>(target) = it->second.value.getInt();
-        break;
-        
-      case variableType::FLOAT:
-        *reinterpret_cast<float*>(target) = it->second.value.getFloat();
-        break;
-        
-      case variableType::STRING:
-        // TODO: unsupported at the moment...
-      case variableType::UNKNOWN:
-      default:
-        break;
-    }
-
-    return timestamp > it->second.timestamp ? OLD_MSG : NEW_MSG;
-  }
+  message_status copy_value( const std::string& dst, const variableType::type type, void* target, const timestamp_t& timestamp ) const;
 
 private:
   map_t registry;

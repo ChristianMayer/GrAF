@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +26,6 @@
 
 #include "variabletype.hpp"
 
-class LogicEngine;
-
 /**
  * The base class of all LogicElements defining the interface.
  */
@@ -52,7 +50,7 @@ public:
    * 
    */
   typedef std::vector<parameter_t> signature_t;
-  typedef LogicEngine* const ownerPtr_t;
+  typedef class LogicEngine* const ownerPtr_t;
   
   /**
    * Type of parameters for creating a LogicElement though the factory.
@@ -82,7 +80,8 @@ public:
   /**
    * Export the content in noGrAF format - should be overloaded.
    */
-  virtual void dump( std::ostream& out ) const { out << "<unknown element>" << std::endl; }
+  virtual void dump( std::ostream& out ) const 
+  { out << "<unknown element>" << std::endl; }
 };
 
 #endif // LOGICELEMENT_GENERIC_HPP

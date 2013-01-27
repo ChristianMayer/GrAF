@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -62,13 +62,15 @@ public:
   /**
    * Export the content in noGrAF format.
    */
-  void dump( std::ostream& stream_out ) const 
-  {
-    stream_out << "jump( " << offset << " )" << std::endl; 
-  }
+  void dump( std::ostream& stream_out ) const;
 };
 
 //const typename LogicElement_Jump::signature_t LogicElement_Jump::signature { OFFSET };
+
+inline void LogicElement_Jump::dump( std::ostream& stream_out ) const 
+{
+  stream_out << "jump( " << offset << " )" << std::endl; 
+}
 
 /**
  * A LogicElement that will conditionally jump the instruction pointer.
@@ -117,16 +119,19 @@ public:
   /**
    * Export the content in noGrAF format.
    */
-  void dump( std::ostream& stream_out ) const 
-  {
-    stream_out << "jumptrue<";
-    stream_out << variableType::getTypeName(variableType::getType<T>());
-    stream_out << ">( " << offset << ", " << in1 << " )" << std::endl; 
-  }
+  void dump( std::ostream& stream_out ) const;
 };
 
 template <typename T>
 const typename LogicElement_JumpTrue<T>::signature_t LogicElement_JumpTrue<T>::signature { OFFSET, OFFSET };
+
+template <typename T>
+void LogicElement_JumpTrue<T>::dump( std::ostream& stream_out ) const 
+{
+  stream_out << "jumptrue<";
+  stream_out << variableType::getTypeName(variableType::getType<T>());
+  stream_out << ">( " << offset << ", " << in1 << " )" << std::endl; 
+}
 
 /**
  * A LogicElement that will conditionally jump the instruction pointer.
@@ -175,16 +180,19 @@ public:
   /**
    * Export the content in noGrAF format.
    */
-  void dump( std::ostream& stream_out ) const 
-  {
-    stream_out << "jumpzero<";
-    stream_out << variableType::getTypeName(variableType::getType<T>());
-    stream_out << ">( " << offset << ", " << in1 << " )" << std::endl; 
-  }
+  void dump( std::ostream& stream_out ) const;
 };
 
 template <typename T>
 const typename LogicElement_JumpZero<T>::signature_t LogicElement_JumpZero<T>::signature { OFFSET, OFFSET };
+
+template <typename T>
+void LogicElement_JumpZero<T>::dump( std::ostream& stream_out ) const 
+{
+  stream_out << "jumpzero<";
+  stream_out << variableType::getTypeName(variableType::getType<T>());
+  stream_out << ">( " << offset << ", " << in1 << " )" << std::endl; 
+}
 
 /**
  * A LogicElement that will conditionally jump the instruction pointer.
@@ -236,16 +244,19 @@ public:
   /**
    * Export the content in noGrAF format.
    */
-  void dump( std::ostream& stream_out ) const 
-  {
-    stream_out << "jumpequal<";
-    stream_out << variableType::getTypeName(variableType::getType<T>());
-    stream_out << ">( " << offset << ", " << in1 << ", " << in2 << " )" << std::endl; 
-  }
+  void dump( std::ostream& stream_out ) const;
 };
 
 template <typename T>
 const typename LogicElement_JumpEqual<T>::signature_t LogicElement_JumpEqual<T>::signature { OFFSET, OFFSET, OFFSET };
+
+template <typename T>
+void LogicElement_JumpEqual<T>::dump( std::ostream& stream_out ) const 
+{
+  stream_out << "jumpequal<";
+  stream_out << variableType::getTypeName(variableType::getType<T>());
+  stream_out << ">( " << offset << ", " << in1 << ", " << in2 << " )" << std::endl; 
+}
 
 /**
  * A LogicElement that will conditionally jump the instruction pointer.
@@ -297,15 +308,18 @@ public:
   /**
    * Export the content in noGrAF format.
    */
-  void dump( std::ostream& stream_out ) const 
-  {
-    stream_out << "jumpnotequal<";
-    stream_out << variableType::getTypeName(variableType::getType<T>());
-    stream_out << ">( " << offset << ", " << in1 << ", " << in2 << " )" << std::endl; 
-  }
+  void dump( std::ostream& stream_out ) const;
 };
 
 template <typename T>
 const typename LogicElement_JumpNotEqual<T>::signature_t LogicElement_JumpNotEqual<T>::signature { OFFSET, OFFSET, OFFSET };
+
+template <typename T>
+void LogicElement_JumpNotEqual<T>::dump( std::ostream& stream_out ) const 
+{
+  stream_out << "jumpnotequal<";
+  stream_out << variableType::getTypeName(variableType::getType<T>());
+  stream_out << ">( " << offset << ", " << in1 << ", " << in2 << " )" << std::endl; 
+}
 
 #endif // LOGICELEMENT_JUMP_HPP

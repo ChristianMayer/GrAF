@@ -64,13 +64,13 @@ variable_t DPT::getVariable( const size_t len, const uint8_t* data ) const
     case 9:
       if( 4 == len )
       {
-        if( data[2] == 0x7f && data[3] == 0xff ) return std::numeric_limits<float>::quiet_NaN();
+        if( data[2] == 0x7f && data[3] == 0xff ) return variable_t( std::numeric_limits<float>::quiet_NaN() );
         int sign =   data[2] & 0x80;
         int exp  = ( data[2] & 0x78 ) >> 3;
         int mant = ( ( data[2] & 0x07 ) << 8 ) | data[3];
         if( sign != 0 )
           mant = -( ~( mant - 1 ) & 0x7ff );
-        return ( 1 << exp ) * 0.01f * mant;
+        return variable_t( ( 1 << exp ) * 0.01f * mant );
       }
       break;
 

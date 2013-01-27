@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -146,17 +146,20 @@ public:
   /**
    * Export the content in noGrAF format.
    */
-  void dump( std::ostream& stream_out ) const 
-  {
-    stream_out << "rel<";
-    stream_out << variableType::getTypeName(variableType::getType<Tout>());
-    stream_out << ", ";
-    stream_out << variableType::getTypeName(variableType::getType<Tin>());
-    stream_out << ">( " << out << ", " << in1 << ", " << in2 << ", " << type2string(type) << " )" << std::endl; 
-  }
+  void dump( std::ostream& stream_out ) const;
 };
 
 template <typename Tout, typename Tin>
 const typename LogicElement_Rel<Tout,Tin>::signature_t LogicElement_Rel<Tout,Tin>::signature { OFFSET, OFFSET, OFFSET, VARIABLE_T };
+
+template <typename Tout, typename Tin>
+void LogicElement_Rel<Tout,Tin>::dump( std::ostream& stream_out ) const 
+{
+  stream_out << "rel<";
+  stream_out << variableType::getTypeName(variableType::getType<Tout>());
+  stream_out << ", ";
+  stream_out << variableType::getTypeName(variableType::getType<Tin>());
+  stream_out << ">( " << out << ", " << in1 << ", " << in2 << ", " << type2string(type) << " )" << std::endl; 
+}
 
 #endif // LOGICELEMENT_REL_HPP

@@ -1,6 +1,6 @@
 /*
  * The Graphic Automation Framework deamon
- * Copyright (C) 2012  Christian Mayer - mail (at) ChristianMayer (dot) de
+ * Copyright (C) 2012, 2013  Christian Mayer - mail (at) ChristianMayer (dot) de
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -82,11 +82,11 @@ void GraphBlock::grepBlock( istream& in, Graph& graph )
             case JSON::NUMBER:
               double number;
               in3 >> number;
-              thisBlock.parameters[ key2 ] = number;
+              thisBlock.parameters[ key2 ] = variable_t( number );
               break;
               
             case JSON::STRING:
-              thisBlock.parameters[ key2 ] = JSON::readJsonString(in3);
+              thisBlock.parameters[ key2 ] = variable_t(  JSON::readJsonString(in3) );
               break;
               
             default:
@@ -211,10 +211,10 @@ void GraphBlock::readJsonBlock( std::istream& in, const std::string& blockName )
             {
               double number;
               in3 >> number;
-              parameters[name] = number;
+              parameters[name] = variable_t( number );
             } else if( "string" == parameterType )
             {
-              parameters[name] = JSON::readJsonString(in3);
+              parameters[name] = variable_t( JSON::readJsonString(in3) );
             } else 
               throw( JSON::parseError( "Unknown parameterType '"+parameterType+"' in for parameter '"+name+"' section", in3, __LINE__ ,__FILE__ ) );
             logger << "-----> next type: " << t << " for '"<<name<<"' found '" << parameters.at(name).getAsString() << "'\n"; logger.show();
