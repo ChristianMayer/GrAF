@@ -45,7 +45,11 @@ static const char *message_status_string[3] =
  */
 class MessageRegister
 {
+  //typedef void (*messageHandler_Callback_t)(variable_t);
+  typedef std::function<void (variable_t)> messageHandler_Callback_t;
+  typedef std::vector<std::pair<class LogicEngine* const, messageHandler_Callback_t>> subscribers_t;
 public:
+  typedef subscribers_t::value_type MessageRegisterSubscribers_t;
   /**
    * Type of a timestamp.
    */
@@ -56,7 +60,6 @@ public:
   static timestamp_t now( void ) { return timestamp_t::clock().now(); }
   
 private:
-  typedef std::vector<graphs_t::iterator> subscribers_t;
   struct register_t
   {
     variable_t    value;
@@ -99,7 +102,7 @@ public:
   /**
    * Stores a logic ID that will be called once the address arrives
    */
-  void subscribe( const std::string& dst, const variableType::type type, const subscribers_t::value_type logic_ID )
+  void subscribe( const std::string& dst, const variableType::type type, const subscribers_t::value_type& logic_ID )
   {
     look_for( dst, type )->second.subscribers.push_back( logic_ID );
   }

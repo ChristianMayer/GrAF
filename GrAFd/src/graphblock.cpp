@@ -118,18 +118,19 @@ void GraphBlock::grepBlock( istream& in, Graph& graph )
     {
       if( GraphBlock::Port::STATE == p->type )
       {
+        string instruction = "move<float>( " + name + ".state/" + p->name + ", " + name + "/" + p->name + " )\n";
         if( blockNotCopyied )
         {
           graph.blockLookup[ name + ".state" ] = boost::add_vertex( graph.g );
           GraphBlock& stateBlock = graph.g[ graph.blockLookup[ name + ".state" ] ];
           stateBlock.name = name + ".state";
           stateBlock.isStateCopy = true;
-          stateBlock.type = graph.g[ graph.blockLookup[ name ] ].type; //NOTE: thisBlock is invalid due to boost::add_vertex( g )
-          stateBlock.implementation = " ";//"... copy state port ...";
+          stateBlock.type = graph.g[ graph.blockLookup[ name ] ].type; //NOTE: "thisBlock" is invalid due to boost::add_vertex( g )
+          stateBlock.implementation = instruction;
           blockNotCopyied = false;
         } else {
           GraphBlock& stateBlock = graph.g[ graph.blockLookup[ name + ".state" ] ];
-          stateBlock.implementation += " ";//"... copy other state port ...";
+          stateBlock.implementation += instruction;
         }
       }
     }
@@ -141,90 +142,95 @@ void GraphBlock::readJsonBlock( std::istream& in, const std::string& blockName )
 {
   name = blockName;
   
-  JSON::readJsonObject( in, [this]( istream& in, const string& name ){
+  JSON::readJsonObject( in, [this]( istream& in1, const string& name ){
     if( "width" == name )
     {
-      in >> width;
+      in1 >> width;
     } else if( "height" == name )
     {
-      in >> height;
+      in1 >> height;
     } else if( "rotation" == name )
     {
-      in >> rotation;
+      in1 >> rotation;
     } else if( "flip" == name )
     {
-      flip = JSON::readJsonBool( in );
+      flip = JSON::readJsonBool( in1 );
     } else if( "color" == name )
     {
       int pos = 0;
-      JSON::readJsonArray( in, [&]( istream& in ){
-        in >> color[pos++];
-        if( pos > 3 ) throw JSON::parseError( "More than three colors found!", in, __LINE__ ,__FILE__ );
+      JSON::readJsonArray( in1, [this, &pos]( istream& in2 ){
+        in2 >> color[pos++];
+        if( pos > 3 ) throw JSON::parseError( "More than three colors found!", in2, __LINE__ ,__FILE__ );
       });
     } else if( "background" == name )
     {
       int pos = 0;
-      JSON::readJsonArray( in, [&]( istream& in ){
-        in >> background[pos++];
-        if( pos > 3 ) throw JSON::parseError( "More than three colors found!", in, __LINE__ ,__FILE__ );
+      JSON::readJsonArray( in1, [this, &pos]( istream& in2 ){
+        in2 >> background[pos++];
+        if( pos > 3 ) throw JSON::parseError( "More than three colors found!", in2, __LINE__ ,__FILE__ );
       });
     } else if( "inPorts" == name )
     {
-      JSON::readJsonArray( in, [&]( istream& in ){
+      JSON::readJsonArray( in1, [this]( istream& in2 ){
         Port p;
-        JSON::readJsonObject( in, [&]( istream& in, const string& name ){
+        JSON::readJsonObject( in2, [&p]( istream& in3, const string& name ){
           if( "name" == name )
-            p.name = JSON::readJsonString(in);
+            p.name = JSON::readJsonString(in3);
           else if( "type" == name )
-            p.setType( JSON::readJsonString(in) );
+            p.setType( JSON::readJsonString(in3) );
           else
-            throw( JSON::parseError( "unknown key '" + name + "' in port", in, __LINE__ ,__FILE__ ) );
+            throw( JSON::parseError( "unknown key '" + name + "' in port", in3, __LINE__ ,__FILE__ ) );
         });
         inPorts.push_back( p );
       });
     } else if( "outPorts" == name )
     {
-      JSON::readJsonArray( in, [&]( istream& in ){
+      JSON::readJsonArray( in1, [this]( istream& in2 ){
         Port p;
-        JSON::readJsonObject( in, [&]( istream& in, const string& name ){
+        JSON::readJsonObject( in2, [&p]( istream& in3, const string& name ){
           if( "name" == name )
-            p.name = JSON::readJsonString(in);
+            p.name = JSON::readJsonString(in3);
           else if( "type" == name )
-            p.setType( JSON::readJsonString(in) );
+            p.setType( JSON::readJsonString(in3) );
           else
-            throw( JSON::parseError( "unknown key '" + name + "' in port", in, __LINE__ ,__FILE__ ) );
+            throw( JSON::parseError( "unknown key '" + name + "' in port", in3, __LINE__ ,__FILE__ ) );
         });
         outPorts.push_back( p );
       });
     } else if( "parameters" == name )
     {
-      JSON::readJsonObject( in, [&]( istream& in, const string& name ){
+      JSON::readJsonObject( in1, [this]( istream& in2, const string& name ){
         string parameterType;
-        JSON::readJsonObject( in, [&]( istream& in, const string& key ){
+        JSON::readJsonObject( in2, [this, &name, &parameterType]( istream& in3, const string& key ){
           if( "type" == key )
-            parameterType = JSON::readJsonString(in);
+            parameterType = JSON::readJsonString(in3);
           else if( "default" == key )
           {
+            auto t = JSON::identifyNext( in3 ); // FIXME nur temporaer hier
             if( "float" == parameterType )
             {
               double number;
-              in >> number;
+              in3 >> number;
               parameters[name] = number;
+            } else if( "string" == parameterType )
+            {
+              parameters[name] = JSON::readJsonString(in3);
             } else 
-              throw( JSON::parseError( "Unknown parameterType '"+parameterType+"' in for parameter '"+name+"' section", in, __LINE__ ,__FILE__ ) );
+              throw( JSON::parseError( "Unknown parameterType '"+parameterType+"' in for parameter '"+name+"' section", in3, __LINE__ ,__FILE__ ) );
+            logger << "-----> next type: " << t << " for '"<<name<<"' found '" << parameters.at(name).getAsString() << "'\n"; logger.show();
           }
           else
-            throw( JSON::parseError( "Unknown key '"+key+"' in for parameter '"+name+"' section", in, __LINE__ ,__FILE__ ) );
+            throw( JSON::parseError( "Unknown key '"+key+"' in for parameter '"+name+"' section", in3, __LINE__ ,__FILE__ ) );
         });
       });
     } else if( "init" == name )
     {
-      init = JSON::readJsonString( in );
+      init = JSON::readJsonString( in1 );
     } else if( "implementation" == name )
     {
-      implementation = JSON::readJsonString( in );
+      implementation = JSON::readJsonString( in1 );
     } else {
-      throw( JSON::parseError( "Unknown key '"+name+"' for block", in, __LINE__ ,__FILE__ ) );
+      throw( JSON::parseError( "Unknown key '"+name+"' for block", in1, __LINE__ ,__FILE__ ) );
     }
   });
 }

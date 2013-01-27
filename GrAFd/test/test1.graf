@@ -45,6 +45,16 @@
       "type": "MainLib/scope",
       "x": 500, "y": 125, "width": 600, "height": 300,
       "parameters": {}
+    },
+    "GetMessage": {
+      "type": "MainLib/getMessage",
+      "x": 50, "y": 500, "width": 50, "height": 50,
+      "parameters": { "address": "bla:blub" }
+    },
+    "Display4": {
+      "type": "MainLib/display",
+      "x": 250, "y": 500, "width": 150, "height": 50,
+      "parameters": {}
     }
   },
   "signals": [
@@ -55,6 +65,7 @@
     [ "Integral2", 0, "Gain2"     , 0, {} ],
     [ "Gain2"    , 0, "Integral1" , 0, {} ],
     [ "Integral2", 0, "Display3"  , 0, {} ],
-    [ "Integral2", 0, "Scope_1"   , 0, {} ]
+    [ "Integral2", 0, "Scope_1"   , 0, {} ],
+    [ "GetMessage", 0, "Display4" , 0, {} ]
   ]
 }

@@ -37,7 +37,15 @@
           "type": "state"
         }
       ],
-      "parameters":{},
+      "parameters": {
+        "initial_value" : { 
+          "type": "float",
+          "default": 0.0
+        }
+      },
+      "init":"
+        move<float>( out1, initial_value )
+      ",
       "implementation":"
         //var int inner
         //var float outer
@@ -222,8 +230,8 @@
         var float old
         var bool rel
         mul<float>( old, old, in )
-        rel<bool, float>( rel, old, ground, \"GREATER\" )
-        jumptrue<bool>( rel, 2 )
+        rel<bool, float>( rel, old, ground, \"LESSEQUAL\" )
+        jumptrue<bool>( 2, rel )
         send<float>( in, \"foo:zeroDetect\" )
         move<float>( old, in ) 
       "
@@ -247,6 +255,31 @@
       },
       "implementation":"
         send<float>( in, \"foo:bar\" )
+      "
+    },
+    "getMessage": {
+      "width": 75,
+      "height": 75,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+      ],
+      "outPorts": [
+        { 
+          "name": "out",
+          "type": "event"
+        }
+      ],
+      "parameters": {
+        "address" : { 
+          "type": "string",
+          "default": "foo:bar"
+        }
+      },
+      "implementation":"
+        get<float>( out, address )
       "
     }
   }

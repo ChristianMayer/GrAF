@@ -29,8 +29,7 @@
 #include "logger.hpp"
 #include "logic_elements.hpp"
 #include "json.hpp"
-
-#define ASSERT_MSG(expr, msg) /*BOOST_ASSERT_MSG( expr, (std::stringstream() << msg).str().c_str() )*/
+#include "utilities.hpp"
 
 constexpr const char *const LogicEngine::logicStateName[]; // give it a home
 
@@ -38,18 +37,34 @@ LogicEngine::LogicEngine( size_t maxSize, int logicId ) :
   thisLogicId( logicId ),
   logicState( STOPPED ),
   rerun( false ),
-  variableRegistry( {std::pair<std::string, variableRegistryStorage>( "ground", { 0, variableType::getType<float>(), &LogicEngine::readString<float> } )} )
+  lastVariableImport( MessageRegister::now() ),
+  variableRegistry( {std::pair<std::string, variableRegistryStorage>( "ground", { ground(), variableType::getType<float>(), &LogicEngine::readString<float> } )} )
 {
   elementList = new LogicElement_Generic*[ maxSize ];
   elementCount = 0;
   mainTask = elementList;
   globVar = new raw_t[10000]; // FIXME make dynamic!!!
+  for( size_t initp = 0; initp != 10000; initp++ ) globVar[initp]=0; // make valgrind happy for now...
   variableCount = variableStart();
   
   // make sure "ground" is zero:
   *reinterpret_cast<long long* const>( globVar + ground() ) = 0;
   
   logger << "created Logicengine #" << thisLogicId << " @ " << this << " for " << maxSize << " entries;\n"; logger.show();
+}
+
+LogicEngine::LogicEngine( LogicEngine&& other )
+: thisLogicId( other.thisLogicId ),
+  logicState( other.logicState.load() ),
+  rerun( other.rerun.load() ),
+  lastVariableImport( std::move( other.lastVariableImport ) ),
+  mainTask( std::move( other.mainTask ) )
+{
+  std::swap( elementList, other.elementList );
+  std::swap( elementCount, other.elementCount );
+  std::swap( globVar, other.globVar );
+  
+  logger << "moved Logicengine #" << thisLogicId << " @ " << this << ";\n"; logger.show();
 }
 
 LogicEngine::~LogicEngine()
@@ -65,6 +80,33 @@ LogicEngine::~LogicEngine()
 void LogicEngine::addElement( LogicElement_Generic* element )
 {
   elementList[elementCount++] = element;
+}
+
+raw_offset_t LogicEngine::registerVariable( const std::string& name, variableType::type type )
+{
+  switch( type )
+  {
+    case variableType::INT:
+      return registerVariable<int>( name );
+      
+    case variableType::FLOAT:
+      return registerVariable<float>( name );
+      
+    /* // FIXME - probaby bad idea...
+    case variableType::STRING:
+    {
+      auto var = variableRegistry.find( name );
+      if( variableRegistry.end() == var )
+        throw( JSON::parseError( "Unknown string: '" + name + "'", __LINE__ ,__FILE__ ) );
+      return var->second.offset;
+    }*/
+   
+    default:
+      throw( JSON::parseError( "Unsupported Type: '" + variableType::getTypeName( type ) + "'", __LINE__ ,__FILE__ ) );
+  }
+  
+  // will never reach this
+  return 0; 
 }
 
 void LogicEngine::dump( const std::string& prefix ) const
@@ -96,26 +138,54 @@ void LogicEngine::dump( const std::string& prefix ) const
   logger.show();
 }
 
-void LogicEngine::run( const instructionPointer start ) const
+void LogicEngine::run( const instructionPointer start, const instructionPointer elEnd ) const
 {
+  logger << "LogicEngine("<<this<<")::run( " << start << ", " << elEnd << "), logicState: " << logicState << " => Running: " << (RUNNING == logicState?"true":"false") <<"\n"; logger.show();
+
+  ASSERT_MSG( start < elEnd, "Instruction pointers unplausible, " << start << " must be less than " << elEnd );
+  
   // check if state is correct
-  if( RUNNING != logicState )
-    return;
+  ASSERT_MSG( RUNNING == logicState, "LogicEngine::run() called during wrong state (" << logicStateName[logicState] << ")" );
   
-  reinterpret_cast<instructionPointer*>(globVar)[0] = start;
-  const instructionPointer elEnd = elementList + elementCount;
-  
-  while( reinterpret_cast<instructionPointer*>(globVar)[0] < elEnd )
+  instructionPointer& ip = reinterpret_cast<instructionPointer*>(globVar)[0];
+  //reinterpret_cast<instructionPointer*>(globVar)[0] = start;
+  ip = start;
+  logger << "LogicEngine("<<this<<")::run: is running from " << start << " to " << elEnd << "...\n"; logger.show();
+  //while( reinterpret_cast<instructionPointer*>(globVar)[0] < elEnd )
+  while( ip < elEnd )
   {
-    (*reinterpret_cast<instructionPointer*>(globVar)[0])->calc( globVar );
+    //ip = reinterpret_cast<instructionPointer*>(globVar)[0];
+    (*ip)->dump( logger << "calling " << ip << ": " ); logger.show();
+    
+    (*ip)->calc( globVar );
     
     ASSERT_MSG( 
-      elementList <= reinterpret_cast<instructionPointer*>(globVar)[0] && 
-      ( reinterpret_cast<instructionPointer*>(globVar)[0] <= elEnd || 
-      reinterpret_cast<instructionPointer*>(globVar)[0] == reinterpret_cast<instructionPointer>(SIZE_MAX)),
-      "LogicEngine instruction pointer out of valid range!"
+      elementList <= ip && 
+      ( ip <= elEnd || ip == reinterpret_cast<instructionPointer>(SIZE_MAX)),
+      "LogicEngine instruction pointer " << ip << " out of valid range "
+        << elementList << " ... " << elEnd << "!"
     );
   }
+}
+
+void LogicEngine::scheduleRun( MessageRegister::timestamp_t timestamp )
+{
+  logger << this << ": !!! scheduleRun 0 rr:" << (rerun?"t":"f") << ", state: " << logicStateName[logicState] << std::endl; logger.show();
+  do {
+    logger << this << ": !!! scheduleRun 1 rr:" << (rerun?"t":"f") << ", state: " << logicStateName[logicState] << std::endl; logger.show();
+    write<float>( variableRegistry.at( "__dt" ).offset, std::chrono::duration_cast<seconds_float>(timestamp - lastVariableImport).count() );
+    copyImportedVariables( timestamp );
+    logger << this << ": !!! scheduleRun 2 rr:" << (rerun?"t":"f") << ", state: " << logicStateName[logicState] << std::endl; logger.show();
+    rerun = false;
+    run();
+    logger << this << ": !!! scheduleRun 3 rr:" << (rerun?"t":"f") << ", state: " << logicStateName[logicState] << std::endl; logger.show();
+    timestamp = MessageRegister::now();
+    bool could_stop = stopLogic();
+    ASSERT_MSG( could_stop, "LogicEngine state couldn't be set to STOPPED!" );
+    logger << this << ": !!! scheduleRun 4 rr:" << (rerun?"t":"f") << ", state: " << logicStateName[logicState] << std::endl; logger.show();
+  } while( rerun );
+  logger << this << ": !!! scheduleRun 5 rr:" << (rerun?"t":"f") << ", state: " << logicStateName[logicState] << std::endl; logger.show();
+  dump();
 }
 
 std::string LogicEngine::export_noGrAF( void ) const
@@ -150,28 +220,9 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
     { "rel<bool,float>", le_map::value_type::second_type( LogicElement_Rel<bool,float>::signature, LogicElement_Rel<bool,float>::create ) },
     { "jumptrue<bool>" , le_map::value_type::second_type( LogicElement_JumpTrue<bool> ::signature, LogicElement_JumpTrue<bool> ::create ) },
     { "send<float>"    , le_map::value_type::second_type( LogicElement_Send<float>    ::signature, LogicElement_Send<float>    ::create ) },
+    { "get<float>"     , le_map::value_type::second_type( LogicElement_Get<float>     ::signature, LogicElement_Get<float>     ::create ) },
     { "sum<float>"     , le_map::value_type::second_type( LogicElement_Sum<float>     ::signature, LogicElement_Sum<float>     ::create ) }
   };
-  //le_map::value_type;le_map::value_type::second_type;
-  /*
-  typedef std::map< std::string, LogicElement_Generic::FactoryType > le_map;
-  le_map lookup {
-    { "const<float>", LogicElement_Const<float>::create }
-  };*/
-  
-  //lookup["const<float>"] = std::make_pair( LogicElement_Const<float>::signature, LogicElement_Const<float>::create );
-  
-  /*lookup["const<int>"] = LogicElement_Const<int>::create;
-  lookup["jump"] = LogicElement_Jump::create;
-  lookup["jumptrue<int>"] = LogicElement_JumpTrue<int>::create;
-  lookup["move<float>"] = LogicElement_Move<float>::create;
-  lookup["move<int>"] = LogicElement_Move<int>::create;
-  lookup["mul<float>"] = LogicElement_Mul<float>::create;
-  lookup["muladd<float>"] = LogicElement_MulAdd<float>::create;
-  lookup["mulsub<float>"] = LogicElement_MulSub<float>::create;
-  lookup["rel<int,float>"] = LogicElement_Rel<int,float>::create;
-  lookup["sum<float>"] = LogicElement_Sum<float>::create;
-  lookup["sum<int>"] = LogicElement_Sum<int>::create;*/
   
   while( in.good() )
   {
@@ -194,7 +245,7 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
       
       std::string type = line.substr( 4, found - 4 );
       std::string name = prefix + line.substr( found + 1 );
-      logger << "register '" << name << "' with type '" << type << "'\n"; logger.show();
+
       if( "bool" == type )
         registerVariable<bool>( name );
       else if( "int" == type )
@@ -220,8 +271,6 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
     if( line.length() == 0 )
       continue;  // nothing to do in a empty line
       
-    logger << "add command: '" << line << "'" << std::endl;
-
     size_t paramStart = line.find( "(" );
     auto instruction = lookup.find( line.substr( 0, paramStart ) );
     if( lookup.end() == instruction )
@@ -240,6 +289,19 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
         case LogicElement_Generic::VARIABLE_T:
           if( '"' == pureVar[0] )
             return pureVar.substr( 1, pureVar.length()-2 );
+          return pureVar;
+          
+        case LogicElement_Generic::STRING:
+          if( '"' == pureVar[0] )
+            return pureVar.substr( 1, pureVar.length()-2 );
+          {
+            auto variable = translation.find( prefix + pureVar );
+            if( translation.end() != variable )
+              return variable->second;
+            variable = translation.find( pureVar );
+            if( translation.end() != variable )
+              return variable->second;
+          }
           return pureVar;
           
         default:
@@ -261,7 +323,9 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
         if( variableRegistry.end() == variable ) // if not found: retry global
           variable = variableRegistry.find( pureVar );
         
-        if( variableRegistry.end() == variable ) throw( JSON::parseError( "Variable '" + var + "' not found! Connection missing?", __LINE__ ,__FILE__ ) );
+        if( variableRegistry.end() == variable ) 
+          throw( JSON::parseError( "Variable '" + var + "' not found! Connection missing?", __LINE__ ,__FILE__ ) );
+        
         return std::to_string( variable->second.offset );
       }
       else
@@ -270,7 +334,6 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
 
     while( (found = line.find( ",", paramStart )) != std::string::npos )
     {
-      //logger << "[" << paramStart << "," << found << "]" << std::endl;
       params.push_back( getParam( paramStart, found ) );
       paramStart = found+1;
     }
@@ -283,7 +346,7 @@ void LogicEngine::import_noGrAF( std::istream& in, bool symbolicVariables, std::
       logger << "Syntax error! '" << line << "'" << std::endl;
     }
     
-    addElement( instruction->second.second( params ) ); // add by calling the Factory function
+    addElement( instruction->second.second( this, params ) ); // add by calling the Factory function
   }
 }
 

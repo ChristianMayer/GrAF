@@ -23,7 +23,9 @@
 #include <string>
 #include <map>
 #include <istream>
+#include <chrono>
 
+#include <boost/asio.hpp>
 #include "boost/graph/adjacency_list.hpp"
 #include "boost/graph/topological_sort.hpp"
 
@@ -52,14 +54,13 @@ public:
    */
   ~Graph();
   
-  Graph(const Graph& that) = delete; // no copy
-  Graph( Graph&& other ) noexcept :  // but move
-    g( std::move( other.g ) ),
-    blockLookup( std::move( blockLookup ) ),
-    le( nullptr )
-  {
-    std::swap( le, other.le );
-  }
+  Graph( const Graph& ) = delete; // no copy
+  Graph( Graph&& other );         // but move
+  
+  /**
+   * Run the initialisation and set up the periodic calls.
+   */
+  void init( boost::asio::io_service& io_service );
   
   /**
    * Show the content of the graph.
@@ -105,7 +106,9 @@ private:
   blockLookup_t blockLookup;
   
   void parseString( std::istream& in );
-  void grepSignal( std::istream& in );
+  void grepMeta( std::istream& in );
+  
+  std::map<std::string, variable_t> meta;
   
   const GraphBlock& libLookup( const GraphBlock& source ) const 
   {
@@ -117,6 +120,14 @@ private:
     return libLookup( g[ blockLookup.at( source ) ] );
   }
   
+  typedef std::vector<class LogicEngine> logicengines_t;
+  logicengines_t logicengines;
+
+  typedef boost::asio::basic_waitable_timer< std::chrono::steady_clock > scheduler_t;
+  scheduler_t::duration duration;
+  scheduler_t* scheduler;
+  void schedule( boost::asio::io_service& io_service );
+  friend void handle_schedule_call( const boost::system::error_code& error, const Graph* graph );
 public: // TODO only a temporary solution...
   class LogicEngine* le;
 };

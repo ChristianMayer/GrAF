@@ -1,4 +1,8 @@
 {
+  "meta": {
+    "step-size": 500e-3,
+    "stop-time": 10.0
+  },
   "blocks": {
     "Memory1": {
       "type": "MainLib/memory",
@@ -9,7 +13,7 @@
     "Gain1": {
       "type": "MainLib/gain",
       "x": 50, "y": 150, "width": 50, "height": 50,
-      "parameters": { "gain": 1 }
+      "parameters": { "gain": "__dt" }
     },
     "Sum1": {
       "type": "MainLib/sum",

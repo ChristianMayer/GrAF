@@ -95,7 +95,7 @@ public:
   /**
    * Factory
    */
-  static LogicElement_Generic* create( const params_t& p ) 
+  static LogicElement_Generic* create( ownerPtr_t, const params_t& p ) 
   { 
     using boost::lexical_cast;
     return new LogicElement_Rel<Tout, Tin>( lexical_cast<raw_offset_t>(p[0]),

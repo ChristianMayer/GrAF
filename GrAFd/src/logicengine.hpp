@@ -25,6 +25,7 @@
 #include <iostream>
 #include <sstream>
 #include <atomic>
+#include <chrono>
 
 #include "globals.h"
 
@@ -114,8 +115,9 @@ private:
   };
   typedef std::map<std::string, variableRegistryStorage> variableRegistry_t;
   variableRegistry_t variableRegistry;
-  variableRegistry_t importRegistriy;
+  variableRegistry_t importRegistry;
   MessageRegister::timestamp_t lastVariableImport;
+  typedef std::chrono::duration<float, std::ratio<1>> seconds_float;
   
 public:
   /**
@@ -127,7 +129,9 @@ public:
    * @param maxSize Maximum number of LogicElements
    * @param logicId ID of this LogicEngine
    */
-  LogicEngine( size_t maxSize, int logicId  );
+  LogicEngine( size_t maxSize, int logicId=0 );
+  LogicEngine( const LogicEngine& ) = delete; // no copy
+  LogicEngine( LogicEngine&& );               // but move
   /**
    * Destructor.
    */
@@ -231,6 +235,17 @@ public:
   }
   
   /**
+   * Register an anonymous variable of size T with the passed @p value.
+   */
+  template<typename T>
+  raw_offset_t registerVariable( const T& value )
+  {
+    raw_offset_t thisVariable( registerVariable<T>() );
+    write( thisVariable, value );
+    return thisVariable;
+  }
+  
+  /**
    * Register variable name of size T.
    */
   template<typename T>
@@ -243,20 +258,35 @@ public:
   }
   
   /**
+   * Register variable @p name of size @p T with the passed @p value.
+   */
+  template<typename T>
+  raw_offset_t registerVariable( const std::string& name, const T& value )
+  {
+    raw_offset_t thisVariable( registerVariable<T>( name ) );
+    write( thisVariable, value );
+    return thisVariable;
+  }
+  
+  /**
    * Register variable @p name of type @p type.
    * 
    * @param name The name of the variable.
    * @param type The type of the variable.
    */
-  raw_offset_t registerVariable( const std::string& name, variableType::type type )
+  raw_offset_t registerVariable( const std::string& name, variableType::type type );
+  
+  /**
+   * Register variable @p name of variable_t @p variable.
+   * 
+   * @param name     The name of the variable.
+   * @param variable The variable.
+   */
+  raw_offset_t registerVariable( const std::string& name, const variable_t& variable )
   {
-    if( variableType::INT == type )
-      return registerVariable<int>( name );
-    else if( variableType::FLOAT == type )
-      return registerVariable<float>( name );
-    else
-      throw( "Unknown type!" ); // TODO throw e.G. JSON::parseError
-    return 0; // TODO throw
+    raw_offset_t thisVariable( registerVariable( name, variable.getType() ) );
+    write( thisVariable, variable );
+    return thisVariable;
   }
   
   /**
@@ -265,15 +295,15 @@ public:
   template<typename T>
   raw_offset_t importVariable( const std::string& name )
   {
-    if( 0 != importRegistriy.count( name ) )
+    if( 0 != importRegistry.count( name ) )
     {
       // already imported
       return variableRegistry[ name ].offset;
     }
     raw_offset_t pos = registerVariable<T>( name );
     registerVariable<int>( name + "_status" );
-    importRegistriy[ name ] = variableRegistry[ name ];
-    registry.subscribe( name, variableType::getType<T>(), thisLogicId );
+    importRegistry[ name ] = variableRegistry[ name ];
+    //TODO update and reenable: registry.subscribe( name, variableType::getType<T>(), thisLogicId );
     return pos;
   }
   
@@ -282,7 +312,7 @@ public:
    */
   void copyImportedVariables( MessageRegister::timestamp_t timestamp )
   {
-    for( auto it = importRegistriy.begin(); it != importRegistriy.end(); ++it )
+    for( auto it = importRegistry.begin(); it != importRegistry.end(); ++it )
     {
       register raw_t* var_p    = globVar + it->second.offset;
       register raw_t* status_p = var_p + variableType::sizeOf(it->second.type);
@@ -300,36 +330,33 @@ public:
   void dump( const std::string& prefix = "" ) const;
   
   /**
-   * Run the logic, starting at @p start.
+   * Run the logic, starting at @p start till @p elEnd.
    * 
    * @param start the first instruction to run.
+   * @param elEnd one behind the last instruction to run.
    */
-  void run( const instructionPointer start ) const;
+  void run( const instructionPointer start, const instructionPointer elEnd ) const;
+  
   /**
    * Run the logic, start at the main task.
    */
   void run() const
   {
-    run( mainTask );
+    run( mainTask, elementList + elementCount );
+  }
+  
+  /**
+   * Run only the initialisation instructions.
+   */
+  void run_init() const
+  {
+    run( elementList, mainTask );
   }
   
   /**
    * Do a full run, i.e. including copying of the variables
    */
-  void scheduleRun( MessageRegister::timestamp_t timestamp = MessageRegister::now() )
-  {
-    logger << "!!! scheduleRun 0 rr:" << (rerun?"t":"f") << std::endl; logger.show();
-    do {
-      logger << "!!! scheduleRun 1 rr:" << (rerun?"t":"f") << std::endl; logger.show();
-      copyImportedVariables( timestamp );
-      logger << "!!! scheduleRun 2 rr:" << (rerun?"t":"f") << std::endl; logger.show();
-      rerun = false;
-      run();
-      logger << "!!! scheduleRun 3 rr:" << (rerun?"t":"f") << std::endl; logger.show();
-      timestamp = MessageRegister::now();
-    } while( rerun );
-    logger << "!!! scheduleRun 4 rr:" << (rerun?"t":"f") << std::endl; logger.show();
-  }
+  void scheduleRun( MessageRegister::timestamp_t timestamp = MessageRegister::now() );
   
   /**
    * Rerun this script after it was finished - e.g. because it's currently
@@ -367,6 +394,23 @@ public:
     std::stringstream sstr;
     sstr << read<T>( offset );//variableType::getType<T>();
     return sstr.str(); //*reinterpret_cast<T* const>( globVar + offset );
+  }
+  
+  /**
+   * Write the variable at @p offset with @p value.
+   */
+  template<typename T>
+  void write( const raw_offset_t offset, const T& value )
+  {
+    *reinterpret_cast<T*>( globVar + offset ) = value;
+  }
+  
+  /**
+   * Write the variable at @p offset with @p value.
+   */
+  void write( const raw_offset_t offset, const variable_t& value )
+  {
+    value.getRaw( globVar + offset );
   }
   
   /**

@@ -60,7 +60,7 @@ private:
   bool showTimestamp;
   std::atomic<int> currentReadableID;
   std::mutex cout_mutex;
-  std::mutex map_mutex;
+  std::mutex map_mutex; // FIXME: should be a read/write lock...
   
   /**
    * nullstream_t is an ostream that does nothing
@@ -105,7 +105,7 @@ public:
    */
   const char* getLogLevelName( void ) const
   {
-    const char* names[] = { "ERROR", "WARN", "INFO", "ALL" };
+    static const char* names[] = { "ERROR", "WARN", "INFO", "ALL" };
     return names[ globalLogLevel ];
   }
   
@@ -161,6 +161,15 @@ public:
     
     showThread( it );
   }
+  
+  /**
+   * Return reference to cout mutex to synchronise with non-Logger output
+   * (e.g. for using an assert)
+   */
+  std::mutex& getOutputLock( void )
+  {
+    return cout_mutex;
+  }
    
 private:
   /**
@@ -168,7 +177,8 @@ private:
    */
   map_t::iterator createStream( void )
   {
-    std::lock_guard<std::mutex> lock( map_mutex ); // RAII
+    // Lock already done in thisStream()!
+    //std::lock_guard<std::mutex> lock( map_mutex ); // RAII
     auto res = streams.insert( 
       map_t::value_type(
         std::this_thread::get_id(), 
@@ -186,6 +196,7 @@ private:
    */
   map_t::iterator thisStream( void )
   {
+    std::lock_guard<std::mutex> lock( map_mutex ); // RAII
     auto it = streams.find( std::this_thread::get_id() );
     if( streams.end() == it )
       it = createStream();
