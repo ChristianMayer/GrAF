@@ -14,6 +14,10 @@ b3 = GLE.addBlock();
 b3.setTopLeft( new Vec2D( 100, 350 ) );
 b3.setName( 'b3' );
 
+b4 = GLE.addBlock(); 
+b4.setTopLeft( new Vec2D( 400, 50 ) );
+b4.setName( 'b4' );
+
 c1 = GLE.addConnection();
 c1.insertWaypoint( new Vec2D( 300, 100 ) );
 c1.insertWaypoint( new Vec2D( 200, 200 ) );
