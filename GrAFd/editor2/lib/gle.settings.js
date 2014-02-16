@@ -29,10 +29,10 @@
         minScale: 0.05, // minimum scale factor
         maxScale: 10.0, // maximum scale factor
         // the definition of the drawing sizes
-        toleranceHandle      : 5, // halfsize for hotspot in pixel
+        toleranceHandle      : 6, // halfsize for hotspot in pixel
         drawSizeHandle       : 2, // halfsize for visible handle in pixel
         drawSizeHandleActive : 3, // halfsize for visible handle in pixel
-        toleranceLine        : 5, // halfsize for hotspot in pixel
+        toleranceLine        : 6, // halfsize for hotspot in pixel
         drawSizeLine         : 1, // line width in pixel
         toleranceBlock       : 3, // halfsize for hotspot in pixel
         drawSizeBlock        : 1  // line width in pixel

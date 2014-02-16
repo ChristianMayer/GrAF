@@ -68,8 +68,6 @@
        */
       position2id = function( thisPos ) {
         var idxPos = ((thisPos.x*scale)|0) + width * ((thisPos.y*scale)|0);
-        //var indexData = ctxId.getImageData( 0, 0, width, height ).data;
-        //return ( (indexData[ idxPos*4 ] << 16) + (indexData[ idxPos*4+1 ] << 8) + indexData[ idxPos*4+2 ] )|0;
         return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
       },
       /**
@@ -90,32 +88,37 @@
                   targetOffset = $(eventObject.target).offset();
               $('#extra').text( 'touch:' + touch.pageX + '/' + touch.pageY + ', ' + targetOffset.left + '/' + targetOffset.top + ', ' + scale );
               return new Vec2D( 
-                //(touch.pageX - targetOffset.left)/scale|0,
-                //(touch.pageY - targetOffset.top )/scale|0
-                touch.pageX - targetOffset.left,
-                touch.pageY - targetOffset.top
+                (scaleInternal*(touch.pageX - targetOffset.left)/scale)|0,
+                (scaleInternal*(touch.pageY - targetOffset.top )/scale)|0
               );
             };
           } else {
             getMousePos = function( eventObject ) {
               var targetOffset = $(eventObject.target).offset();
               return new Vec2D( 
-                (eventObject.pageX - targetOffset.left)/scale|0,
-                (eventObject.pageY - targetOffset.top )/scale|0
-                //(eventObject.pageX/scale - targetOffset.left)|0,
-                //(eventObject.pageY/scale - targetOffset.top )|0
+                (scaleInternal*(eventObject.pageX - targetOffset.left)/scale)|0,
+                (scaleInternal*(eventObject.pageY - targetOffset.top )/scale)|0
               );
             };
           }
         } else {
           getMousePos = function( eventObject ) {
-            return new Vec2D( eventObject.offsetX/scale|0, eventObject.offsetY/scale|0 );
-            //var ret = new Vec2D( eventObject.offsetX/scale|0, eventObject.offsetY/scale|0 );
-            //return new Vec2D( eventObject.offsetX|0, eventObject.offsetY|0 );
+            return new Vec2D( (scaleInternal*eventObject.offsetX/scale)|0, (scaleInternal*eventObject.offsetY/scale)|0 );
           }
         }
         
         return getMousePos( eventObject );
+      },
+      /**
+        * Clear a canvas given by its context.
+        * This will also make sure the transform matrix is set properly, i.e.
+        * scaled.
+        */
+      clearCanvas = function( ctx )
+      {
+        ctx.setTransform( 1, 0, 0, 1, 0, 0 );
+        ctx.clearRect( 0, 0, width, height );
+        ctx.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
       },
       /**
        * Seems to be a good idea to handle anti-aliasing - but can't prevent
@@ -293,6 +296,8 @@
           else if( scale > self.settings.maxScale * scaleInternal ) 
             scale = self.settings.maxScale * scaleInternal;
           $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (' + scale + '/' + scaleInternal + ')' );
+          
+          // this will also set the scaling and clear the canvases
           self.invalidateContext();
         }
         
@@ -301,11 +306,8 @@
          */
         this.draw = function() {
           console.log( 'draw ---------------------------------------------' );
-          ctxId.clearRect( 0, 0, width, height );
-          ctxId.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
-          //ctxFg.clearRect( 0, 0, width, height );
-          ctxBg.clearRect( 0, 0, width, height );
-          ctxBg.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
+          clearCanvas( ctxId );
+          clearCanvas( ctxBg );
           blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
             var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
             var thisFocus  = focusElements.indexOf( thisBlock ) !== -1;
@@ -313,18 +315,18 @@
           } );
           // show debug:
           ctxBg.save();
+          ctxBg.setTransform( 1, 0, 0, 1, 0, 0 );
           ctxBg.fillStyle = 'rgba(100,100,200,0.75)';
           ctxBg.fillRect( 0, 0, width, height );
           ctxBg.restore();
           self.updateBg = false;
           self.drawFg(); // =>  canvasFgValid = 0;
+          
+          idData = ctxId.getImageData( 0, 0, width, height ).data;
         };
         this.drawFg = function() {
           console.log( 'drawFg -------------------------------------------' );
-          ctxFg.clearRect( 0, 0, width, height );
-          ctxFg.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
-          //ctxId.clearRect( 0, 0, width, height );
-          //activeElement.draw( ctxFg, ctxId, true );
+          clearCanvas( ctxFg );
           console.log( activeElements );
           activeElements.forEach( function( thisActiveElement ) {
             var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
@@ -356,6 +358,7 @@
           {
             // => reset zoom to 100%
             self.setZoom( scaleInternal );
+            $('#zoom').text( idBuffer.style.width + '=' + idBuffer.width + ';' + idBuffer.clientWidth );
             return;
           }
           clickTimestamp = eventObject.timeStamp;
@@ -407,7 +410,6 @@
           ctxId.restore();
           // ---------------
           
-          idData = ctxId.getImageData( 0, 0, width, height ).data;
           
           var index = position2id( lastPos ),
               activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
@@ -551,6 +553,7 @@
         };
         
         this.keyPress = function( eventObject ) {
+          eventObject.preventDefault();
           var keyMoveDistance = 10,
               moveAll = function( direction ) { // helper function
                 eventObject.preventDefault();
@@ -649,56 +652,20 @@
         // Constructor
         $canvasFg   = passedFgCanvas;
         $canvasBg   = passedBgCanvas;
-        ////////////////////////
-        /*
-        var ratio = window.devicePixelRatio || 1,
-            width = canvas.width,
-            height = canvas.height;
-
-        if (ratio > 1) {
-          canvas.width = width * ratio;
-          canvas.height = height * ratio;
-          canvas.style.width = width + "px";
-          canvas.style.height = height + "px";
-          context.scale(ratio, ratio);
-        }
-        */
-        ////////////////////////
-        width       = $canvasBg.width()  | 0;
-        height      = $canvasBg.height() | 0;
-        if( true || 1 !== scaleInternal )
-        { // e.g. retina display
-          $canvasFg[0].style.width  = width  + 'px';
-          $canvasFg[0].style.height = height + 'px';
-          $canvasBg[0].style.width  = width  + 'px';
-          $canvasBg[0].style.height = height + 'px';
-          width  = width  * window.devicePixelRatio | 0;
-          height = height * window.devicePixelRatio | 0;
-          $canvasFg[0].width  = width ;
-          $canvasFg[0].height = height;
-          $canvasBg[0].width  = width ;
-          $canvasBg[0].height = height;
-          
-        }
         ctxFg       = $canvasFg[0].getContext('2d');
         ctxBg       = $canvasBg[0].getContext('2d');
         idBuffer    = document.createElement('canvas');
         ////
-        $('#drawArea').append( idBuffer );
+        $('#drawArea').append( idBuffer ); // for debug FIXME
         ////
-        idBuffer.width  = width;
-        idBuffer.height = height;
-        idBuffer.style.width  = (width /scaleInternal) + 'px';
-        idBuffer.style.height = (height/scaleInternal) + 'px';
+        this.resize(); // sets also 'width' and 'height'
+        idBuffer.style.width  = $canvasFg[0].style.width; // for debug FIXME
+        idBuffer.style.height = $canvasFg[0].style.height; // for debug FIXME
         ctxId       = idBuffer.getContext('2d');
         $canvasFg.on( 'mousedown',  this.mousedown ); 
         $canvasFg.on( 'touchstart', this.mousedown );
         $(document).on( 'keydown',  this.keyPress  ); 
         $(window).on( 'resize',     this.resize    );
-        // trick to make 1px wide lines to not take up two pixels
-        ctxFg.translate(0.5, 0.5);
-        ctxBg.translate(0.5, 0.5);
-        ctxId.translate(0.5, 0.5);
         setSmoothingEnabled( ctxFg, false );
         setSmoothingEnabled( ctxId, false );
       };
@@ -713,28 +680,8 @@
     // init to run when the DOM is ready:
     $( function(){
       var $canvas_fg = $('#canvas_fg'), 
-          $canvas    = $('#canvas'),
-          width      = $canvas[0].width,
-          height     = $canvas[0].height,
-          context    = $canvas[0].getContext('2d'),
-          devicePixelRatio  = window.devicePixelRatio || 1,
-          backingStoreRatio = context.webkitBackingStorePixelRatio ||
-                              context.mozBackingStorePixelRatio    ||
-                              context.msBackingStorePixelRatio     ||
-                              context.oBackingStorePixelRatio      ||
-                              context.backingStorePixelRatio       || 1,
-          ratio             = devicePixelRatio / backingStoreRatio;
-      $canvas_fg[0].width  = width  * ratio;
-      $canvas_fg[0].height = height * ratio;
-      $canvas_fg[0].style.width  = width  + 'px';
-      $canvas_fg[0].style.height = height + 'px';
-      $canvas[0].width  = width  * ratio;
-      $canvas[0].height = height * ratio;
-      $canvas[0].style.width  = width  + 'px';
-      $canvas[0].style.height = height + 'px';
-      context.scale( ratio, ratio );
+          $canvas    = $('#canvas');
       window.GLE = new GLE( $canvas_fg, $canvas );
-      $('#extra').text( devicePixelRatio + ' # ' +  backingStoreRatio + ' # ' + ratio );
     });
   }
 })( window );
