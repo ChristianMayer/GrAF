@@ -206,10 +206,10 @@
     /**
      * Update the position of the index.
      */
-    this.update = function( index, newPos, deltaPos, shortDeltaPos )
+    this.update = function( index, newPos, shortDeltaPos )
     {
       index = index | 0;
-      console.log( 'block update',  index, newPos, deltaPos, shortDeltaPos );
+      console.log( 'block update',  index, newPos, shortDeltaPos );
       switch( index )
       {
         case 0: // main
@@ -260,6 +260,8 @@
 */
           }
       };
+      //pos.round( thisGLE.settings.gridSize );
+      //size.round( thisGLE.settings.gridSize );
       size.x = Math.max( size.x, minWidth  );
       size.y = Math.max( size.y, minHeight );
       
@@ -346,20 +348,24 @@
      * Draw itself on the canvas @param context and it's shape on the
      * @param index context.
      */
-    this.draw = function( context, index, focus ) {
+    this.draw = function( context, index, focus, isDrawFg ) {
       // draw shape to index map
-      thisGLE.prepareHandlerDrawing( handlers[ 0 ] );
-      index.fillRect( pos.x, pos.y, size.x, size.y );
-      
-      thisGLE.drawHandler( pos                                       , handlers[ 1 ], focus );
-      thisGLE.drawHandler( pos.copy().plus( size.copy().cmul([1,0]) ), handlers[ 2 ], focus );
-      thisGLE.drawHandler( pos.copy().plus( size.copy().cmul([0,1]) ), handlers[ 3 ], focus );
-      thisGLE.drawHandler( pos.copy().plus( size )                   , handlers[ 4 ], focus );
+      if( !isDrawFg )
+      {
+        thisGLE.prepareHandlerDrawing( handlers[ 0 ] );
+        index.fillRect( pos.x, pos.y, size.x, size.y );
+        
+        thisGLE.drawHandler( pos                                       , handlers[ 1 ], focus );
+        thisGLE.drawHandler( pos.copy().plus( size.copy().cmul([1,0]) ), handlers[ 2 ], focus );
+        thisGLE.drawHandler( pos.copy().plus( size.copy().cmul([0,1]) ), handlers[ 3 ], focus );
+        thisGLE.drawHandler( pos.copy().plus( size )                   , handlers[ 4 ], focus );
+      }
       
       // draw block itself
       context.save(); // make sure to leave the context alone
       context.colorStyle = color;
       context.fillStyle  = fill;
+      context.lineWidth  = thisGLE.settings.drawSizeBlock;
       context.fillRect( pos.x, pos.y, size.x, size.y );
       context.strokeRect( pos.x, pos.y, size.x, size.y );
       
@@ -382,7 +388,7 @@
           context.lineTo( pos.x    , pos.y     + centerY );
           context.lineTo( pos.x - 5, pos.y + 5 + centerY );
           context.stroke(); 
-          thisGLE.drawHandler( getInPortPos( index ), handlers[ startIndex + index ], focus );
+          isDrawFg || thisGLE.drawHandler( getInPortPos( index ), handlers[ startIndex + index ], focus );
         } else {
         }
       });
@@ -398,7 +404,7 @@
           context.lineTo( pos.x + size.x + 5, pos.y     + centerY );
           context.lineTo( pos.x + size.x    , pos.y + 5 + centerY );
           context.stroke(); 
-          thisGLE.drawHandler( getOutPortPos( index ), handlers[ startIndex + index ], focus );
+          isDrawFg || thisGLE.drawHandler( getOutPortPos( index ), handlers[ startIndex + index ], focus );
         } else {
         }
       });

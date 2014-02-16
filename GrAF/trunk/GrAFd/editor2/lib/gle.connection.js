@@ -112,12 +112,15 @@
       // draw block itself
       context.save(); // make sure to leave the context alone
       context.fillStyle = '#000000';
+      context.lineWidth = thisGLE.settings.drawSizeLine;
       context.beginPath();
       index.beginPath();
       var oldIndexPos,
           waypoints = this.candidates.appendEnd 
                       ? this.waypoints.concat( this.candidates.waypoints )
-                      : this.candidates.waypoints.slice().reverse().concat( this.waypoints );
+                      : this.candidates.waypoints.slice().reverse().concat( this.waypoints ),
+          wpHalfsize = thisGLE.settings.drawSizeHandle,
+          wpSize     = 2 * wpHalfsize + 1;
       
       waypoints.forEach( function drawWaypoint_PROFILENAME(thisPoint, i ){
         if( thisPoint.protected )
@@ -125,7 +128,7 @@
         else
           context.fillStyle = '#000000';
           
-        context.fillRect( thisPoint.x-2, thisPoint.y-2, 5, 5 );
+        context.fillRect( thisPoint.x-wpHalfsize, thisPoint.y-wpHalfsize, wpSize, wpSize );
         //console.log(thisPoint, i );
         if( 0 == i )
         {
@@ -159,12 +162,13 @@
         var lastPoint = waypoints[ waypoints.length - 1 ],
             prevPoint = waypoints[ waypoints.length - 2 ],
             direction = lastPoint.copy().minus( prevPoint ).toLength( 1.0 ),
-            normal    = direction.getNormal();
+            normal    = direction.getNormal(),
+            headSize  = 5 * context.lineWidth;
         context.moveTo( lastPoint.x, lastPoint.y );
-        context.lineTo( lastPoint.x - 15 * direction.x + 5 * normal.x,
-                        lastPoint.y - 15 * direction.y + 5 * normal.y );
-        context.lineTo( lastPoint.x - 15 * direction.x - 5 * normal.x,
-                        lastPoint.y - 15 * direction.y - 5 * normal.y );
+        context.lineTo( lastPoint.x - headSize * ( 3 * direction.x + normal.x ),
+                        lastPoint.y - headSize * ( 3 * direction.y + normal.y ) );
+        context.lineTo( lastPoint.x - headSize * ( 3 * direction.x - normal.x ),
+                        lastPoint.y - headSize * ( 3 * direction.y - normal.y ) );
         context.lineTo( lastPoint.x, lastPoint.y );
       }
       context.fill();
@@ -418,10 +422,10 @@
     /**
       * Update the position of the index.
       */
-    this.update = function( index, newPos, deltaPos, shortDeltaPos, lowerElement, shiftKey )
+    this.update = function( index, newPos, shortDeltaPos, lowerElement, shiftKey )
     {
-      //console.log( 'Connection Update:', this, index, newPos, deltaPos, shortDeltaPos);
-      //console.log( 'Connection Update:', /*this,*/ index, self.waypoints.length, newPos.print(), deltaPos.print(), shortDeltaPos.print(), this.candidates.appendEnd);
+      //console.log( 'Connection Update:', this, index, newPos, shortDeltaPos);
+      //console.log( 'Connection Update:', /*this,*/ index, self.waypoints.length, newPos.print(), shortDeltaPos.print(), this.candidates.appendEnd);
       if( undefined === index )
       {
         // move all
@@ -474,7 +478,7 @@
       {
         if( -index >= self.waypoints.length )
         {
-      console.log( '2Connection Update:', /*this,*/ index, newPos, deltaPos, shortDeltaPos);
+      console.log( '2Connection Update:', /*this,*/ index, newPos, shortDeltaPos);
           return;
         }
         //console.log( 'up', self.name, index, self.waypoints.length , self.waypoints[ -index-1 ].protected, self.waypoints[ -index   ].protected );

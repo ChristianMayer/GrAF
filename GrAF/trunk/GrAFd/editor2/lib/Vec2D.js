@@ -26,7 +26,7 @@
  *   All operations are chainable.
  * 
  * Exceptions are marked explicitly.
- * If the source mustn't be changes, use the copy() method.
+ * If the source mustn't be changed, use the copy() method.
  */ 
 // create a local context:
 (function( window, undefined ) {
@@ -127,6 +127,16 @@
    */
   Vec2D.prototype.getNorm = function() {
     return this.sprod( this );
+  };
+  
+  /**
+   * Round values. 
+   * This could be used to clamp to a grid.
+   */
+  Vec2D.prototype.round = function( precision ) {
+    this.x = precision * (this.x / precision | 0);
+    this.y = precision * (this.y / precision | 0);
+    return this;
   };
   
   /**
