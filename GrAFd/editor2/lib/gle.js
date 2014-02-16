@@ -35,6 +35,7 @@
       scaleInternal = window.devicePixelRatio,
       scale         = scaleInternal, // overall scale
       scaleFactor   = Math.pow(2,1/3),
+      clickTimestamp = 0,  // used to check for double click
       $canvasFg,           // jQ object with the foreground canvas DOM element
       $canvasBg,           // jQ object with the background canvas DOM element
       ctxFg,               // foreground canvas context
@@ -87,7 +88,7 @@
             getMousePos = function( eventObject ) {
               var touch = eventObject.originalEvent.touches[0],
                   targetOffset = $(eventObject.target).offset();
-              $('#extra').text( touch.pageX + '/' + touch.pageY + ', ' + targetOffset.left + '/' + targetOffset.top + ', ' + scale );
+              $('#extra').text( 'touch:' + touch.pageX + '/' + touch.pageY + ', ' + targetOffset.left + '/' + targetOffset.top + ', ' + scale );
               return new Vec2D( 
                 //(touch.pageX - targetOffset.left)/scale|0,
                 //(touch.pageY - targetOffset.top )/scale|0
@@ -139,6 +140,11 @@
             blocks = [],  // array of all existent blocks
             lastPos,      // the beginning coordinates of a mouse drag
             prevPos;      // the coordinates of the previous call to mousemove
+        
+        /**
+         * Get the user tuneable settings.
+         */
+        this.settings = new window._GLE.settings;
         
         /**
          * Create and register a new block.
@@ -208,7 +214,7 @@
         this.prepareHandlerDrawing = function( id ) {
           ctxId.fillStyle   = id2color( id | 0 );
           ctxId.strokeStyle = id2color( id | 0 );
-          ctxId.lineWidth = 5;
+          ctxId.lineWidth   = this.settings.toleranceLine;
         };
         
         /**
@@ -217,21 +223,28 @@
          * @param pos Vec2D
          */
         this.drawHandler = function( pos, id, active ) {
-          var halfSize = 4,//3.5;
-              fullSize = 0*1+2*halfSize;
+          var halfSizeFg = this.settings.drawSizeHandleActive,
+              fullSizeFg = 1 + 2 * halfSizeFg,
+              halfSizeId = this.settings.toleranceHandle,
+              fullSizeId = 1 + 2 * halfSizeId;
               
-          if( active )
-            ctxFg.fillRect( pos.x - halfSize, pos.y - halfSize, fullSize, fullSize );
+          if( active ) {
+            ctxFg.lineWidth = 1;
+            ctxFg.fillRect( pos.x - halfSizeFg, pos.y - halfSizeFg, fullSizeFg, fullSizeFg );
+            ctxFg.strokeRect( pos.x - halfSizeFg, pos.y - halfSizeFg, fullSizeFg, fullSizeFg );
+          }
           
+          ctxId.lineWidth = 1;
           ctxId.fillStyle = id2color( id | 0 );
-          ctxId.fillRect( pos.x - halfSize, pos.y - halfSize, fullSize, fullSize );
+          ctxId.fillRect( pos.x - halfSizeId, pos.y - halfSizeId, fullSizeId, fullSizeId );
+          ctxId.strokeRect( pos.x - halfSizeId, pos.y - halfSizeId, fullSizeId, fullSizeId );
         }
         
         /**
         * Return true if the @parm mousePos doesn't belong to this handler
         */
         this.checkHandlerBadSelection = function( mousePos, handlerPos ) {
-          var halfSize = 3.5 + 0.5;
+          var halfSize = this.settings.toleranceHandle;
           console.log( 'checkHandlerBadSelection', mousePos.print(), handlerPos.print(), (handlerPos.x-halfSize) > mousePos.x ||
                  (handlerPos.y-halfSize) > mousePos.y || 
                  (handlerPos.x+halfSize) < mousePos.x ||
@@ -270,6 +283,20 @@
         }
         
         /**
+         * Set the zoom level
+         */
+        this.setZoom = function( newScale )
+        {
+          scale = newScale;
+          if( scale < self.settings.minScale * scaleInternal ) 
+            scale = self.settings.minScale * scaleInternal;
+          else if( scale > self.settings.maxScale * scaleInternal ) 
+            scale = self.settings.maxScale * scaleInternal;
+          $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (' + scale + '/' + scaleInternal + ')' );
+          self.invalidateContext();
+        }
+        
+        /**
          * Redraw canvases.block
          */
         this.draw = function() {
@@ -282,7 +309,7 @@
           blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
             var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
             var thisFocus  = focusElements.indexOf( thisBlock ) !== -1;
-            thisBlock.draw( thisActive ? ctxFg : ctxBg, ctxId, thisFocus );
+            thisBlock.draw( thisActive ? ctxFg : ctxBg, ctxId, thisFocus, false );
           } );
           // show debug:
           ctxBg.save();
@@ -301,26 +328,95 @@
           console.log( activeElements );
           activeElements.forEach( function( thisActiveElement ) {
             var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
-            thisActiveElement.draw( ctxFg, ctxDummy, thisFocus );
+            thisActiveElement.draw( ctxFg, ctxDummy, thisFocus, true );
           } );
           canvasValid = 0;
+          // --------------- zeige mausklick
+          ctxFg.beginPath();
+          if( lastPos )
+          {
+            ctxFg.moveTo( lastPos.x-3, lastPos.y-3 );
+            ctxFg.lineTo( lastPos.x+3, lastPos.y+3 );
+            ctxFg.moveTo( lastPos.x-3, lastPos.y+3 );
+            ctxFg.lineTo( lastPos.x+3, lastPos.y-3 );
+          }
+          ctxFg.save();
+          ctxFg.lineWidth = 1;
+          ctxFg.strokeStyle = '#ff0000';
+          ctxFg.stroke();
+          ctxFg.restore();
+          // ---------------
         };
         
         this.mousedown = function( eventObject ) {
           eventObject.preventDefault();
+          
+          // check for double click
+          if( eventObject.timeStamp - clickTimestamp < 200 )
+          {
+            // => reset zoom to 100%
+            self.setZoom( scaleInternal );
+            return;
+          }
+          clickTimestamp = eventObject.timeStamp;
+          
+          // check for pinch
+          if( eventObject.originalEvent.touches !== undefined && 
+              eventObject.originalEvent.touches.length === 2 )
+          {
+            var start  = eventObject.originalEvent.touches,
+                length = Math.max( 1.0, Math.sqrt(
+                           (new Vec2D( start[0].clientX, start[0].clientY ))
+                           .minus(new Vec2D( start[1].clientX, start[1].clientY ))
+                           .getNorm() 
+                         ) ), // distance between the fingers - at least 1.0
+                data   = { length: length, scale: scale };
+                
+            // add event listeners
+            $(document).on( 'touchmove', data, window.GLE.pinchmove ); 
+            $(document).on( 'touchup',   data, window.GLE.pinchup   ); 
+            return;
+          }
+          
           lastPos = getMousePos( eventObject );
           prevPos = lastPos;
+          // ---------------
+          ctxFg.beginPath();
+          ctxFg.moveTo( lastPos.x-3, lastPos.y-3 );
+          ctxFg.lineTo( lastPos.x+3, lastPos.y+3 );
+          ctxFg.moveTo( lastPos.x-3, lastPos.y+3 );
+          ctxFg.lineTo( lastPos.x+3, lastPos.y-3 );
+          ctxFg.save();
+          ctxFg.strokeStyle = '#ff0000';
+          ctxFg.lineWidth = 1;
+          ctxFg.stroke();
+          ctxFg.restore();
+          ctxId.beginPath();
+          ctxId.moveTo( lastPos.x-4, lastPos.y-4 );
+          ctxId.lineTo( lastPos.x-1, lastPos.y-1 );
+          ctxId.moveTo( lastPos.x+4, lastPos.y-4 );
+          ctxId.lineTo( lastPos.x+1, lastPos.y-1 );
+          ctxId.moveTo( lastPos.x+4, lastPos.y+4 );
+          ctxId.lineTo( lastPos.x+1, lastPos.y+1 );
+          ctxId.moveTo( lastPos.x-4, lastPos.y+4 );
+          ctxId.lineTo( lastPos.x-1, lastPos.y+1 );
+          ctxId.save();
+          ctxId.strokeStyle = '#ff0000';
+          ctxId.lineWidth = 1;
+          ctxId.stroke();
+          ctxId.restore();
+          // ---------------
           
           idData = ctxId.getImageData( 0, 0, width, height ).data;
           
           var index = position2id( lastPos ),
-              activeElement = elementList[ index ][0];
+              activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
               
           //lastPos.cmul( [1/scale, 1/scale] );
-          $('#coords').text( lastPos.print() + ':' + index );
+          $('#coords').text( lastPos.print() + ':' + index + ' (' + scale + ')' );
           if( undefined !== activeElement ) console.log( lastPos, 'Result:', activeElement.checkBadSelection( lastPos, elementList[ index ][1],  2, scale ), lastPos.print(), index );
  
-          if( 0 == index || activeElement.checkBadSelection( lastPos, elementList[ index ][1], 2, scale ) )
+          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( lastPos, elementList[ index ][1], 2, scale ) )
           {
             var redraw = activeElements.length > 0;
             activeElements.length = 0;
@@ -359,7 +455,6 @@
           var index         = eventObject.data,
               thisElem      = elementList[ index ],
               thisPos       = getMousePos( eventObject ),
-              deltaPos      = thisPos.copy().minus( lastPos ),
               shortDeltaPos = thisPos.copy().minus( prevPos ),
               lowerIndex    = position2id( thisPos ),
               lowerElement  = elementList[lowerIndex];
@@ -368,7 +463,7 @@
               (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2, scale ) ) )
             lowerElement = [];
           
-          var newIndex = (thisElem[0]).update( thisElem[1], thisPos, deltaPos, shortDeltaPos, lowerElement, eventObject.shiftKey );
+          var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, eventObject.shiftKey );
           ////console.log( index, newIndex );
           // check if the handler might have been changed during the update
           if( newIndex !== undefined && newIndex !== index )
@@ -424,12 +519,43 @@
           //var index = position2id( eventObject.offsetX, eventObject.offsetY );
           //console.log( 'up', [deltaX, deltaY], [lastX, '->', eventObject.offsetX], [lastY, '->', eventObject.offsetY], ':', index, eventObject.data );
         };
+        
+        this.pinchmove = function( eventObject ) {
+          eventObject.preventDefault();
+          if( eventObject.originalEvent.touches !== undefined && 
+              eventObject.originalEvent.touches.length === 2 )
+          {
+            var end   = eventObject.originalEvent.touches,
+                length = Math.sqrt(
+                           (new Vec2D( end[0].clientX, end[0].clientY ))
+                           .minus(new Vec2D( end[1].clientX, end[1].clientY ))
+                           .getNorm() 
+                         ),
+                pinchScale = length / eventObject.data.length;
+            
+            self.setZoom( eventObject.data.scale * pinchScale );
+          } else { // probably lost a finger
+            // remove the liseteners again
+            $(document).off( 'touchmove', window.GLE.pinchmove ); 
+            $(document).off( 'touchup',   window.GLE.pinchup   ); 
+          }
+          clickTimestamp = 0; // make robust by preventing a too fast dblClick
+        };
+        
+        this.pinchup = function( eventObject ) {
+          eventObject.preventDefault();
+          
+          // remove the liseteners again
+          $(document).off( 'touchmove', window.GLE.pinchmove ); 
+          $(document).off( 'touchup',   window.GLE.pinchup   ); 
+        };
+        
         this.keyPress = function( eventObject ) {
           var keyMoveDistance = 10,
               moveAll = function( direction ) { // helper function
                 eventObject.preventDefault();
                 focusElements.forEach( function( thisElement ) {
-                  thisElement.update( undefined, undefined, undefined, direction );
+                  thisElement.update( undefined, undefined, direction );
                 } );
                 self.invalidateForeground();
               };
@@ -466,34 +592,58 @@
               break;
               
             case 66: // key: b - zoom to 100%
-              scale = scaleInternal;
-              $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '%' );
-              self.invalidateContext();
+              self.setZoom( scaleInternal );
               break;
               
             case 82: // key: r - zoom in
               scale *= scaleFactor;
-              scale = Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal;
-              if( scale > 10 * scaleInternal ) scale = 10.0 * scaleInternal;
-              $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '%' );
-              self.invalidateContext();
+              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal );
               break;
               
             case 86: // key: v - zoom out
               scale /= scaleFactor;
-              scale = Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal;
-              if( scale < 0.05 * scaleInternal ) scale = 0.05 * scaleInternal;
-              $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '%' );
-              self.invalidateContext();
+              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal );
               break;
               
             case 70: // key: f - zoom to fit
-              scaleInternal = (scaleInternal===1) ? 4 : 1;
-              $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '%' );
+              // DUMMY for development - change to other function...
+          console.log('res f:', scaleInternal );
+              self.resize();
+              //scaleInternal = (scaleInternal===1) ? 4 : 1;
+              // $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '%' );
+              $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (' + scale + '/' + scaleInternal + ')' );
               self.invalidateContext();
             default:
               console.log( 'key', eventObject, eventObject.keyCode );
           }
+        };
+        
+        /**
+         * Event handler for any kind of resize, including browser zoom level.
+         */
+        this.resize = function( eventObject ) {
+          var devicePixelRatio  = window.devicePixelRatio || 1,
+              backingStoreRatio = ctxFg.webkitBackingStorePixelRatio ||
+                                  ctxFg.mozBackingStorePixelRatio    ||
+                                  ctxFg.msBackingStorePixelRatio     ||
+                                  ctxFg.oBackingStorePixelRatio      ||
+                                  ctxFg.backingStorePixelRatio       || 1,
+              scaleInternalOld  = scaleInternal,
+              clientWidth       = $canvasFg[0].clientWidth,  // the width in pixel of the canvas on the screen before browser zoom
+              clientHeight      = $canvasFg[0].clientHeight;
+              
+          scaleInternal     = devicePixelRatio / backingStoreRatio;
+          width  = (clientWidth  * scaleInternal) | 0;
+          height = (clientHeight * scaleInternal) | 0;
+          scale  *= scaleInternal / scaleInternalOld;
+          
+          $canvasFg[0].width  = $canvasBg[0].width  = idBuffer.width  = width;
+          $canvasFg[0].height = $canvasBg[0].height = idBuffer.height = height;
+          
+          $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (' + scale + '/' + scaleInternal + ')' );
+          console.log( 'resize', eventObject, scaleInternal, scaleInternalOld );
+          console.log( $canvasFg[0].width, $canvasFg[0].height, $canvasFg.width(), $canvasFg.height(), $canvasFg[0].clientWidth, $canvasFg[0].offsetWidth, width  );
+          self.invalidateContext();
         };
         
         // Constructor
@@ -543,7 +693,8 @@
         ctxId       = idBuffer.getContext('2d');
         $canvasFg.on( 'mousedown',  this.mousedown ); 
         $canvasFg.on( 'touchstart', this.mousedown );
-        $(document).on( 'keydown', this.keyPress ); 
+        $(document).on( 'keydown',  this.keyPress  ); 
+        $(window).on( 'resize',     this.resize    );
         // trick to make 1px wide lines to not take up two pixels
         ctxFg.translate(0.5, 0.5);
         ctxBg.translate(0.5, 0.5);
@@ -561,7 +712,29 @@
   } else {
     // init to run when the DOM is ready:
     $( function(){
-      window.GLE = new GLE( $('#canvas_fg'), $('#canvas') );
+      var $canvas_fg = $('#canvas_fg'), 
+          $canvas    = $('#canvas'),
+          width      = $canvas[0].width,
+          height     = $canvas[0].height,
+          context    = $canvas[0].getContext('2d'),
+          devicePixelRatio  = window.devicePixelRatio || 1,
+          backingStoreRatio = context.webkitBackingStorePixelRatio ||
+                              context.mozBackingStorePixelRatio    ||
+                              context.msBackingStorePixelRatio     ||
+                              context.oBackingStorePixelRatio      ||
+                              context.backingStorePixelRatio       || 1,
+          ratio             = devicePixelRatio / backingStoreRatio;
+      $canvas_fg[0].width  = width  * ratio;
+      $canvas_fg[0].height = height * ratio;
+      $canvas_fg[0].style.width  = width  + 'px';
+      $canvas_fg[0].style.height = height + 'px';
+      $canvas[0].width  = width  * ratio;
+      $canvas[0].height = height * ratio;
+      $canvas[0].style.width  = width  + 'px';
+      $canvas[0].style.height = height + 'px';
+      context.scale( ratio, ratio );
+      window.GLE = new GLE( $canvas_fg, $canvas );
+      $('#extra').text( devicePixelRatio + ' # ' +  backingStoreRatio + ' # ' + ratio );
     });
   }
 })( window );
