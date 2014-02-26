@@ -100,6 +100,10 @@
     this.candidates = { waypoints: [], direction: 5 };
     this.GLE       = thisGLE;
     
+    this.getBottomRight = function() {
+      return new Vec2D(-1,-1);
+    }
+
     /**
      * Draw itself on the canvas @param context and it's shape on the
      * @param index context.

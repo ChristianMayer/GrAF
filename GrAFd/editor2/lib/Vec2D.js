@@ -73,6 +73,14 @@
     return this;
   };
   /**
+   * multiplication with scalar
+   */
+  Vec2D.prototype.scale = function( scalar ) {
+    this.x *= scalar;
+    this.y *= scalar;
+    return this;
+  }
+  /**
    * coefficient multiplication
    */
   Vec2D.prototype.cmul = function( other ) {
@@ -92,6 +100,23 @@
    */
   Vec2D.prototype.sprod = function( other ) {
     return this.x * +other.x + this.y * +other.y;
+  };
+  
+  /**
+   * Component wise minimum.
+   */
+  Vec2D.prototype.cmin = function( other ) {
+    this.x = this.x < other.x ? this.x : other.x;
+    this.y = this.y < other.y ? this.y : other.y;
+    return this;
+  };
+  /**
+   * Component wise maximum
+   */
+  Vec2D.prototype.cmax = function( other ) {
+    this.x = this.x > other.x ? this.x : other.x;
+    this.y = this.y > other.y ? this.y : other.y;
+    return this;
   };
   
   /**

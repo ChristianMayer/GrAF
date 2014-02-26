@@ -28,6 +28,7 @@
         gridSize: 5, // the distance between grid points
         minScale: 0.05, // minimum scale factor
         maxScale: 10.0, // maximum scale factor
+        borderWidth: 10,  // add this to the used space when shrinking to content
         // the definition of the drawing sizes
         toleranceHandle      : 6, // halfsize for hotspot in pixel
         drawSizeHandle       : 2, // halfsize for visible handle in pixel
