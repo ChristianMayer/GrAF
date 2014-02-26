@@ -106,6 +106,9 @@
       thisGLE.invalidateContext();
       return this;
     };
+    this.getBottomRight = function() {
+      return pos.copy().plus( size );
+    }
     this.getSize = function() {
       return size.copy();
     };
@@ -209,7 +212,7 @@
     this.update = function( index, newPos, shortDeltaPos )
     {
       index = index | 0;
-      console.log( 'block update',  index, newPos, shortDeltaPos );
+      //console.log( 'block update',  index, newPos, shortDeltaPos );
       switch( index )
       {
         case 0: // main
@@ -262,11 +265,13 @@
       };
       //pos.round( thisGLE.settings.gridSize );
       //size.round( thisGLE.settings.gridSize );
-      size.x = Math.max( size.x, minWidth  );
-      size.y = Math.max( size.y, minHeight );
+      //size.x = Math.max( size.x, minWidth  );
+      //size.y = Math.max( size.y, minHeight );
+      size.cmax( new Vec2D( minWidth, minHeight ) );
+      pos.cmax( new Vec2D( 0, 0 ) );
       
       inPorts.forEach( function moveInPortConnection_PROFILENAME( thisPort, i ) {
-        console.log( thisPort, i, undefined !== thisPort.connection );
+        //console.log( thisPort, i, undefined !== thisPort.connection );
         if( undefined !== thisPort.connection )
         {
           var coords = self.getInCoordinates( i + 5 );
@@ -285,7 +290,7 @@
         }
       } );
       outPorts.forEach( function moveOutPortConnection_PROFILENAME( thisPort, i ) {
-        console.log( thisPort, i, undefined !== thisPort.connection );
+        //console.log( thisPort, i, undefined !== thisPort.connection );
         if( undefined !== thisPort.connection )
         {
           var coords = self.getOutCoordinates( i + 5 + inPorts.length );

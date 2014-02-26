@@ -54,3 +54,7 @@ myWorker.onerror = function(event) {
 
 //myWorker.postMessage(""); // start the worker.
 //////////////////////////////////////////////////////////////////
+if( undefined === console )
+  console = {};
+if( undefined === console.log )
+  console.log = function() {};
