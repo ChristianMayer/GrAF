@@ -24,55 +24,20 @@
   "use strict";
   
   // private variables:
-  var requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
-                              window.webkitRequestAnimationFrame || window.msRequestAnimationFrame,
-      cancelAnimationFrame  = window.cancelAnimationFrame || window.mozCancelAnimationFrame ||
-                              window.webkitCancelAnimationFrame || window.msCancelAnimationFrame,
-      mousemove = 'mousemove', // will be redefined on a touch device
+  var mousemove = 'mousemove', // will be redefined on a touch device
       mouseup   = 'mouseup',
-      width,               // size of the draw area
-      height,
-      contentWidth,        // maximum needed size of the content
-      contentHeight,
+      /*width,               // size of the draw area
+      height,*/
+      contentSize = new Vec2D( 0, 0 ), // maximum needed size of the content
       scaleInternal = window.devicePixelRatio,
       scale         = scaleInternal, // overall scale
       scaleFactor   = Math.pow(2,1/3),
-      clickTimestamp = 0,  // used to check for double click
       $canvasContainer,    // jQ object containing the canvases and the scroll bars
-      $canvasFg,           // jQ object with the foreground canvas DOM element
-      $canvasBg,           // jQ object with the background canvas DOM element
-      ctxFg,               // foreground canvas context
-      ctxBg,               // background canvas context
-      canvasValid   = 0,   // Collect if canvas has to be redrawn
-      canvasFgValid = 0,   // Collect if canvas has to be redrawn
       elementList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
+      clickTimestamp = 0,  // used to check for double click
       activeElements = [], // The active elements, i.e. the one on the Fg
       focusElements = [],  // The focused elements, i.e. the user selected ones
-      idBuffer,            // ID map, i.e. 2D image of the indexList
-      idData,              // The data array of the ID map
-      ctxId,               // context of ID map
-      ctxDummy = {         // dummy context, can be passed as a context
-        beginPath: function(){},
-        moveTo: function(){},
-        lineTo: function(){},
-        stroke: function(){},
-        fillRect: function(){}
-      },
-      /**
-       * Create a indexBuffer value (i.e. color) out of the @param pos.
-       */
-      id2color = function( pos ) {
-        var base = (pos|0).toString( 16 );
-        return '#' + Array( 7 - base.length ).join( '0' ) + base;
-      },
-      /**
-       * Retrieve the index out of coordinates.
-       * @param thisPos Vec2D
-       */
-      position2id = function( thisPos ) {
-        var idxPos = ((thisPos.x*scale)|0) + width * ((thisPos.y*scale)|0);
-        return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
-      },
+ 
       /**
        * Get the mouse coordinates out of the jQ.Event relative to the canvas.
        * (Note: this is a little self modifying code to handle browsers like
@@ -80,7 +45,8 @@
        * @return Vec2D
        */
       getMousePos = function( eventObject ) {
-        if( eventObject.offsetX === undefined || eventObject.offsetY === undefined )
+        if( (eventObject.offsetX === undefined && eventObject.originalEvent.offsetX === undefined) ||
+            (eventObject.offsetY === undefined && eventObject.originalEvent.offsetY === undefined) )
         {
           if( eventObject.originalEvent.touches !== undefined )
           { // a touch device
@@ -106,38 +72,13 @@
         } else {
           getMousePos = function( eventObject ) {
             var cC  = $canvasContainer[0],
-                ret = new Vec2D( eventObject.offsetX + cC.scrollLeft, 
-                                 eventObject.offsetY + cC.scrollTop );
+                ret = new Vec2D( (eventObject.offsetX||eventObject.originalEvent.offsetX) + cC.scrollLeft, 
+                                 (eventObject.offsetY||eventObject.originalEvent.offsetY) + cC.scrollTop );
             return ret.scale( scaleInternal / scale ).round( 1 );
           }
         }
         
         return getMousePos( eventObject );
-      },
-      /**
-        * Clear a canvas given by its context.
-        * This will also make sure the transform matrix is set properly, i.e.
-        * scaled.
-        */
-      clearCanvas = function( ctx )
-      {
-        ctx.setTransform( 1, 0, 0, 1, 0, 0 );
-        ctx.clearRect( 0, 0, width, height );
-        ctx.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
-      },
-      /**
-       * Seems to be a good idea to handle anti-aliasing - but can't prevent
-       * it for paths...
-       */
-      setSmoothingEnabled = function( context, state ) {
-        if( 'imageSmoothingEnabled' in context )
-          context.imageSmoothingEnabled = state;
-        if( 'mozImageSmoothingEnabled' in context )
-          context.mozImageSmoothingEnabled = state;
-        if( 'oImageSmoothingEnabled' in context )
-          context.oImageSmoothingEnabled = state;
-        if( 'webkitImageSmoothingEnabled' in context )
-          context.webkitImageSmoothingEnabled = state;
       },
       /**
        * The GLE constructor
@@ -146,13 +87,22 @@
         // private:
         var self = this, 
             blocks = [],  // array of all existent blocks
+            view   = new window._GLE.view( passedCanvasContainer, this ),
             lastPos,      // the beginning coordinates of a mouse drag
             prevPos;      // the coordinates of the previous call to mousemove
         
         /**
          * Get the user tuneable settings.
          */
-        this.settings = new window._GLE.settings;
+        this.settings = new window._GLE.settings();
+        
+        /**
+         * Make view visible to the outside. - FIXME DEBUG
+         */
+        this.view = view;
+        this.activeElements = function(){ return activeElements; };
+        this.focusElements  = function(){ return focusElements;  };
+        this.blocks = blocks; // FIXME only for transision
         
         /**
          * Create and register a new block.
@@ -160,7 +110,7 @@
         this.addBlock = function() {
           var thisBlock = new _GLE.block( self );
           blocks.push( thisBlock );
-          this.invalidateContext();
+          view.invalidateContext();
           return thisBlock;
         }
         
@@ -170,7 +120,7 @@
         this.addConnection = function( parameters ) {
           var thisConnection = new _GLE.Connection( self, parameters );
           blocks.push( thisConnection );
-          this.invalidateContext();
+          view.invalidateContext();
           return thisConnection;
         }
         
@@ -213,38 +163,17 @@
           blocks.forEach( function( thisBlock, b ) {
             thisBlock.reregisterHandlers();
           } );
-          this.invalidateContext();
+          view.invalidateContext();
         }
         
-        /**
-         * Setup index buffer to allow objects to draw themselfes.
-         */
-        this.prepareHandlerDrawing = function( id ) {
-          ctxId.fillStyle = ctxId.strokeStyle = id2color( id | 0 );
-          ctxId.lineWidth = this.settings.toleranceLine;
-        };
-        
-        /**
-         * Draw a handler at the given positions with the id. If @param active
-         * is true the handler will be visible and at the foreground as well.
-         * @param pos Vec2D
-         */
-        this.drawHandler = function( pos, id, active ) {
-          var halfSizeFg = this.settings.drawSizeHandleActive,
-              fullSizeFg = 1 + 2 * halfSizeFg,
-              halfSizeId = this.settings.toleranceHandle,
-              fullSizeId = 1 + 2 * halfSizeId;
-              
-          if( active ) {
-            ctxFg.lineWidth = 1;
-            ctxFg.fillRect( pos.x - halfSizeFg, pos.y - halfSizeFg, fullSizeFg, fullSizeFg );
-            ctxFg.strokeRect( pos.x - halfSizeFg, pos.y - halfSizeFg, fullSizeFg, fullSizeFg );
-          }
+        this.invalidateContext = function(){
+          // FIXME do that only when really required...:
+          self.updateContentSize();
           
-          ctxId.lineWidth = 1;
-          ctxId.fillStyle = id2color( id | 0 );
-          ctxId.fillRect( pos.x - halfSizeId, pos.y - halfSizeId, fullSizeId, fullSizeId );
-          ctxId.strokeRect( pos.x - halfSizeId, pos.y - halfSizeId, fullSizeId, fullSizeId );
+          view.invalidateContext();
+        }
+        this.invalidateForeground = function(){
+          view.invalidateForeground();
         }
         
         /**
@@ -268,46 +197,18 @@
         this.updateContentSize = function()
         {
           // grow or shrink canvas depending on content size
-          var thisSize = new Vec2D( 0, 0 );
-          blocks.forEach( function( b ) {
-            thisSize.cmax( b.getBottomRight() );
-          });
-          if( contentWidth !== thisSize.x || contentHeight !== thisSize.y )
+          var contentSizeNew = new Vec2D( 0, 0 );
+          blocks.forEach( function( thisBlock ) {
+            contentSizeNew.cmax( thisBlock.getBottomRight() );
+          } );
+          contentSizeNew.plus( new Vec2D( self.settings.borderWidth,
+                                          self.settings.borderWidth ) );
+          if( !contentSize.equal( contentSizeNew ) )
           {
-            contentWidth  = thisSize.x;
-            contentHeight = thisSize.y;
-            self.resize();
-            console.log( 'inv', thisSize );
+            contentSize = contentSizeNew;
+            view.resizeSpace( contentSize );
+            view.resizeView();
           }
-        }
-        
-        // NOTE: Optimize in future to collect calls before doing a redraw...
-        /**
-         * Mark all context invalid and force a redraw.
-         */
-        this.invalidateContext = function()
-        {
-          this.updateBg = true;
-          if( 0 === canvasValid )
-            canvasValid = requestAnimationFrame( this.updateContext );
-        };
-        /**
-         * Mark foreground invalid and force a redraw.
-         */
-        this.invalidateForeground = function()
-        {
-          if( 0 === canvasValid )
-            canvasValid = requestAnimationFrame( this.updateContext );
-        };
-        
-        this.updateContext = function()
-        {
-          self.updateContentSize(); // FIXME move to a place where that's only called when necessary
-          
-          if( self.updateBg )
-            self.draw();
-          else
-            self.drawFg();
         }
         
         /**
@@ -315,6 +216,17 @@
          */
         this.setZoom = function( newScale, centerCoord )
         {
+          var oldScale  = scale,
+              oldScroll = new Vec2D( $canvasContainer.scrollLeft(), $canvasContainer.scrollTop() ),
+              //mouseRelOld    = (undefined !== centerCoord) ? centerCoord.copy().scale( 1+0*oldScale / scaleInternal ).cdiv([$canvasBg[0].width/scaleInternal,$canvasBg[0].height/scaleInternal]) : undefined,
+//              mouseRelOld    = (undefined !== centerCoord) ? centerCoord.copy().scale( scaleInternal / oldScale ).cdiv([$canvasBg[0].width,$canvasBg[0].height]) : undefined,
+              mouseScreenOld = (undefined !== centerCoord) ? centerCoord.copy().scale( oldScale / scaleInternal ) : undefined;
+            console.log( 
+                         'centerCoord', centerCoord.print(2), 
+                         'wrel', centerCoord.copy().scale( oldScale / scaleInternal ).print(2)
+                         //'cdiv', [$canvasBg[0].width/scaleInternal,$canvasBg[0].height/scaleInternal]
+                         //'mouseRelOld', mouseRelOld.print() 
+                       );
           scale = newScale;
           if( scale < self.settings.minScale * scaleInternal ) 
             scale = self.settings.minScale * scaleInternal;
@@ -325,86 +237,8 @@
           //$canvasBg[0].style['-webkit-transform'] = 'scale3d(' + scale + ',' + scale + ',1)';
           //$canvasBg[0].style['-webkit-transform'] = 'matrix3d(' + scale + ',0,0,0,0,' + scale + ',0,0,0,0,1,0,0,0,0,1)';
           
-          var cFg = $canvasFg[0],
-              cBg = $canvasBg[0];
-          cFg.style.top = cFg.style.left = '0px'; // move it out of the way
-          cBg.width  = (contentWidth  + self.settings.borderWidth ) * scale | 0;
-          cBg.style.width  = ((cBg.width  / scaleInternal)|0) + 'px';
-          cBg.height = (contentHeight + self.settings.borderWidth ) * scale | 0;
-          cBg.style.height = ((cBg.height / scaleInternal)|0)+ 'px';
-          idBuffer.width = cBg.width; // for debug FIXME
-          idBuffer.height = cBg.height; // for debug FIXME
-          idBuffer.style.width = $canvasBg[0].style.width; // for debug FIXME
-          idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
-          
-          if( undefined !== centerCoord )
-          {
-            console.log( 'scr', scale, $canvasContainer.width(), width, centerCoord.x, ($canvasContainer.scrollLeft() + centerCoord.x)/scale );
-            console.log( 'scr C', centerCoord );
-            //$canvasContainer.scrollLeft( ($canvasContainer.scrollLeft() + centerCoord.x)/scale );
-            //$canvasContainer.scrollTop();
-          }
-          //$canvasContainer.scrollTop();
-          //self.scroll();
-          /*
-          var s = scale;///scaleInternal;///scaleInternal;
-          ctxFg.setTransform( s, 0, 0, s, 0.5 - $canvasContainer.scrollLeft(), 0.5 - $canvasContainer.scrollTop() );
-          console.log('--###--');
-          */
-          // this will also set the scaling and clear the canvases
-          self.invalidateContext();
+          view.zoomView( scale, scaleInternal, centerCoord );
         }
-        
-        /**
-         * Redraw canvases.block
-         */
-        this.draw = function() {
-          console.log( 'draw ---------------------------------------------' );
-          clearCanvas( ctxId );
-          clearCanvas( ctxBg );
-          blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
-            var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
-            var thisFocus  = focusElements.indexOf( thisBlock ) !== -1;
-            thisBlock.draw( thisActive ? ctxFg : ctxBg, ctxId, thisFocus, false );
-          } );
-          // show debug:
-          ctxBg.save();
-          ctxBg.setTransform( 1, 0, 0, 1, 0, 0 );
-          ctxBg.fillStyle = 'rgba(100,100,200,0.75)';
-          ctxBg.fillRect( 0, 0, width, height );
-          ctxBg.restore();
-          self.updateBg = false;
-          self.drawFg(); // =>  canvasFgValid = 0;
-          
-          idData = ctxId.getImageData( 0, 0, width, height ).data;
-        };
-        this.drawFg = function() {
-          //console.log( 'drawFg -------------------------------------------' );
-          clearCanvas( ctxFg );
-          var s = scale;///scaleInternal;///scaleInternal;
-          ctxFg.setTransform( s, 0, 0, s, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
-          //console.log( activeElements );
-          activeElements.forEach( function( thisActiveElement ) {
-            var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
-            thisActiveElement.draw( ctxFg, ctxDummy, thisFocus, true );
-          } );
-          canvasValid = 0;
-          // --------------- zeige mausklick
-          ctxFg.beginPath();
-          if( lastPos )
-          {
-            ctxFg.moveTo( lastPos.x-3, lastPos.y-3 );
-            ctxFg.lineTo( lastPos.x+3, lastPos.y+3 );
-            ctxFg.moveTo( lastPos.x-3, lastPos.y+3 );
-            ctxFg.lineTo( lastPos.x+3, lastPos.y-3 );
-          }
-          ctxFg.save();
-          ctxFg.lineWidth = 1;
-          ctxFg.strokeStyle = '#ff0000';
-          ctxFg.stroke();
-          ctxFg.restore();
-          // ---------------
-        };
         
         this.mousedown = function( eventObject ) {
           eventObject.preventDefault();
@@ -440,39 +274,17 @@
           lastPos = getMousePos( eventObject );
           prevPos = lastPos;
           // ---------------
-          ctxFg.beginPath();
-          ctxFg.moveTo( lastPos.x-3, lastPos.y-3 );
-          ctxFg.lineTo( lastPos.x+3, lastPos.y+3 );
-          ctxFg.moveTo( lastPos.x-3, lastPos.y+3 );
-          ctxFg.lineTo( lastPos.x+3, lastPos.y-3 );
-          ctxFg.save();
-          ctxFg.strokeStyle = '#ff0000';
-          ctxFg.lineWidth = 1;
-          ctxFg.stroke();
-          ctxFg.restore();
-          ctxId.beginPath();
-          ctxId.moveTo( lastPos.x-4, lastPos.y-4 );
-          ctxId.lineTo( lastPos.x-1, lastPos.y-1 );
-          ctxId.moveTo( lastPos.x+4, lastPos.y-4 );
-          ctxId.lineTo( lastPos.x+1, lastPos.y-1 );
-          ctxId.moveTo( lastPos.x+4, lastPos.y+4 );
-          ctxId.lineTo( lastPos.x+1, lastPos.y+1 );
-          ctxId.moveTo( lastPos.x-4, lastPos.y+4 );
-          ctxId.lineTo( lastPos.x-1, lastPos.y+1 );
-          ctxId.save();
-          ctxId.strokeStyle = '#ff0000';
-          ctxId.lineWidth = 1;
-          ctxId.stroke();
-          ctxId.restore();
+          view.showMarker( lastPos );
           // ---------------
           
           
-          var index = position2id( lastPos ),
+          var index = view.position2id( lastPos ),
               activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
               
           //lastPos.cmul( [1/scale, 1/scale] );
           $('#coords').text( lastPos.print() + ':' + index + ' (' + scale + ')' );
           if( undefined !== activeElement ) console.log( lastPos, 'Result:', activeElement.checkBadSelection( lastPos, elementList[ index ][1],  2, scale ), lastPos.print(), index );
+ 
  
           if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( lastPos, elementList[ index ][1], 2, scale ) )
           {
@@ -481,7 +293,7 @@
             focusElements.length = 0;
             
             if( redraw )
-              self.invalidateContext();
+              view.invalidateContext();
             
             return; // no object found
           }
@@ -500,8 +312,9 @@
           activeElements = activeElement.getDerivedActive();
           activeElements.push( activeElement );
           focusElements = [ activeElement ];
+          console.log( 'activeElement', activeElement, 'activeElements', activeElements, 'self.activeElements', self.activeElements, 'focusElements', focusElements );
           
-          self.invalidateContext();
+          view.invalidateContext();
           
           // add event listeners
           $(document).on( mousemove, index, window.GLE.mousemove ); 
@@ -515,7 +328,7 @@
               thisElem      = elementList[ index ],
               thisPos       = getMousePos( eventObject ),
               shortDeltaPos = thisPos.copy().minus( prevPos ),
-              lowerIndex    = position2id( thisPos ),
+              lowerIndex    = view.position2id( thisPos ),
               lowerElement  = elementList[lowerIndex];
           
           if( (!lowerElement) ||
@@ -535,10 +348,11 @@
           
           //console.timeEnd("my mousemove"); // DEBUG
           // necessary? Causes currently double redraws...
-          self.invalidateForeground(); // redraw to fix Id map
+          view.invalidateForeground(); // redraw to fix Id map
           
           prevPos = thisPos;
         };
+        /*
         this.blob = function() { 
           ctxBg.save();
           ctxBg.setTransform( 1, 0, 0, 1, 0.5, 0.5 );
@@ -561,6 +375,7 @@
           return msg;
           return blocks;
         };
+        */
         this.mouseup = function( eventObject ) {
           eventObject.preventDefault();
           /*
@@ -570,7 +385,7 @@
           var index         = eventObject.data,
               thisElem      = elementList[ index ];
           (thisElem[0]).finishUpdate( thisElem[1] );
-          self.invalidateContext(); // redraw to fix Id map
+          view.invalidateContext(); // redraw to fix Id map
           
           // remove the liseteners again
           $(document).off( mousemove, window.GLE.mousemove ); 
@@ -661,7 +476,7 @@
               } );
               focusElements.length = 0;
               activeElements.length = 0;
-              self.invalidateHandlers();
+              view.invalidateHandlers();
               break;
               
             case 66: // key: b - zoom to 100%
@@ -685,7 +500,7 @@
               //scaleInternal = (scaleInternal===1) ? 4 : 1;
               // $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '%' );
               $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (' + scale + '/' + scaleInternal + ')' );
-              self.invalidateContext();
+              view.invalidateContext();
             default:
               console.log( 'key', eventObject, eventObject.keyCode );
           }
@@ -698,8 +513,7 @@
           if( eventObject )
             eventObject.preventDefault();
           
-          $canvasFg[0].style.left = $canvasContainer.scrollLeft() + 'px';
-          $canvasFg[0].style.top  = $canvasContainer.scrollTop()  + 'px';
+          view.scroll();
           /*
           var s = scale*scaleInternal;///scaleInternal;
           ctxFg.setTransform( s, 0, 0, s, 0.5 - $canvasContainer.scrollLeft(), 0.5 - $canvasContainer.scrollTop() );
@@ -711,95 +525,28 @@
          * Event handler for any kind of resize, including browser zoom level.
          */
         this.resize = function( eventObject ) {
-          var devicePixelRatio  = window.devicePixelRatio || 1,
-              backingStoreRatio = ctxFg.webkitBackingStorePixelRatio ||
-                                  ctxFg.mozBackingStorePixelRatio    ||
-                                  ctxFg.msBackingStorePixelRatio     ||
-                                  ctxFg.oBackingStorePixelRatio      ||
-                                  ctxFg.backingStorePixelRatio       || 1,
-              scaleInternalOld  = scaleInternal,
-              screenWidth       = $canvasContainer[0].clientWidth, // available screenspace
-              screenHeight      = $canvasContainer[0].clientHeight,
-              clientWidth       = screenWidth,// $canvasFg[0].clientWidth,  // the width in pixel of the canvas on the screen before browser zoom
-              clientHeight      = screenHeight, // $canvasFg[0].clientHeight,
-              aspectRatio       = screenWidth / screenHeight;
-              
-          // make sure the conten will fit:
-          if( clientWidth  < contentWidth  ) 
-          {
-            clientWidth  = contentWidth | 0;
-            if( clientHeight < contentWidth / aspectRatio )
-              clientHeight = contentWidth / aspectRatio | 0;
-          }
-          if( clientHeight < contentHeight ) 
-          {
-            clientHeight = contentHeight | 0;
-            if( clientWidth < contentHeight * aspectRatio )
-              clientWidth = contentHeight * aspectRatio | 0;
-          }
-          
-          $canvasBg[0].style.width = clientWidth + 'px';
-          $canvasBg[0].style.height = clientHeight + 'px';
- 
-          scaleInternal     = devicePixelRatio / backingStoreRatio;
-          width  = (clientWidth  * scaleInternal) | 0;
-          height = (clientHeight * scaleInternal) | 0;
-          scale  *= scaleInternal / scaleInternalOld;
-          
-          //$canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
-          $canvasFg[0].width  = screenWidth * scaleInternal;
-          $canvasFg[0].style.width = ((screenWidth+0*scaleInternal)|0) + 'px';
-          //$canvasFg[0].style.left = $canvasContainer.scrollLeft() + 'px';
-          $canvasBg[0].width  = idBuffer.width  = width;
-          //$canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
-          $canvasFg[0].height  = screenHeight * scaleInternal;
-          $canvasFg[0].style.height = ((screenHeight+0*scaleInternal)|0) + 'px';
-          //$canvasFg[0].style.top = $canvasContainer.scrollTop() + 'px';
-          $canvasBg[0].height = idBuffer.height = height;
-          console.log( 's1', idBuffer.style.width, $canvasBg[0].style.width );
-          idBuffer.style.width = $canvasBg[0].style.width; // for debug FIXME
-          idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
-          console.log( 's2', idBuffer.style.width, $canvasBg[0].style.width );
-          
-         // var s = 1/(scale/scaleInternal);///scaleInternal;
-         // ctxFg.setTransform( s, 0, 0, s, 0.5 - $canvasContainer.scrollLeft(), 0.5 - $canvasContainer.scrollTop() );
+          view.resizeView();
           
           //$('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (' + scale + '/' + scaleInternal + ')' );
           $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (scale: ' + scale + ' / scaleInternal: ' + scaleInternal + ')' );
-          console.log( 'resize', eventObject, scaleInternal, scaleInternalOld, $canvasContainer.scrollLeft(), $canvasContainer.scrollTop(), $canvasContainer );
-          console.log( $canvasFg[0].width, $canvasFg[0].height, $canvasFg.width(), $canvasFg.height(), $canvasFg[0].clientWidth, $canvasFg[0].offsetWidth, width  );
-          self.invalidateContext();
+          console.log( 'resize', eventObject, scaleInternal, $canvasContainer.scrollLeft(), $canvasContainer.scrollTop(), $canvasContainer );
+          //console.log( $canvasFg[0].width, $canvasFg[0].height, $canvasFg.width(), $canvasFg.height(), $canvasFg[0].clientWidth, $canvasFg[0].offsetWidth, width  );
         };
         
         // Constructor
         $canvasContainer = passedCanvasContainer;
-        $canvasContainer.append( '<canvas id="canvas_fg" style="position:absolute;z-index:100;"/><canvas id="canvas" style="-webkit-transform: scale3d(1,1,1);"/>' );
-        $canvasFg   = $canvasContainer.find('#canvas_fg');
-        $canvasBg   = $canvasContainer.find('#canvas');
-        ctxFg       = $canvasFg[0].getContext('2d');
-        ctxBg       = $canvasBg[0].getContext('2d');
-        idBuffer    = document.createElement('canvas');
-        ////
-        $('#drawArea').append( idBuffer ); // for debug FIXME
-        ////
-        this.resize(); // sets also 'width' and 'height'
-        $canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
-        $canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
-        
-        idBuffer.style.width  = $canvasFg[0].style.width; // for debug FIXME
-        idBuffer.style.height = $canvasFg[0].style.height; // for debug FIXME
-        ctxId       = idBuffer.getContext('2d');
-        $canvasFg.on( 'mousedown',  this.mousedown ); 
-        $canvasFg.on( 'touchstart', this.mousedown );
+        view.getForeground().on( 'mousedown',  this.mousedown ); 
+        view.getForeground().on( 'touchstart', this.mousedown );
         $canvasContainer.on( 'scroll', self.scroll );
         $canvasContainer.on( 'wheel', function( e ){
           e.preventDefault(); 
           var left_right = ( undefined !== e.originalEvent.wheelDeltaX ? e.originalEvent.wheelDeltaX :
                            ( undefined !== e.originalEvent.deltaX      ? e.originalEvent.deltaX      : 0 )),
               up_down    = ( undefined !== e.originalEvent.wheelDeltaY ? -e.originalEvent.wheelDeltaY :
-                           ( undefined !== e.originalEvent.deltaY      ? e.originalEvent.deltaY      : 0 ));
+                           ( undefined !== e.originalEvent.deltaY      ? e.originalEvent.deltaY      : 0 )),
+              mousePos   = getMousePos(e);
           console.log('sroll', e, left_right, up_down, 
-                    getMousePos(e) ,  
+                    mousePos ,  
           (e.shiftKey ? 's' : '') +
           (e.ctrlKey ? 'c' : '')  +
           (e.altKey ? 'a' : '' ));
@@ -807,12 +554,12 @@
           {
             if( up_down < 0 || left_right < 0 )
             {
-              scale *= scaleFactor;
-              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal, getMousePos(e) ); //new Vec2D(250,250) );
+              scale /= scaleFactor;
+              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal, mousePos ); //new Vec2D(250,250) );
             } else if( up_down > 0 || left_right > 0 )
             {
-              scale /= scaleFactor;
-              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal, getMousePos(e) ); //new Vec2D(250,250) );
+              scale *= scaleFactor;
+              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal, mousePos ); //new Vec2D(250,250) );
             }
             return;
           }
@@ -830,8 +577,6 @@
         } );
         $(document).on( 'keydown',  this.keyPress  ); 
         $(window).on( 'resize',     this.resize    );
-        setSmoothingEnabled( ctxFg, false );
-        setSmoothingEnabled( ctxId, false );
       };
       
   // fill the prototype public methods of GLE:

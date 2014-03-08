@@ -357,13 +357,13 @@
       // draw shape to index map
       if( !isDrawFg )
       {
-        thisGLE.prepareHandlerDrawing( handlers[ 0 ] );
+        thisGLE.view.prepareHandlerDrawing( handlers[ 0 ] );
         index.fillRect( pos.x, pos.y, size.x, size.y );
         
-        thisGLE.drawHandler( pos                                       , handlers[ 1 ], focus );
-        thisGLE.drawHandler( pos.copy().plus( size.copy().cmul([1,0]) ), handlers[ 2 ], focus );
-        thisGLE.drawHandler( pos.copy().plus( size.copy().cmul([0,1]) ), handlers[ 3 ], focus );
-        thisGLE.drawHandler( pos.copy().plus( size )                   , handlers[ 4 ], focus );
+        thisGLE.view.drawHandler( pos                                       , handlers[ 1 ], focus );
+        thisGLE.view.drawHandler( pos.copy().plus( size.copy().cmul([1,0]) ), handlers[ 2 ], focus );
+        thisGLE.view.drawHandler( pos.copy().plus( size.copy().cmul([0,1]) ), handlers[ 3 ], focus );
+        thisGLE.view.drawHandler( pos.copy().plus( size )                   , handlers[ 4 ], focus );
       }
       
       // draw block itself
@@ -393,7 +393,7 @@
           context.lineTo( pos.x    , pos.y     + centerY );
           context.lineTo( pos.x - 5, pos.y + 5 + centerY );
           context.stroke(); 
-          isDrawFg || thisGLE.drawHandler( getInPortPos( index ), handlers[ startIndex + index ], focus );
+          isDrawFg || thisGLE.view.drawHandler( getInPortPos( index ), handlers[ startIndex + index ], focus );
         } else {
         }
       });
@@ -409,7 +409,7 @@
           context.lineTo( pos.x + size.x + 5, pos.y     + centerY );
           context.lineTo( pos.x + size.x    , pos.y + 5 + centerY );
           context.stroke(); 
-          isDrawFg || thisGLE.drawHandler( getOutPortPos( index ), handlers[ startIndex + index ], focus );
+          isDrawFg || thisGLE.view.drawHandler( getOutPortPos( index ), handlers[ startIndex + index ], focus );
         } else {
         }
       });

@@ -50,8 +50,11 @@
     
   // fill the prototype public methods of GLE:
   Vec2D.prototype.toString = function() { return '[object Vec2D]'; };
-  Vec2D.prototype.print    = function() {
-    return this.x + '/' + this.y;
+  Vec2D.prototype.print    = function( precision ) {
+    var toPrint = this.copy();
+    if( precision )
+      toPrint.round( precision );
+    return toPrint.x + '/' + toPrint.y;
   };
   
   Vec2D.prototype.copy = function() {
@@ -90,8 +93,8 @@
       this.y *= +other.y;
       return this;
     } else {// treat as array
-      this.x = this.x * +other[0] | 0;
-      this.y = this.y * +other[1] | 0;
+      this.x = +(this.x * +other[0]);
+      this.y = +(this.y * +other[1]);
       return this;
     }
   };
@@ -100,6 +103,21 @@
    */
   Vec2D.prototype.sprod = function( other ) {
     return this.x * +other.x + this.y * +other.y;
+  };
+  /**
+   * coefficient division
+   */
+  Vec2D.prototype.cdiv = function( other ) {
+    if( other instanceof Vec2D )
+    {
+      this.x /= +other.x;
+      this.y /= +other.y;
+      return this;
+    } else {// treat as array
+      this.x = +(this.x / +other[0]);
+      this.y = +(this.y / +other[1]);
+      return this;
+    }
   };
   
   /**

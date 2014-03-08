@@ -154,7 +154,7 @@
           index.stroke();
       */
         }
-        thisGLE.prepareHandlerDrawing( thisPoint.lineHandler );
+        thisGLE.view.prepareHandlerDrawing( thisPoint.lineHandler );
       });
       index.stroke();
       context.stroke();
@@ -180,7 +180,7 @@
       
       // draw waypoints to index map
       this.waypoints.forEach( function drawWaypointHandler_PROFILENAME(thisPoint, i ){
-        thisGLE.drawHandler( thisPoint, thisPoint.handler, focus );
+        thisGLE.view.drawHandler( thisPoint, thisPoint.handler, focus );
       } );
       
     }

@@ -39,6 +39,8 @@ c4.insertWaypoint( new Vec2D( 450, 450 ) );
 c5 = GLE.addConnection();
 c5.insertWaypoint( new Vec2D( 400, 400 ) );
 c5.insertWaypoint( new Vec2D( 400, 450 ) );
+
+GLE.updateContentSize();
 });
 
 //////////////////////////////////////////////////////////////////
