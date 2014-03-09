@@ -29,8 +29,7 @@
       /*width,               // size of the draw area
       height,*/
       contentSize = new Vec2D( 0, 0 ), // maximum needed size of the content
-      scaleInternal = window.devicePixelRatio,
-      scale         = scaleInternal, // overall scale
+      scale         = 1,   // overall scale / zoom level
       scaleFactor   = Math.pow(2,1/3),
       $canvasContainer,    // jQ object containing the canvases and the scroll bars
       elementList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
@@ -58,7 +57,7 @@
                   targetOffset = $canvasContainer.offset(),
                   ret = new Vec2D( touch.pageX - targetOffset.left + cC.scrollLeft,
                                    touch.pageY - targetOffset.top  + cC.scrollTop);
-              return ret.scale( scaleInternal / scale ).round( 1 );
+              return ret.scale( 1.0 / scale ).round( 1 );
             };
           } else {
             getMousePos = function( eventObject ) {
@@ -66,7 +65,7 @@
                   targetOffset = $canvasContainer.offset(),
                   ret = new Vec2D( (eventObject.pageX||eventObject.originalEvent.pageX) - targetOffset.left + cC.scrollLeft,
                                    (eventObject.pageY||eventObject.originalEvent.pageY) - targetOffset.top  + cC.scrollTop);
-              return ret.scale( scaleInternal / scale ).round( 1 );
+              return ret.scale( 1.0 / scale ).round( 1 );
             };
           }
         } else {
@@ -74,7 +73,7 @@
             var cC  = $canvasContainer[0],
                 ret = new Vec2D( (eventObject.offsetX||eventObject.originalEvent.offsetX) + cC.scrollLeft, 
                                  (eventObject.offsetY||eventObject.originalEvent.offsetY) + cC.scrollTop );
-            return ret.scale( scaleInternal / scale ).round( 1 );
+            return ret.scale( 1.0 / scale ).round( 1 );
           }
         }
         
@@ -87,7 +86,7 @@
         // private:
         var self = this, 
             blocks = [],  // array of all existent blocks
-            view   = new window._GLE.view( passedCanvasContainer, this ),
+            view,
             lastPos,      // the beginning coordinates of a mouse drag
             prevPos;      // the coordinates of the previous call to mousemove
         
@@ -99,7 +98,7 @@
         /**
          * Make view visible to the outside. - FIXME DEBUG
          */
-        this.view = view;
+        this.view           = function(){ return view;           };
         this.activeElements = function(){ return activeElements; };
         this.focusElements  = function(){ return focusElements;  };
         this.blocks = blocks; // FIXME only for transision
@@ -207,9 +206,23 @@
           {
             contentSize = contentSizeNew;
             view.resizeSpace( contentSize );
-            view.resizeView();
           }
         }
+        
+        this.zoomIn = function()
+        {
+          scale *= scaleFactor;
+          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale )/Math.log( scaleFactor ) ) / 10 ) );
+        };
+        this.zoomOut = function()
+        {
+          scale /= scaleFactor;
+          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale )/Math.log( scaleFactor ) ) / 10 ) );
+        };
+        this.zoomDefault = function()
+        {
+          self.setZoom( 1.0 );
+        };
         
         /**
          * Set the zoom level
@@ -220,24 +233,26 @@
               oldScroll = new Vec2D( $canvasContainer.scrollLeft(), $canvasContainer.scrollTop() ),
               //mouseRelOld    = (undefined !== centerCoord) ? centerCoord.copy().scale( 1+0*oldScale / scaleInternal ).cdiv([$canvasBg[0].width/scaleInternal,$canvasBg[0].height/scaleInternal]) : undefined,
 //              mouseRelOld    = (undefined !== centerCoord) ? centerCoord.copy().scale( scaleInternal / oldScale ).cdiv([$canvasBg[0].width,$canvasBg[0].height]) : undefined,
-              mouseScreenOld = (undefined !== centerCoord) ? centerCoord.copy().scale( oldScale / scaleInternal ) : undefined;
+              mouseScreenOld = (undefined !== centerCoord) ? centerCoord.copy().scale( oldScale ) : undefined;
+          
+          if( undefined === centerCoord ) centerCoord = new Vec2D( 0, 0 );
             console.log( 
                          'centerCoord', centerCoord.print(2), 
-                         'wrel', centerCoord.copy().scale( oldScale / scaleInternal ).print(2)
+                         'wrel', centerCoord.copy().scale( oldScale ).print(2)
                          //'cdiv', [$canvasBg[0].width/scaleInternal,$canvasBg[0].height/scaleInternal]
                          //'mouseRelOld', mouseRelOld.print() 
                        );
           scale = newScale;
-          if( scale < self.settings.minScale * scaleInternal ) 
-            scale = self.settings.minScale * scaleInternal;
-          else if( scale > self.settings.maxScale * scaleInternal ) 
-            scale = self.settings.maxScale * scaleInternal;
-          $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (scale: ' + scale + ' / scaleInternal: ' + scaleInternal + ')' );
+          if( scale < self.settings.minScale ) 
+            scale = self.settings.minScale;
+          else if( scale > self.settings.maxScale ) 
+            scale = self.settings.maxScale;
+          $('#zoom').text( Math.round(scale * 100) + '% (scale: ' + scale + ' / scaleInternal: ' + 'n/a' + ')' );
           
           //$canvasBg[0].style['-webkit-transform'] = 'scale3d(' + scale + ',' + scale + ',1)';
           //$canvasBg[0].style['-webkit-transform'] = 'matrix3d(' + scale + ',0,0,0,0,' + scale + ',0,0,0,0,1,0,0,0,0,1)';
           
-          view.zoomView( scale, scaleInternal, centerCoord );
+          view.zoomView( scale, centerCoord );
         }
         
         this.mousedown = function( eventObject ) {
@@ -246,9 +261,7 @@
           // check for double click
           if( eventObject.timeStamp - clickTimestamp < 200 )
           {
-            // => reset zoom to 100%
-            self.setZoom( scaleInternal );
-            $('#zoom').text( idBuffer.style.width + '=' + idBuffer.width + ';' + idBuffer.clientWidth );
+            self.zoomDefault();
             return;
           }
           clickTimestamp = eventObject.timeStamp;
@@ -385,6 +398,8 @@
           var index         = eventObject.data,
               thisElem      = elementList[ index ];
           (thisElem[0]).finishUpdate( thisElem[1] );
+          
+          self.updateContentSize(); // e.g. the boundary has to be updated
           view.invalidateContext(); // redraw to fix Id map
           
           // remove the liseteners again
@@ -480,27 +495,23 @@
               break;
               
             case 66: // key: b - zoom to 100%
-              self.setZoom( scaleInternal );
+              self.zoomDefault();
               break;
               
             case 82: // key: r - zoom in
-              scale *= scaleFactor;
-              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal );
+              self.zoomIn();
               break;
               
             case 86: // key: v - zoom out
-              scale /= scaleFactor;
-              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal );
+              self.zoomOut();
               break;
               
             case 70: // key: f - zoom to fit
-              // DUMMY for development - change to other function...
-          console.log('res f:', scaleInternal );
-              self.resize();
-              //scaleInternal = (scaleInternal===1) ? 4 : 1;
-              // $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '%' );
-              $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (' + scale + '/' + scaleInternal + ')' );
-              view.invalidateContext();
+              // FIXME DUMMY for development - change to other function...
+              self.zoomDefault();
+              console.log( 'f - fit - not implemented' );
+              break;
+              
             default:
               console.log( 'key', eventObject, eventObject.keyCode );
           }
@@ -514,27 +525,19 @@
             eventObject.preventDefault();
           
           view.scroll();
-          /*
-          var s = scale*scaleInternal;///scaleInternal;
-          ctxFg.setTransform( s, 0, 0, s, 0.5 - $canvasContainer.scrollLeft(), 0.5 - $canvasContainer.scrollTop() );
-          */
-          self.invalidateForeground();
         };
         
         /**
          * Event handler for any kind of resize, including browser zoom level.
          */
         this.resize = function( eventObject ) {
+          console.log( 'resize', eventObject ); // FIXME DEBUG
           view.resizeView();
-          
-          //$('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (' + scale + '/' + scaleInternal + ')' );
-          $('#zoom').text( Math.round(scale * 100 / scaleInternal) + '% (scale: ' + scale + ' / scaleInternal: ' + scaleInternal + ')' );
-          console.log( 'resize', eventObject, scaleInternal, $canvasContainer.scrollLeft(), $canvasContainer.scrollTop(), $canvasContainer );
-          //console.log( $canvasFg[0].width, $canvasFg[0].height, $canvasFg.width(), $canvasFg.height(), $canvasFg[0].clientWidth, $canvasFg[0].offsetWidth, width  );
         };
         
         // Constructor
         $canvasContainer = passedCanvasContainer;
+        view = new window._GLE.view( passedCanvasContainer, this );
         view.getForeground().on( 'mousedown',  this.mousedown ); 
         view.getForeground().on( 'touchstart', this.mousedown );
         $canvasContainer.on( 'scroll', self.scroll );
@@ -554,12 +557,10 @@
           {
             if( up_down < 0 || left_right < 0 )
             {
-              scale /= scaleFactor;
-              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal, mousePos ); //new Vec2D(250,250) );
+              self.zoomOut();
             } else if( up_down > 0 || left_right > 0 )
             {
-              scale *= scaleFactor;
-              self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale / scaleInternal )/Math.log( scaleFactor ) ) / 10 ) * scaleInternal, mousePos ); //new Vec2D(250,250) );
+              self.zoomIn();
             }
             return;
           }

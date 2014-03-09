@@ -109,6 +109,7 @@
      * @param index context.
      */
     this.draw = function( context, index, focus ) {
+      var view = thisGLE.view();
       //console.log( 'draw conn', this, context, index, active );
       
       //#//thisGLE.prepareHandlerDrawing( this.handler );
@@ -154,7 +155,7 @@
           index.stroke();
       */
         }
-        thisGLE.view.prepareHandlerDrawing( thisPoint.lineHandler );
+        view.prepareHandlerDrawing( thisPoint.lineHandler );
       });
       index.stroke();
       context.stroke();
@@ -180,7 +181,7 @@
       
       // draw waypoints to index map
       this.waypoints.forEach( function drawWaypointHandler_PROFILENAME(thisPoint, i ){
-        thisGLE.view.drawHandler( thisPoint, thisPoint.handler, focus );
+        view.drawHandler( thisPoint, thisPoint.handler, focus );
       } );
       
     }
