@@ -38,10 +38,10 @@
                                 window.webkitCancelAnimationFrame || window.msCancelAnimationFrame,
         width,               // size of the draw area
         height,
-        contentWidth,        // maximum needed size of the content
-        contentHeight,
+        contentWidth  = 0,   // maximum needed size of the content
+        contentHeight = 0,
         scaleInternal = window.devicePixelRatio,
-        scale         = scaleInternal, // overall scale
+        scale         = 1,   // overall scale
         $canvasFg,           // jQ object with the foreground canvas DOM element
         $canvasBg,           // jQ object with the background canvas DOM element
         ctxFg,               // foreground canvas context
@@ -72,7 +72,7 @@
         * @param thisPos Vec2D
         */
         position2id = function( thisPos ) {
-          var idxPos = ((thisPos.x*scale)|0) + width * ((thisPos.y*scale)|0);
+          var idxPos = (Math.round(thisPos.x*scale*scaleInternal) + width * Math.round(thisPos.y*scale*scaleInternal))|0;
           return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
         },
         /**
@@ -84,7 +84,10 @@
         {
           ctx.setTransform( 1, 0, 0, 1, 0, 0 );
           ctx.clearRect( 0, 0, width, height );
-          ctx.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
+          var s = scale * scaleInternal;
+          ctx.setTransform( s, 0, 0, s, 0.5, 0.5 );
+          //ctx.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
+          //ctx.setTransform( 1, 0, 0, 1, 0.5, 0.5 );
         },
         /**
         * Seems to be a good idea to handle anti-aliasing - but can't prevent
@@ -199,7 +202,7 @@
           focusElements  = thisGLE.focusElements();
       //console.log( 'drawFg -------------------------------------------' );
       clearCanvas( ctxFg );
-      var s = scale;///scaleInternal;///scaleInternal;
+      var s = scale * scaleInternal;///scaleInternal;
       ctxFg.setTransform( s, 0, 0, s, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
       activeElements.forEach( function( thisActiveElement ) {
         var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
@@ -258,9 +261,12 @@
     /**
      * 
      */
-    this.zoomView = function( scale, scaleInternal, centerCoord ) {
+    this.zoomView = function( Nscale, NscaleInternal, centerCoord ) {
       var cFg = $canvasFg[0],
           cBg = $canvasBg[0];
+      scale = Nscale;
+      self.resizeView();
+      /*
       cFg.style.top = cFg.style.left = '0px'; // move it out of the way
       cBg.width  = (contentWidth  + thisGLE.settings.borderWidth ) * scale | 0;
       cBg.style.width  = ((cBg.width  / scaleInternal)|0) + 'px';
@@ -270,7 +276,7 @@
       idBuffer.height = cBg.height; // for debug FIXME
       idBuffer.style.width = $canvasBg[0].style.width; // for debug FIXME
       idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
-      
+      */
       if( undefined !== centerCoord )
       {
         /* TODO
@@ -308,8 +314,9 @@
      */
     this.resizeSpace = function( newSpaceSize )
     {
-      contentWidth = newSpaceSize.x;
+      contentWidth  = newSpaceSize.x;
       contentHeight = newSpaceSize.y;
+      self.resizeView();
     };
     
     /**
@@ -322,51 +329,62 @@
                               ctxFg.msBackingStorePixelRatio     ||
                               ctxFg.oBackingStorePixelRatio      ||
                               ctxFg.backingStorePixelRatio       || 1,
-          scaleInternalOld  = scaleInternal,
-          screenWidth       = $canvasContainer[0].clientWidth, // available screenspace
+          scaleInternalNew  = devicePixelRatio / backingStoreRatio,
+          screenWidth       = $canvasContainer[0].clientWidth,           // available screenspace that is visible
           screenHeight      = $canvasContainer[0].clientHeight,
-          clientWidth       = screenWidth,// $canvasFg[0].clientWidth,  // the width in pixel of the canvas on the screen before browser zoom
-          clientHeight      = screenHeight, // $canvasFg[0].clientHeight,
-          aspectRatio       = screenWidth / screenHeight;
+          clientWidth       = Math.max( screenWidth  + $canvasContainer.scrollLeft(), contentWidth  * scale )|0, // space of the canvas on the screen before browser zoom
+          clientHeight      = Math.max( screenHeight + $canvasContainer.scrollTop() , contentHeight * scale )|0,
+          isFgViewResized   = false,
+          isViewResized     = false;
           
-      // make sure the conten will fit:
-      if( clientWidth  < contentWidth  ) 
+      if( scaleInternal !== scaleInternalNew )
       {
-        clientWidth  = contentWidth | 0;
-        if( clientHeight < contentWidth / aspectRatio )
-          clientHeight = contentWidth / aspectRatio | 0;
-      }
-      if( clientHeight < contentHeight ) 
-      {
-        clientHeight = contentHeight | 0;
-        if( clientWidth < contentHeight * aspectRatio )
-          clientWidth = contentHeight * aspectRatio | 0;
+        scaleInternal = scaleInternalNew;
+        isViewResized = true;
       }
       
-      $canvasBg[0].style.width = clientWidth + 'px';
-      $canvasBg[0].style.height = clientHeight + 'px';
-
-      scaleInternal     = devicePixelRatio / backingStoreRatio;
-      width  = (clientWidth  * scaleInternal) | 0;
-      height = (clientHeight * scaleInternal) | 0;
-      scale  *= scaleInternal / scaleInternalOld;
+      if( ($canvasFg[0].width  !== Math.round( screenWidth  * scaleInternal )) ||
+          ($canvasFg[0].height !== Math.round( screenHeight * scaleInternal )) ||
+          ($canvasFg[0].style.width  !== screenWidth  + 'px') ||
+          ($canvasFg[0].style.height !== screenHeight + 'px') )
+      {
+        $canvasFg[0].width  = Math.round( screenWidth  * scaleInternal );
+        $canvasFg[0].height = Math.round( screenHeight * scaleInternal );
+        $canvasFg[0].style.width  = screenWidth  + 'px';
+        $canvasFg[0].style.height = screenHeight + 'px';
+        isFgViewResized = true;
+      }
       
-      //$canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
-      $canvasFg[0].width  = screenWidth * scaleInternal;
-      $canvasFg[0].style.width = ((screenWidth+0*scaleInternal)|0) + 'px';
-      //$canvasFg[0].style.left = $canvasContainer.scrollLeft() + 'px';
-      $canvasBg[0].width  = idBuffer.width  = width;
-      //$canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
-      $canvasFg[0].height  = screenHeight * scaleInternal;
-      $canvasFg[0].style.height = ((screenHeight+0*scaleInternal)|0) + 'px';
-      //$canvasFg[0].style.top = $canvasContainer.scrollTop() + 'px';
-      $canvasBg[0].height = idBuffer.height = height;
-      console.log( 's1', idBuffer.style.width, $canvasBg[0].style.width );
-      idBuffer.style.width = $canvasBg[0].style.width; // for debug FIXME
-      idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
-      console.log( 's2', idBuffer.style.width, $canvasBg[0].style.width );
+      if( (width  !== Math.round(clientWidth  * scaleInternal)) ||
+          (height !== Math.round(clientHeight * scaleInternal)) ||
+          ($canvasBg[0].style.width  !== clientWidth  + 'px') ||
+          ($canvasBg[0].style.height !== clientHeight + 'px') )
+      {
+        width  = Math.round(clientWidth  * scaleInternal);
+        height = Math.round(clientHeight * scaleInternal);
+        
+        $canvasBg[0].width  = width;
+        $canvasBg[0].height = height;
+        $canvasBg[0].style.width  = clientWidth  + 'px';
+        $canvasBg[0].style.height = clientHeight + 'px';
+        isViewResized = true;
+      
+        idBuffer.width  = $canvasBg[0].width;              // for debug FIXME
+        idBuffer.height = $canvasBg[0].height;             // for debug FIXME
+        idBuffer.style.width  = $canvasBg[0].style.width;  // for debug FIXME
+        idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
+      }
 
-      self.invalidateContext();
+      if( isViewResized )
+      {
+        console.log( 'resizeView - it was resized' );
+        //self.invalidateContext();
+        self.draw();
+      } else if( isViewResized )
+      {
+        console.log( 'resizeFgView - it was resized' );
+        self.drawFg();
+      }
     };
     
     /**
@@ -376,6 +394,10 @@
     {
       $canvasFg[0].style.left = $canvasContainer.scrollLeft() + 'px';
       $canvasFg[0].style.top  = $canvasContainer.scrollTop()  + 'px';
+      
+      //self.resizeView();
+      //self.invalidateContext();
+      self.invalidateForeground();
     };
     
     // constructor
@@ -388,15 +410,15 @@
     ////
     $('#drawArea').append( idBuffer ); // for debug FIXME
     ////
-    self.resizeView(); // sets also 'width' and 'height'
-    $canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
-    $canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
+    //$canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
+    //$canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
     
-    idBuffer.style.width  = $canvasFg[0].style.width; // for debug FIXME
-    idBuffer.style.height = $canvasFg[0].style.height; // for debug FIXME
+    //idBuffer.style.width  = $canvasFg[0].style.width; // for debug FIXME
+    //idBuffer.style.height = $canvasFg[0].style.height; // for debug FIXME
     ctxId       = idBuffer.getContext('2d');
     setSmoothingEnabled( ctxFg, false );
     setSmoothingEnabled( ctxId, false );
+    self.resizeView(); // sets also 'width' and 'height'
   };
   
   
