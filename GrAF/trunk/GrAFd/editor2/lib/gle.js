@@ -26,8 +26,6 @@
   // private variables:
   var mousemove = 'mousemove', // will be redefined on a touch device
       mouseup   = 'mouseup',
-      /*width,               // size of the draw area
-      height,*/
       contentSize = new Vec2D( 0, 0 ), // maximum needed size of the content
       scale         = 1,   // overall scale / zoom level
       scaleFactor   = Math.pow(2,1/3),
@@ -229,30 +227,12 @@
          */
         this.setZoom = function( newScale, centerCoord )
         {
-          var oldScale  = scale,
-              oldScroll = new Vec2D( $canvasContainer.scrollLeft(), $canvasContainer.scrollTop() ),
-              //mouseRelOld    = (undefined !== centerCoord) ? centerCoord.copy().scale( 1+0*oldScale / scaleInternal ).cdiv([$canvasBg[0].width/scaleInternal,$canvasBg[0].height/scaleInternal]) : undefined,
-//              mouseRelOld    = (undefined !== centerCoord) ? centerCoord.copy().scale( scaleInternal / oldScale ).cdiv([$canvasBg[0].width,$canvasBg[0].height]) : undefined,
-              mouseScreenOld = (undefined !== centerCoord) ? centerCoord.copy().scale( oldScale ) : undefined;
-          
-          /*
-          if( undefined === centerCoord ) centerCoord = new Vec2D( 0, 0 );
-            console.log( 
-                         'centerCoord', centerCoord.print(2), 
-                         'wrel', centerCoord.copy().scale( oldScale ).print(2)
-                         //'cdiv', [$canvasBg[0].width/scaleInternal,$canvasBg[0].height/scaleInternal]
-                         //'mouseRelOld', mouseRelOld.print() 
-                       );
-          */
           scale = newScale;
           if( scale < self.settings.minScale ) 
             scale = self.settings.minScale;
           else if( scale > self.settings.maxScale ) 
             scale = self.settings.maxScale;
           $('#zoom').text( Math.round(scale * 100) + '% (scale: ' + scale + ' / scaleInternal: ' + 'n/a' + ')' );
-          
-          //$canvasBg[0].style['-webkit-transform'] = 'scale3d(' + scale + ',' + scale + ',1)';
-          //$canvasBg[0].style['-webkit-transform'] = 'matrix3d(' + scale + ',0,0,0,0,' + scale + ',0,0,0,0,1,0,0,0,0,1)';
           
           view.zoomView( scale, centerCoord );
         }
