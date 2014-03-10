@@ -261,51 +261,19 @@
     /**
      * 
      */
-    this.zoomView = function( Nscale, NscaleInternal, centerCoord ) {
-      var cFg = $canvasFg[0],
-          cBg = $canvasBg[0];
-      scale = Nscale;
+    this.zoomView = function( newScale, centerCoord ) {
+      var oldScale = scale;
+      scale = newScale;
+      
+      self.updateBg = true;
       self.resizeView();
-      /*
-      cFg.style.top = cFg.style.left = '0px'; // move it out of the way
-      cBg.width  = (contentWidth  + thisGLE.settings.borderWidth ) * scale | 0;
-      cBg.style.width  = ((cBg.width  / scaleInternal)|0) + 'px';
-      cBg.height = (contentHeight + thisGLE.settings.borderWidth ) * scale | 0;
-      cBg.style.height = ((cBg.height / scaleInternal)|0)+ 'px';
-      idBuffer.width = cBg.width; // for debug FIXME
-      idBuffer.height = cBg.height; // for debug FIXME
-      idBuffer.style.width = $canvasBg[0].style.width; // for debug FIXME
-      idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
-      */
+      
       if( undefined !== centerCoord )
       {
-        /* TODO
-        var mouseCanvas = centerCoord,
-            //mouseSceen  = mouseCanvas.copy().scale( oldScale / scaleInternal ), // incl. scroll
-            mouseSceen_ = mouseCanvas.copy().scale( oldScale / scaleInternal ), // incl. scroll - the point to move under the mouse
-            mouseSceen  = mouseCanvas.copy().scale( scale / scaleInternal ), // incl. scroll - the point to move under the mouse
-            mouseSceenO = mouseSceen.copy().scale( scaleInternal / scale ), //minus( oldScroll );
-            mouseDelta  = mouseSceen.copy().minus( mouseSceenO ),
-            newScroll   = oldScroll.copy().scale( scale/scaleInternal ).plus( mouseDelta ).round( 1 );
-        console.log( //'mouseCanvas', mouseCanvas.print(1), 
-                      'mouseRelOld', mouseRelOld.print(), 
-                      'mouseSceenOld', mouseScreenOld.print(1), 
-                      'mouseSceen', mouseSceen.print(1), 
-                      //'mouseSceenO', mouseSceenO.print(1), 
-                      //'mouseDelta', mouseDelta.print(1), 
-                      //'oldScroll', oldScroll.print() ,
-                      'newScroll', newScroll.print() 
-                    );
-        //console.log( 'scr', scale, $canvasContainer.width(), width, centerCoord.x, ($canvasContainer.scrollLeft() + centerCoord.x)/scale );
-        //console.log( 'scr C', centerCoord );
-        //$canvasContainer.scrollLeft( ($canvasContainer.scrollLeft() + centerCoord.x)/scale );
-        $canvasContainer.scrollLeft( newScroll.x );
-        $canvasContainer.scrollTop( newScroll.y );
-        //$canvasContainer.scrollTop();
-        */
+        var delta = centerCoord.copy().scale( scale - oldScale );
+        $canvasContainer.scrollLeft( $canvasContainer.scrollLeft() + delta.x );
+        $canvasContainer.scrollTop(  $canvasContainer.scrollTop()  + delta.y );
       }
-      
-      self.invalidateContext();
     };
     
     /**
@@ -375,12 +343,12 @@
         idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
       }
 
-      if( isViewResized )
+      if( isViewResized || self.updateBg )
       {
         console.log( 'resizeView - it was resized' );
         //self.invalidateContext();
         self.draw();
-      } else if( isViewResized )
+      } else if( isFgViewResized )
       {
         console.log( 'resizeFgView - it was resized' );
         self.drawFg();
