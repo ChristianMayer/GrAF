@@ -209,19 +209,19 @@
           }
         }
         
-        this.zoomIn = function()
+        this.zoomIn = function( centerCoord )
         {
           scale *= scaleFactor;
-          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale )/Math.log( scaleFactor ) ) / 10 ) );
+          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale )/Math.log( scaleFactor ) ) / 10 ), centerCoord );
         };
-        this.zoomOut = function()
+        this.zoomOut = function( centerCoord )
         {
           scale /= scaleFactor;
-          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale )/Math.log( scaleFactor ) ) / 10 ) );
+          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale )/Math.log( scaleFactor ) ) / 10 ), centerCoord );
         };
-        this.zoomDefault = function()
+        this.zoomDefault = function( centerCoord )
         {
-          self.setZoom( 1.0 );
+          self.setZoom( 1.0, centerCoord );
         };
         
         /**
@@ -235,6 +235,7 @@
 //              mouseRelOld    = (undefined !== centerCoord) ? centerCoord.copy().scale( scaleInternal / oldScale ).cdiv([$canvasBg[0].width,$canvasBg[0].height]) : undefined,
               mouseScreenOld = (undefined !== centerCoord) ? centerCoord.copy().scale( oldScale ) : undefined;
           
+          /*
           if( undefined === centerCoord ) centerCoord = new Vec2D( 0, 0 );
             console.log( 
                          'centerCoord', centerCoord.print(2), 
@@ -242,6 +243,7 @@
                          //'cdiv', [$canvasBg[0].width/scaleInternal,$canvasBg[0].height/scaleInternal]
                          //'mouseRelOld', mouseRelOld.print() 
                        );
+          */
           scale = newScale;
           if( scale < self.settings.minScale ) 
             scale = self.settings.minScale;
@@ -557,10 +559,10 @@
           {
             if( up_down < 0 || left_right < 0 )
             {
-              self.zoomOut();
+              self.zoomOut( mousePos );
             } else if( up_down > 0 || left_right > 0 )
             {
-              self.zoomIn();
+              self.zoomIn( mousePos );
             }
             return;
           }
