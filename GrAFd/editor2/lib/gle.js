@@ -45,27 +45,13 @@
         if( (eventObject.offsetX === undefined && eventObject.originalEvent.offsetX === undefined) ||
             (eventObject.offsetY === undefined && eventObject.originalEvent.offsetY === undefined) )
         {
-          if( eventObject.originalEvent.touches !== undefined )
-          { // a touch device
-            mousemove = 'touchmove';
-            mouseup   = 'touchend';
-            getMousePos = function( eventObject ) {
-              var cC  = $canvasContainer[0],
-                  touch = eventObject.originalEvent.touches[0],
-                  targetOffset = $canvasContainer.offset(),
-                  ret = new Vec2D( touch.pageX - targetOffset.left + cC.scrollLeft,
-                                   touch.pageY - targetOffset.top  + cC.scrollTop);
-              return ret.scale( 1.0 / scale ).round( 1 );
-            };
-          } else {
-            getMousePos = function( eventObject ) {
-              var cC  = $canvasContainer[0],
-                  targetOffset = $canvasContainer.offset(),
-                  ret = new Vec2D( (eventObject.pageX||eventObject.originalEvent.pageX) - targetOffset.left + cC.scrollLeft,
-                                   (eventObject.pageY||eventObject.originalEvent.pageY) - targetOffset.top  + cC.scrollTop);
-              return ret.scale( 1.0 / scale ).round( 1 );
-            };
-          }
+          getMousePos = function( eventObject ) {
+            var cC  = $canvasContainer[0],
+                targetOffset = $canvasContainer.offset(),
+                ret = new Vec2D( (eventObject.pageX||eventObject.originalEvent.pageX) - targetOffset.left + cC.scrollLeft,
+                                 (eventObject.pageY||eventObject.originalEvent.pageY) - targetOffset.top  + cC.scrollTop);
+            return ret.scale( 1.0 / scale ).round( 1 );
+          };
         } else {
           getMousePos = function( eventObject ) {
             var cC  = $canvasContainer[0],
@@ -76,6 +62,25 @@
         }
         
         return getMousePos( eventObject );
+      },
+      /**
+       * Get all touch coordinates out of the jQ.Event relative to the canvas.
+       * @return Array of Vec2D with one Vec2D per touch position
+       */
+      getTouchPos = function( eventObject ) {
+        var cC  = $canvasContainer[0],
+            touches = eventObject.originalEvent.touches,
+            targetOffset = $canvasContainer.offset(),
+            offset = new Vec2D( cC.scrollLeft - targetOffset.left,
+                                cC.scrollTop  - targetOffset.top ),
+            invScale = 1.0 / scale;
+            
+        return Array.prototype.map.call( touches, function(touch){ 
+            return (new Vec2D( touch.pageX, touch.pageY ))
+                   .plus( offset )
+                   .scale( invScale )
+                   .round( 1 );
+        } );
       },
       /**
        * The GLE constructor
@@ -237,36 +242,9 @@
           view.zoomView( scale, centerCoord );
         }
         
-        this.mousedown = function( eventObject ) {
-          eventObject.preventDefault();
-          
-          // check for double click
-          if( eventObject.timeStamp - clickTimestamp < 200 )
-          {
-            self.zoomDefault();
-            return;
-          }
-          clickTimestamp = eventObject.timeStamp;
-          
-          // check for pinch
-          if( eventObject.originalEvent.touches !== undefined && 
-              eventObject.originalEvent.touches.length === 2 )
-          {
-            var start  = eventObject.originalEvent.touches,
-                length = Math.max( 1.0, Math.sqrt(
-                           (new Vec2D( start[0].clientX, start[0].clientY ))
-                           .minus(new Vec2D( start[1].clientX, start[1].clientY ))
-                           .getNorm() 
-                         ) ), // distance between the fingers - at least 1.0
-                data   = { length: length, scale: scale };
-                
-            // add event listeners
-            $(document).on( 'touchmove', data, window.GLE.pinchmove ); 
-            $(document).on( 'touchup',   data, window.GLE.pinchup   ); 
-            return;
-          }
-          
-          lastPos = getMousePos( eventObject );
+        var dragIndex = 0;
+        var dragStart = function( mousePos, ctrlKey, shiftKey ) {
+          lastPos = mousePos;
           prevPos = lastPos;
           // ---------------
           view.showMarker( lastPos );
@@ -276,8 +254,7 @@
           var index = view.position2id( lastPos ),
               activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
               
-          //lastPos.cmul( [1/scale, 1/scale] );
-          $('#coords').text( lastPos.print() + ':' + index + ' (' + scale + ')' );
+          $('#coords').text( lastPos.print() + ':' + index + ' (' + scale + ') [' + ']' );
           if( undefined !== activeElement ) console.log( lastPos, 'Result:', activeElement.checkBadSelection( lastPos, elementList[ index ][1],  2, scale ), lastPos.print(), index );
  
  
@@ -290,11 +267,12 @@
             if( redraw )
               view.invalidateContext();
             
-            return; // no object found
+            dragIndex = 0;
+            return false; // no object found
           }
           
-          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, lastPos, eventObject.ctrlKey, eventObject.shiftKey );
-          console.log( 'down', index, newIndex, activeElement, elementList[ index ][1], eventObject );
+          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, lastPos, ctrlKey, shiftKey );
+          console.log( 'down', index, newIndex, activeElement, elementList[ index ][1] );
           index = newIndex;
           activeElement = elementList[ index ][0]; // if index was changed...
           
@@ -309,19 +287,15 @@
           focusElements = [ activeElement ];
           console.log( 'activeElement', activeElement, 'activeElements', activeElements, 'self.activeElements', self.activeElements, 'focusElements', focusElements );
           
+          dragIndex = index;
           view.invalidateContext();
-          
-          // add event listeners
-          $(document).on( mousemove, index, window.GLE.mousemove ); 
-          $(document).on( mouseup,   index, window.GLE.mouseup   ); 
+          return true;
         };
         
-        this.mousemove = function( eventObject ) {
-          eventObject.preventDefault();
-          //console.time("my mousemove"); // DEBUG
-          var index         = eventObject.data,
+        var dragMove = function( mousePos, ctrlKey, shiftKey ) {
+          var index         = dragIndex, //eventObject.data,
               thisElem      = elementList[ index ],
-              thisPos       = getMousePos( eventObject ),
+              thisPos       = mousePos,
               shortDeltaPos = thisPos.copy().minus( prevPos ),
               lowerIndex    = view.position2id( thisPos ),
               lowerElement  = elementList[lowerIndex];
@@ -330,15 +304,12 @@
               (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2, scale ) ) )
             lowerElement = [];
           
-          var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, eventObject.shiftKey );
+          var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
           ////console.log( index, newIndex );
           // check if the handler might have been changed during the update
           if( newIndex !== undefined && newIndex !== index )
           {
-            $(document).off( mousemove, window.GLE.mousemove ); 
-            $(document).off( mouseup  , window.GLE.mouseup   ); 
-            $(document).on ( mousemove, newIndex, window.GLE.mousemove ); 
-            $(document).on ( mouseup  , newIndex, window.GLE.mouseup   ); 
+            dragIndex = newIndex;
           }
           
           //console.timeEnd("my mousemove"); // DEBUG
@@ -347,6 +318,17 @@
           
           prevPos = thisPos;
         };
+        
+        var dragEnd = function() {
+          var index         = dragIndex,
+              thisElem      = elementList[ index ];
+          (thisElem[0]).finishUpdate( thisElem[1] );
+          
+          dragIndex = 0;
+          self.updateContentSize(); // e.g. the boundary has to be updated
+          view.invalidateContext(); // redraw to fix Id map
+        };
+
         /*
         this.blob = function() { 
           ctxBg.save();
@@ -371,55 +353,25 @@
           return blocks;
         };
         */
-        this.mouseup = function( eventObject ) {
-          eventObject.preventDefault();
-          /*
-          var deltaX = eventObject.offsetX - lastX,
-              deltaY = eventObject.offsetY - lastY;
-          */
-          var index         = eventObject.data,
-              thisElem      = elementList[ index ];
-          (thisElem[0]).finishUpdate( thisElem[1] );
-          
-          self.updateContentSize(); // e.g. the boundary has to be updated
-          view.invalidateContext(); // redraw to fix Id map
-          
-          // remove the liseteners again
-          $(document).off( mousemove, window.GLE.mousemove ); 
-          $(document).off( mouseup,   window.GLE.mouseup   ); 
-          
-          //var index = position2id( eventObject.offsetX, eventObject.offsetY );
-          //console.log( 'up', [deltaX, deltaY], [lastX, '->', eventObject.offsetX], [lastY, '->', eventObject.offsetY], ':', index, eventObject.data );
+        
+        var pinchLength, 
+            pinchStartScale;
+        var pinchStart = function( eventObject ) {
+          pinchStartScale = scale;
+          var p = getTouchPos( eventObject );
+          pinchLength = Math.sqrt(
+                          p[0].minus( p[1] ).getNorm()
+                             );
         };
         
-        this.pinchmove = function( eventObject ) {
-          eventObject.preventDefault();
-          if( eventObject.originalEvent.touches !== undefined && 
-              eventObject.originalEvent.touches.length === 2 )
-          {
-            var end   = eventObject.originalEvent.touches,
-                length = Math.sqrt(
-                           (new Vec2D( end[0].clientX, end[0].clientY ))
-                           .minus(new Vec2D( end[1].clientX, end[1].clientY ))
-                           .getNorm() 
+        var pinchMove = function( eventObject ) {
+          var touches  = getTouchPos( eventObject ),
+              length   = Math.sqrt(
+                          touches[0].minus( touches[1] ).getNorm()
                          ),
-                pinchScale = length / eventObject.data.length;
-            
-            self.setZoom( eventObject.data.scale * pinchScale );
-          } else { // probably lost a finger
-            // remove the liseteners again
-            $(document).off( 'touchmove', window.GLE.pinchmove ); 
-            $(document).off( 'touchup',   window.GLE.pinchup   ); 
-          }
-          clickTimestamp = 0; // make robust by preventing a too fast dblClick
-        };
-        
-        this.pinchup = function( eventObject ) {
-          eventObject.preventDefault();
-          
-          // remove the liseteners again
-          $(document).off( 'touchmove', window.GLE.pinchmove ); 
-          $(document).off( 'touchup',   window.GLE.pinchup   ); 
+              newScale = pinchStartScale * length / pinchLength;
+              
+          self.setZoom( newScale, touches[0].plus(touches[1]).scale( 0.5 ) );
         };
         
         this.keyPress = function( eventObject ) {
@@ -499,8 +451,168 @@
           }
         };
         
+        var mouseStateNone  = 0, // implies no button pressed
+            mouseStateDrag  = 1, // implies a pressed button
+            mouseStatePinch = 2, // implies two touches
+            mouseState = mouseStateNone;
+        function printMouseState() {
+          var ret = '[';
+          switch( mouseState )
+          {
+            case mouseStateNone:
+              ret += 0;
+              break;
+              
+            case mouseStateDrag:
+              ret += 1;
+              break;
+              
+            case mouseStatePinch:
+              ret += 2;
+              break;
+              
+            default:
+              ret += '?';
+          }
+          return ret + ']';
+        }
+        
         /**
-         * Event handler for scrolling
+         * Check for a double click.
+         * When true, reset zoom rend return true, otherwise false.
+         */
+        var isDoubleClick = function( timeStamp ) {
+          if( timeStamp - clickTimestamp < 200 )
+          {
+            mouseState = mouseStateNone;
+            self.zoomDefault();
+            return true;
+          }
+          clickTimestamp = timeStamp;
+          return false;
+        }
+        
+        /**
+         * Event handler for mousedown.
+         */
+        this.mousedown = function( eventObject ) {
+          // check for double click
+          if( isDoubleClick( eventObject.timeStamp ) )
+            return false;
+          
+          if( dragStart( getMousePos( eventObject ), 
+                         eventObject.ctrlKey, 
+                         eventObject.shiftKey ) )
+            mouseState = mouseStateDrag;
+          else
+            mouseState = mouseStateNone;
+          
+          return false; // stopp propagation as well as bubbling
+        };
+        
+        /**
+         * Event handler for touchstart.
+         */
+        this.touchstart = function( eventObject ) {
+          // set the default:
+          mouseState = mouseStateNone;
+          
+          switch( eventObject.originalEvent.touches.length )
+          {
+            case 0:
+              mouseState = mouseStateNone;
+              break;
+              
+            case 1:
+              // check for double click
+              if( isDoubleClick( eventObject.timeStamp ) )
+                break;
+              
+              if( dragStart( getTouchPos( eventObject )[0] ) )
+                mouseState = mouseStateDrag;
+              break;
+              
+            case 2:
+              mouseState = mouseStatePinch;
+              pinchStart( eventObject );
+              break;
+          }
+          $('#coords').text( 'touchstart' + printMouseState() + eventObject.originalEvent.touches.length);
+          getTouchPos( eventObject );
+          return false; // stopp propagation as well as bubbling
+        };
+        
+        /**
+         * Event handler for mousemove.
+         */
+        this.mousemove = function( eventObject ) {
+          if( mouseState === mouseStateDrag )
+            dragMove( getMousePos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+          
+          return false; // stopp propagation as well as bubbling
+        };
+        
+        /**
+         * Event handler for touchmove.
+         */
+        this.touchmove = function( eventObject ) {
+          switch( mouseState )
+          {
+            case mouseStateNone:
+              // FIXME: this allows (on purpose!) the scrolling of the main
+              // screen ==> might need to be removed in the final editor!
+              return true;  // keep event propagating and bubbling
+              
+            case mouseStateDrag:
+              dragMove( getTouchPos( eventObject )[0] );
+              break;
+              
+            case mouseStatePinch:
+              pinchMove( eventObject );
+              break;
+          }
+          
+          //$('#coords').text( 'touchmove' + printMouseState()  + eventObject.originalEvent.touches.length);
+          //$('#coords').text( $('#coords').text()+';'+ 'touchmove' + printMouseState()  + eventObject.originalEvent.touches.length);
+          return false; // stopp propagation as well as bubbling
+        };
+        
+        /**
+         * Event handler for mouseup.
+         */
+        this.mouseup = function( eventObject ) {
+          if( mouseState === mouseStateDrag )
+            dragEnd();
+          
+          mouseState = mouseStateNone;
+          return false; // stopp propagation as well as bubbling
+        };
+        
+        /**
+         * Event handler for touchend.
+         */
+        this.touchend = function( eventObject ) {
+          if( mouseState === mouseStateDrag )
+            dragEnd();
+          
+          // finger has left => do a new cycle, mouseState will be set there
+          return self.touchstart( eventObject );
+        };
+        
+        /**
+         * Event handler for the touchcancel.
+         * Set state to none as after a cancel the iPad needs a restart anyway.
+         */
+        this.touchcancel = function( eventObject ) {
+          if( mouseState === mouseStateDrag )
+            dragEnd();
+          
+          mouseState = mouseStateNone;
+          return false; // stopp propagation as well as bubbling
+        };
+        
+        /**
+         * Event handler for scrolling.
          */
         this.scroll = function( eventObject ) {
           if( eventObject )
@@ -520,8 +632,19 @@
         // Constructor
         $canvasContainer = passedCanvasContainer;
         view = new window._GLE.view( passedCanvasContainer, this );
+        /*
         view.getForeground().on( 'mousedown',  this.mousedown ); 
         view.getForeground().on( 'touchstart', this.mousedown );
+        */
+        view.getForeground()
+          .on( 'mousedown',  this.mousedown )
+          .on( 'touchstart',  this.touchstart );
+        $(document)  
+          .on( 'mousemove',  this.mousemove )
+          .on( 'touchmove',  this.touchmove )
+          .on( 'mouseup',  this.mouseup )
+          .on( 'touchend',  this.touchend )
+          .on( 'touchcancel',  this.touchcancel ); 
         $canvasContainer.on( 'scroll', self.scroll );
         $canvasContainer.on( 'wheel', function( e ){
           e.preventDefault(); 
