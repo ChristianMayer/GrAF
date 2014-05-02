@@ -24,6 +24,10 @@
     .scrollbox {
       overflow: scroll;
     }
+    
+    .button {
+      border: 1px solid black;
+    }
     </style>
     <script>
     // fix stupid scrollbar hiding at iOS:
@@ -52,6 +56,8 @@
     <script src="test.js" type="text/javascript"></script>
   </head>
   <body>
+    <span class="button"><a href="javascript:button1()">Button 1</a></span>
+    <span class="button"><a href="javascript:button2()">Button 2</a></span>
     Zoom: <span id="zoom">100%</span>, Coords: <span id="coords"></span>, extra: <span id="extra"></span>
     <hr />
     <div class="scrollbox" id="canvascontainer" style="margin-left: 50px;height: 300px;width:400px;position:relative;">

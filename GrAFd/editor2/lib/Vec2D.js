@@ -53,7 +53,7 @@
   Vec2D.prototype.print    = function( precision ) {
     var toPrint = this.copy();
     if( precision )
-      toPrint.round( precision );
+      return toPrint.x.toFixed( precision ) + '/' + toPrint.y.toFixed( precision );
     return toPrint.x + '/' + toPrint.y;
   };
   
