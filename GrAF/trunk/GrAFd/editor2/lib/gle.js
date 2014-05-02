@@ -29,6 +29,8 @@
       contentSize = new Vec2D( 0, 0 ), // maximum needed size of the content
       scale         = 1,   // overall scale / zoom level
       scaleFactor   = Math.pow(2,1/3),
+      scaleID       = 0,   // running number to make sure that no multiple animations are running
+      scaleTarget   = 1,   // zoomlevel to animate to
       $canvasContainer,    // jQ object containing the canvases and the scroll bars
       elementList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
       clickTimestamp = 0,  // used to check for double click
@@ -36,51 +38,61 @@
       focusElements = [],  // The focused elements, i.e. the user selected ones
  
       /**
+       * Little helper function to convert a Vec2D copy from screen space, i.e.
+       * pageX and pageY to canvas space.
+       */
+      screen2canvas = function( pos )
+      {
+        var cC           = $canvasContainer[0],
+            targetOffset = $canvasContainer.offset(),
+            offset       = new Vec2D( cC.scrollLeft - targetOffset.left,
+                                      cC.scrollTop  - targetOffset.top );
+        return pos.copy()
+                  .plus( offset )
+                  .scale( 1.0 / scale );
+      },
+      /**
+       * Little helper function to convert a Vec2D in canvas space to screen
+       * space.
+       */
+      canvas2screen = function( pos )
+      {
+        var cC           = $canvasContainer[0],
+            targetOffset = $canvasContainer.offset(),
+            offset       = new Vec2D( cC.scrollLeft - targetOffset.left,
+                                      cC.scrollTop  - targetOffset.top );
+        return pos.copy()
+                  .scale( scale )
+                  .minus( offset );
+      },
+ 
+      /**
        * Get the mouse coordinates out of the jQ.Event relative to the canvas.
-       * (Note: this is a little self modifying code to handle browsers like
-       * firefox that don't offer offsetX)
        * @return Vec2D
        */
       getMousePos = function( eventObject ) {
-        if( (eventObject.offsetX === undefined && eventObject.originalEvent.offsetX === undefined) ||
-            (eventObject.offsetY === undefined && eventObject.originalEvent.offsetY === undefined) )
-        {
-          getMousePos = function( eventObject ) {
-            var cC  = $canvasContainer[0],
-                targetOffset = $canvasContainer.offset(),
-                ret = new Vec2D( (eventObject.pageX||eventObject.originalEvent.pageX) - targetOffset.left + cC.scrollLeft,
-                                 (eventObject.pageY||eventObject.originalEvent.pageY) - targetOffset.top  + cC.scrollTop);
-            return ret.scale( 1.0 / scale ).round( 1 );
-          };
-        } else {
-          getMousePos = function( eventObject ) {
-            var cC  = $canvasContainer[0],
-                ret = new Vec2D( (eventObject.offsetX||eventObject.originalEvent.offsetX) + cC.scrollLeft, 
-                                 (eventObject.offsetY||eventObject.originalEvent.offsetY) + cC.scrollTop );
-            return ret.scale( 1.0 / scale ).round( 1 );
-          }
-        }
-        
-        return getMousePos( eventObject );
+        return screen2canvas( new Vec2D( eventObject.pageX||eventObject.originalEvent.pageX,
+                                         eventObject.pageY||eventObject.originalEvent.pageY ) );
       },
       /**
        * Get all touch coordinates out of the jQ.Event relative to the canvas.
        * @return Array of Vec2D with one Vec2D per touch position
        */
       getTouchPos = function( eventObject ) {
-        var cC  = $canvasContainer[0],
-            touches = eventObject.originalEvent.touches,
-            targetOffset = $canvasContainer.offset(),
-            offset = new Vec2D( cC.scrollLeft - targetOffset.left,
-                                cC.scrollTop  - targetOffset.top ),
-            invScale = 1.0 / scale;
+        var touches = eventObject.originalEvent.touches;
             
         return Array.prototype.map.call( touches, function(touch){ 
-            return (new Vec2D( touch.pageX, touch.pageY ))
-                   .plus( offset )
-                   .scale( invScale )
-                   .round( 1 );
-        } );
+            return screen2canvas(new Vec2D( touch.pageX, touch.pageY ));
+        } ).concat([new Vec2D(0,0)]);
+      },
+      /**
+       * Get the distance between the fingers in screen pixels.
+       */
+      getTouchDistance = function( eventObject ) {
+        var touches = eventObject.originalEvent.touches,
+            dx      = touches[0].pageX - touches[1].pageX,
+            dy      = touches[0].pageY - touches[1].pageY;
+        return Math.sqrt( dx*dx + dy*dy );
       },
       /**
        * The GLE constructor
@@ -91,6 +103,7 @@
             blocks = [],  // array of all existent blocks
             view,
             lastPos,      // the beginning coordinates of a mouse drag
+            lastScale,    // the beginning scale during a mouse drag
             prevPos;      // the coordinates of the previous call to mousemove
         
         /**
@@ -179,6 +192,13 @@
         }
         
         /**
+         * Update the state information that the user can see
+         */
+        var updateStateInfos = function() {
+          $('#zoom').text( Math.round(scale * 100) + '% (scale: ' + scale + ' / scaleInternal: ' + 'n/a' + ')' );
+        };
+        
+        /**
         * Return true if the @parm mousePos doesn't belong to this handler
         */
         this.checkHandlerBadSelection = function( mousePos, handlerPos ) {
@@ -214,13 +234,13 @@
         
         this.zoomIn = function( centerCoord )
         {
-          scale *= scaleFactor;
-          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale )/Math.log( scaleFactor ) ) / 10 ), centerCoord );
+          // basically do: scale *= scaleFactor;
+          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale*scaleFactor )/Math.log( scaleFactor ) ) / 10 ), centerCoord );
         };
         this.zoomOut = function( centerCoord )
         {
-          scale /= scaleFactor;
-          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale )/Math.log( scaleFactor ) ) / 10 ), centerCoord );
+          // basically do: scale /= scaleFactor;
+          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale/scaleFactor )/Math.log( scaleFactor ) ) / 10 ), centerCoord );
         };
         this.zoomDefault = function( centerCoord )
         {
@@ -230,21 +250,38 @@
         /**
          * Set the zoom level
          */
-        this.setZoom = function( newScale, centerCoord )
+        this.setZoom = function( newScale, centerCoord, scrollDist, temporary )
         {
-          scale = newScale;
-          if( scale < self.settings.minScale ) 
-            scale = self.settings.minScale;
-          else if( scale > self.settings.maxScale ) 
-            scale = self.settings.maxScale;
-          $('#zoom').text( Math.round(scale * 100) + '% (scale: ' + scale + ' / scaleInternal: ' + 'n/a' + ')' );
+          if( newScale < self.settings.minScale ) 
+            newScale = self.settings.minScale;
+          else if( newScale > self.settings.maxScale ) 
+            newScale = self.settings.maxScale;
           
-          view.zoomView( scale, centerCoord );
+          var zoomAnimation = function(){
+            var zoomStep = 0.05;
+            if( temporary || (Math.abs( scale - scaleTarget ) <= zoomStep) )
+            {
+              scale = scaleTarget;
+              $('#zoom').text('final' + (temporary?'T':'F') );
+              view.zoomView( scale, centerCoord, scrollDist, temporary );
+            } else {
+              $('#zoom').text('temp');
+              scale += (scale < scaleTarget) ? zoomStep : -zoomStep; 
+              view.zoomView( scale, centerCoord, scrollDist, true, zoomAnimation );
+            }
+          };
+          if( scale === scaleTarget )
+          {
+            scaleTarget = newScale;
+            zoomAnimation();
+          } else {
+            scaleTarget = newScale;
+          }
         }
         
         var dragIndex = 0;
         var dragStart = function( mousePos, ctrlKey, shiftKey ) {
-          lastPos = mousePos;
+          lastPos = mousePos.round(1);
           prevPos = lastPos;
           // ---------------
           view.showMarker( lastPos );
@@ -295,7 +332,7 @@
         var dragMove = function( mousePos, ctrlKey, shiftKey ) {
           var index         = dragIndex, //eventObject.data,
               thisElem      = elementList[ index ],
-              thisPos       = mousePos,
+              thisPos       = mousePos.round(1),
               shortDeltaPos = thisPos.copy().minus( prevPos ),
               lowerIndex    = view.position2id( thisPos ),
               lowerElement  = elementList[lowerIndex];
@@ -354,25 +391,39 @@
         };
         */
         
-        var pinchLength, 
-            pinchStartScale;
-        var pinchStart = function( eventObject ) {
-          pinchStartScale = scale;
-          var p = getTouchPos( eventObject );
-          pinchLength = Math.sqrt(
-                          p[0].minus( p[1] ).getNorm()
-                             );
-        };
-        
-        var pinchMove = function( eventObject ) {
-          var touches  = getTouchPos( eventObject ),
-              length   = Math.sqrt(
-                          touches[0].minus( touches[1] ).getNorm()
-                         ),
-              newScale = pinchStartScale * length / pinchLength;
-              
-          self.setZoom( newScale, touches[0].plus(touches[1]).scale( 0.5 ) );
-        };
+        /**
+         * Alle the handlers and private variables for the pinch support
+         * that allows the user to zoom and pan.
+         */
+        var pinch = (function() {
+          // The private variables that are hidden to the outside
+          var pinchLength, 
+              pinchStartScale,
+              pinchStartPos,
+              pinchFinalPos;
+          // The public methods, callable as "pinch.*()"
+          return {
+            start: function( eventObject ) {
+                pinchStartScale = scale;
+                pinchLength = getTouchDistance( eventObject );
+                var touches = getTouchPos( eventObject );
+                pinchStartPos = touches[0].plus( touches[1] ).scale( 0.5 );  // The middle between the fingers
+                pinchStartPos = canvas2screen( pinchStartPos );// test...
+              },
+            move: function( eventObject ) {
+                var length  = getTouchDistance( eventObject ),
+                    ratio   = length / pinchLength,
+                    touches = getTouchPos( eventObject ),
+                    pos     = touches[0].plus( touches[1] ).scale( 0.5 );    // The middle between the fingers
+                pos = canvas2screen( pos );// test...
+                pinchFinalPos = pos.copy().minus( pinchStartPos.copy().scale( ratio ) );
+                self.setZoom( pinchStartScale * ratio, new Vec2D(0,0), pinchFinalPos, true );
+              },
+            end: function() {
+                self.setZoom( scale, new Vec2D(0,0), pinchFinalPos ); // finalize temporary zoom
+              }
+          };
+        })();
         
         this.keyPress = function( eventObject ) {
           // early exit to keep default
@@ -449,6 +500,8 @@
             default:
               console.log( 'key', eventObject, eventObject.keyCode );
           }
+          
+          updateStateInfos();
         };
         
         var mouseStateNone  = 0, // implies no button pressed
@@ -500,12 +553,20 @@
           if( isDoubleClick( eventObject.timeStamp ) )
             return false;
           
-          if( dragStart( getMousePos( eventObject ), 
-                         eventObject.ctrlKey, 
-                         eventObject.shiftKey ) )
-            mouseState = mouseStateDrag;
-          else
-            mouseState = mouseStateNone;
+          if( eventObject.ctrlKey )
+          {
+              mouseState = mouseStatePinch;
+              lastPos = new Vec2D( eventObject.pageX, eventObject.pageY );
+              lastScale = scale;
+              prevPos = getMousePos( eventObject ); // abuse it a bit...
+          } else {
+            if( dragStart( getMousePos( eventObject ), 
+                           eventObject.ctrlKey, 
+                           eventObject.shiftKey ) )
+              mouseState = mouseStateDrag;
+            else
+              mouseState = mouseStateNone;
+          }
           
           return false; // stopp propagation as well as bubbling
         };
@@ -534,7 +595,7 @@
               
             case 2:
               mouseState = mouseStatePinch;
-              pinchStart( eventObject );
+              pinch.start( eventObject );
               break;
           }
           $('#coords').text( 'touchstart' + printMouseState() + eventObject.originalEvent.touches.length);
@@ -546,8 +607,23 @@
          * Event handler for mousemove.
          */
         this.mousemove = function( eventObject ) {
-          if( mouseState === mouseStateDrag )
-            dragMove( getMousePos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+          switch( mouseState )
+          {
+            case mouseStateNone:
+              return true;
+              
+            case mouseStateDrag:
+              dragMove( getMousePos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+              break;
+              
+            case mouseStatePinch:
+              var length   = lastPos.copy().minus( new Vec2D( eventObject.pageX, eventObject.pageY ) ),
+                  newScale = Math.abs( length.x + length.y ) / 200 + 1; // will allways be bigger than 0
+              if( (length.x + length.y) > 0 )
+                newScale = 1/newScale;
+              self.setZoom( newScale * lastScale, prevPos, undefined, true ); // zoom with temporary = true
+              break;
+          }
           
           return false; // stopp propagation as well as bubbling
         };
@@ -561,14 +637,16 @@
             case mouseStateNone:
               // FIXME: this allows (on purpose!) the scrolling of the main
               // screen ==> might need to be removed in the final editor!
-              return true;  // keep event propagating and bubbling
+              
+              // keep event propagating and bubbling
+              return eventObject.target.id !== 'canvas_fg';
               
             case mouseStateDrag:
               dragMove( getTouchPos( eventObject )[0] );
               break;
               
             case mouseStatePinch:
-              pinchMove( eventObject );
+              pinch.move( eventObject );
               break;
           }
           
@@ -581,10 +659,21 @@
          * Event handler for mouseup.
          */
         this.mouseup = function( eventObject ) {
-          if( mouseState === mouseStateDrag )
-            dragEnd();
+          switch( mouseState )
+          {
+            case mouseStateDrag:
+              dragEnd();
+              break;
+              
+            case mouseStatePinch:
+              self.setZoom( scale, prevPos, undefined, false );
+              break;
+          }
           
           mouseState = mouseStateNone;
+          
+          updateStateInfos();
+          
           return false; // stopp propagation as well as bubbling
         };
         
@@ -592,8 +681,18 @@
          * Event handler for touchend.
          */
         this.touchend = function( eventObject ) {
-          if( mouseState === mouseStateDrag )
-            dragEnd();
+          switch( mouseState )
+          {
+            case mouseStateDrag:
+              dragEnd();
+              break;
+              
+            case mouseStatePinch:
+              pinch.end();
+              break;
+          }
+          
+          updateStateInfos();
           
           // finger has left => do a new cycle, mouseState will be set there
           return self.touchstart( eventObject );
@@ -606,6 +705,8 @@
         this.touchcancel = function( eventObject ) {
           if( mouseState === mouseStateDrag )
             dragEnd();
+          
+          updateStateInfos();
           
           mouseState = mouseStateNone;
           return false; // stopp propagation as well as bubbling
@@ -627,6 +728,8 @@
         this.resize = function( eventObject ) {
           console.log( 'resize', eventObject ); // FIXME DEBUG
           view.resizeView();
+          
+          updateStateInfos();
         };
         
         // Constructor
@@ -653,11 +756,13 @@
               up_down    = ( undefined !== e.originalEvent.wheelDeltaY ? -e.originalEvent.wheelDeltaY :
                            ( undefined !== e.originalEvent.deltaY      ? e.originalEvent.deltaY      : 0 )),
               mousePos   = getMousePos(e);
+          /*    
           console.log('sroll', e, left_right, up_down, 
                     mousePos ,  
           (e.shiftKey ? 's' : '') +
           (e.ctrlKey ? 'c' : '')  +
           (e.altKey ? 'a' : '' ));
+          */
           if( e.shiftKey || e.ctrlKey ) // should be only ctrlKey, but Chrome doesn't support that yet
           {
             if( up_down < 0 || left_right < 0 )
@@ -667,7 +772,9 @@
             {
               self.zoomIn( mousePos );
             }
-            return;
+            
+            updateStateInfos();
+            return false;
           }
           
           if( left_right < 0 )
@@ -680,6 +787,8 @@
           else if( up_down > 0 )
             $canvasContainer.scrollTop( $canvasContainer.scrollTop() + 50 );
           self.resize();
+          
+          return false;
         } );
         $(document).on( 'keydown',  this.keyPress  ); 
         $(window).on( 'resize',     this.resize    );

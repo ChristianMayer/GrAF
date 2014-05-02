@@ -43,6 +43,19 @@ c5.insertWaypoint( new Vec2D( 400, 450 ) );
 GLE.updateContentSize();
 });
 
+function button1()
+{
+  //alert( 'b1' );
+  jQuery.event.trigger({ type : 'keydown', keyCode : 82 });
+  //GLE.zoomIn();
+}
+function button2()
+{
+  //alert( 'b2' );
+  jQuery.event.trigger({ type : 'keydown', keyCode : 86 });
+  //GLE.zoomOut();
+}
+
 //////////////////////////////////////////////////////////////////
 var myWorker = {};//new Worker("lib/autorouter.js");
  

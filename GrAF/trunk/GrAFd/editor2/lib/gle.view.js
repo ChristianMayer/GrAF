@@ -32,10 +32,12 @@
     
     // private:
     var self     = this,
+        // cross browser compatabilities:
         requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
                                 window.webkitRequestAnimationFrame || window.msRequestAnimationFrame,
         cancelAnimationFrame  = window.cancelAnimationFrame || window.mozCancelAnimationFrame ||
                                 window.webkitCancelAnimationFrame || window.msCancelAnimationFrame,
+        cssTransform          = 'transform', // to be overwritten by the browser test
         width,               // size of the draw area
         height,
         contentWidth  = 0,   // maximum needed size of the content
@@ -52,6 +54,7 @@
         //focusElements = [],  // The focused elements, i.e. the user selected ones
         idBuffer,            // ID map, i.e. 2D image of the indexList
         idData,              // The data array of the ID map
+        idDataInvalid = true,// Collect if id data has to be fetched
         ctxId,               // context of ID map
         ctxDummy = {         // dummy context, can be passed as a context
           beginPath: function(){},
@@ -72,6 +75,11 @@
         * @param thisPos Vec2D
         */
         position2id = function( thisPos ) {
+          if( idDataInvalid )
+          {
+            idData = ctxId.getImageData( 0, 0, width, height ).data;
+            idDataInvalid = false;
+          }
           var idxPos = (Math.round(thisPos.x*scale*scaleInternal) + width * Math.round(thisPos.y*scale*scaleInternal))|0;
           return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
         },
@@ -178,7 +186,7 @@
     this.draw = function() {
       var activeElements = thisGLE.activeElements(),
           focusElements  = thisGLE.focusElements();
-      console.log( 'draw ---------------------------------------------' );
+      //console.log( 'draw ---------------------------------------------' );
       clearCanvas( ctxId );
       clearCanvas( ctxBg );
       thisGLE.blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
@@ -195,7 +203,7 @@
       self.updateBg = false;
       self.drawFg(); // =>  canvasFgValid = 0;
       
-      idData = ctxId.getImageData( 0, 0, width, height ).data;
+      idDataInvalid = true;
     };
     this.drawFg = function() {
       var activeElements = thisGLE.activeElements(),
@@ -259,21 +267,58 @@
     };
     
     /**
-     * 
+     * Zoom the view by setting it to newScale. The origin of the movement is
+     * centerCoord. Additionally it might be scrolled by the scollDist.
+     * When temporary is true only a hardware accelerated scaling is done, i.e.
+     * it's done without repainting - so it's very fast but not sharp.
+     * The callback is called in a new animation frame.
      */
-    this.zoomView = function( newScale, centerCoord ) {
-      var oldScale = scale;
-      scale = newScale;
-      
-      self.updateBg = true;
-      self.resizeView();
-      
-      if( undefined !== centerCoord )
+    this.zoomView = function( newScale, centerCoord, scrollDist, temporary, callback ) {
+      if( temporary )
       {
-        var delta = centerCoord.copy().scale( scale - oldScale );
-        $canvasContainer.scrollLeft( $canvasContainer.scrollLeft() + delta.x );
-        $canvasContainer.scrollTop(  $canvasContainer.scrollTop()  + delta.y );
+        var thisScale = '' + (newScale / scale); // store already as string
+        var trans = 'scale3d(' + thisScale + ', ' + thisScale + ', 1)';
+        if( undefined !== centerCoord )
+        {
+          //var delta = centerCoord.copy().scale( newScale - scale );
+          var delta = centerCoord.copy().scale( scale - newScale );
+          if( undefined !== scrollDist )
+            delta.plus( scrollDist );
+              
+          // prevent to scroll too far to show negative regions, but show 10px of it
+          var scrollPos = new Vec2D( $canvasContainer.scrollLeft(), $canvasContainer.scrollTop() );
+          if( delta.x > (scrollPos.x+10) ) delta.x = scrollPos.x + 10;
+          if( delta.y > (scrollPos.y+10) ) delta.y = scrollPos.y + 10;
+          
+          // FIXME: nope, that'S not working. But it's be great to have also
+          // a scroll limit in the positive regions...
+          //if( delta.x < 0 ) delta.x = 0;
+            
+          trans = 'matrix3d(' + thisScale + ',0,0,0, 0,' + thisScale + ',0,0, 0,0,' + thisScale + ',0, '+delta.x+','+delta.y+',0,1)';
+        }
+        $canvasBg.css( cssTransform, trans );
+      } else {
+        var oldScale = scale;
+        scale = newScale;
+        
+        $canvasBg.css( cssTransform, 'scale3d(1, 1, 1)' );
+        self.updateBg = true;
+        self.resizeView();
+        
+        if( undefined !== centerCoord )
+        {
+          var delta = centerCoord.copy().scale( scale - oldScale );
+          if( undefined !== scrollDist )
+            delta.minus( scrollDist );
+          console.log(delta, 'no Matrix');
+          $canvasContainer.scrollLeft( $canvasContainer.scrollLeft() + delta.x );
+          $canvasContainer.scrollTop(  $canvasContainer.scrollTop()  + delta.y );
+        }
+          $('#extra').text( 'nT:'+$canvasContainer.scrollLeft()+'/'+$canvasContainer.scrollTop() );
       }
+      
+      if( callback !== undefined )
+        requestAnimationFrame( callback );
     };
     
     /**
@@ -345,7 +390,7 @@
 
       if( isViewResized || self.updateBg )
       {
-        console.log( 'resizeView - it was resized' );
+        //console.log( 'resizeView - it was resized' );
         //self.invalidateContext();
         self.draw();
       } else if( isFgViewResized )
@@ -368,15 +413,40 @@
       self.invalidateForeground();
     };
     
+    ///////////////////////////////////////////////////////////////////////////
     // constructor
-    $canvasContainer.append( '<canvas id="canvas_fg" style="position:absolute;z-index:100;"/><canvas id="canvas" style="-webkit-transform: scale3d(1,1,1);"/>' );
+    $canvasContainer.append( '<canvas id="canvas_fg" style="position:absolute;z-index:100;"/><canvas id="canvas"/>' );
     $canvasFg   = $canvasContainer.find('#canvas_fg');
     $canvasBg   = $canvasContainer.find('#canvas');
+    
+    // check for browser to set the correct prefix, based on 
+    // https://gist.github.com/lorenzopolidori/3794226
+    (function(){
+      var el         = $canvasBg[0],
+          transforms = {
+            'webkitTransform': '-webkit-transform',
+            'OTransform'     : '-o-transform',
+            'msTransform'    : '-ms-transform',
+            'MozTransform'   : '-moz-transform',
+            'transform'      : 'transform'
+          };
+      for( var t in transforms ) {
+        if( el.style[t] !== undefined ){
+          el.style[t] = 'translate3d(1px,1px,1px)';
+          var has3d = window.getComputedStyle(el).getPropertyValue(transforms[t]);
+          if( has3d !== undefined && has3d.length > 0 && has3d !== "none" )
+            cssTransform = t;
+        }
+      }
+      $canvasBg.css( cssTransform + '-origin', '0px 0px'        );
+      $canvasBg.css( cssTransform            , 'scale3d(1,1,1)' );
+    })();
+    
     ctxFg       = $canvasFg[0].getContext('2d');
     ctxBg       = $canvasBg[0].getContext('2d');
     idBuffer    = document.createElement('canvas');
     ////
-    $('#drawArea').append( idBuffer ); // for debug FIXME
+    //$('#drawArea').append( idBuffer ); // for debug FIXME
     ////
     //$canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
     //$canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
