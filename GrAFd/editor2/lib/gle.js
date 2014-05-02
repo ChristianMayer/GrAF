@@ -115,9 +115,9 @@
          * Make view visible to the outside. - FIXME DEBUG
          */
         this.view           = function(){ return view;           };
-        this.activeElements = function(){ return activeElements; };
-        this.focusElements  = function(){ return focusElements;  };
-        this.blocks = blocks; // FIXME only for transision
+        //this.activeElements = function(){ return activeElements; };
+        //this.focusElements  = function(){ return focusElements;  };
+        //this.blocks = blocks; // FIXME only for transision
         
         /**
          * Create and register a new block.
@@ -137,6 +137,27 @@
           blocks.push( thisConnection );
           view.invalidateContext();
           return thisConnection;
+        }
+        
+        /**
+         * Draw all blocks
+         */
+        this.draw = function( ctxFn, ctxId ) {
+          blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
+            var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
+            var thisFocus  = focusElements.indexOf( thisBlock ) !== -1;
+            thisBlock.draw( ctxFn( thisActive ), ctxId, thisFocus, false );
+          } );
+        };
+        
+        /**
+         * Draw only active blocks (i.e. the foreground)
+         */
+        this.drawActive = function( ctx, ctxId ) {
+          activeElements.forEach( function( thisActiveElement ) {
+            var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
+            thisActiveElement.draw( ctx, ctxId, thisFocus, true );
+          } );
         }
         
         /**
@@ -476,7 +497,7 @@
               } );
               focusElements.length = 0;
               activeElements.length = 0;
-              view.invalidateHandlers();
+              self.invalidateHandlers();
               break;
               
             case 66: // key: b - zoom to 100%
