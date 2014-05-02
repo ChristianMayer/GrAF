@@ -50,6 +50,7 @@
         ctxBg,               // background canvas context
         canvasValid   = 0,   // Collect if canvas has to be redrawn
         canvasFgValid = 0,   // Collect if canvas has to be redrawn
+        layersClamped = false, // True when the forground should also be painted on the background
         //activeElements = [], // The active elements, i.e. the one on the Fg
         //focusElements = [],  // The focused elements, i.e. the user selected ones
         idBuffer,            // ID map, i.e. 2D image of the indexList
@@ -111,6 +112,20 @@
           if( 'webkitImageSmoothingEnabled' in context )
             context.webkitImageSmoothingEnabled = state;
         },
+        /**
+         * 
+         */
+        clampLayers = function() {
+          layersClamped = true;
+          self.invalidateForeground(); // only the FG needs a redraw
+        },
+        /**
+         * 
+         */
+        unclampLayers = function() {
+          layersClamped = false;
+          self.invalidateContext();
+        },
  
         foo = 0;
     
@@ -139,7 +154,7 @@
           halfSizeId = thisGLE.settings.toleranceHandle,
           fullSizeId = 1 + 2 * halfSizeId;
           
-      if( active ) {
+      if( active && !layersClamped ) {
         ctxFg.lineWidth = 1;
         ctxFg.fillRect( pos.x - halfSizeFg, pos.y - halfSizeFg, fullSizeFg, fullSizeFg );
         ctxFg.strokeRect( pos.x - halfSizeFg, pos.y - halfSizeFg, fullSizeFg, fullSizeFg );
@@ -184,16 +199,11 @@
       * Redraw canvases.block
       */
     this.draw = function() {
-      var activeElements = thisGLE.activeElements(),
-          focusElements  = thisGLE.focusElements();
-      //console.log( 'draw ---------------------------------------------' );
       clearCanvas( ctxId );
       clearCanvas( ctxBg );
-      thisGLE.blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
-        var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
-        var thisFocus  = focusElements.indexOf( thisBlock ) !== -1;
-        thisBlock.draw( thisActive ? ctxFg : ctxBg, ctxId, thisFocus, false );
-      } );
+      //console.log( 'draw ---------------------------------------------' );
+      thisGLE.draw( function(isActive){ return isActive ? ctxFg : ctxBg; }, ctxId );
+      
       // show debug:
       ctxBg.save();
       ctxBg.setTransform( 1, 0, 0, 1, 0, 0 );
@@ -206,16 +216,12 @@
       idDataInvalid = true;
     };
     this.drawFg = function() {
-      var activeElements = thisGLE.activeElements(),
-          focusElements  = thisGLE.focusElements();
+      var s = scale * scaleInternal,
+          thisCtx = layersClamped ? ctxBg : ctxFg;
       //console.log( 'drawFg -------------------------------------------' );
       clearCanvas( ctxFg );
-      var s = scale * scaleInternal;///scaleInternal;
       ctxFg.setTransform( s, 0, 0, s, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
-      activeElements.forEach( function( thisActiveElement ) {
-        var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
-        thisActiveElement.draw( ctxFg, ctxDummy, thisFocus, true );
-      } );
+      thisGLE.drawActive( thisCtx, ctxDummy );
       canvasValid = 0;
       // --------------- zeige mausklick
       /*
@@ -276,6 +282,7 @@
     this.zoomView = function( newScale, centerCoord, scrollDist, temporary, callback ) {
       if( temporary )
       {
+        clampLayers();
         var thisScale = '' + (newScale / scale); // store already as string
         var trans = 'scale3d(' + thisScale + ', ' + thisScale + ', 1)';
         if( undefined !== centerCoord )
@@ -298,6 +305,7 @@
         }
         $canvasBg.css( cssTransform, trans );
       } else {
+        unclampLayers();
         var oldScale = scale;
         scale = newScale;
         
@@ -310,11 +318,9 @@
           var delta = centerCoord.copy().scale( scale - oldScale );
           if( undefined !== scrollDist )
             delta.minus( scrollDist );
-          console.log(delta, 'no Matrix');
           $canvasContainer.scrollLeft( $canvasContainer.scrollLeft() + delta.x );
           $canvasContainer.scrollTop(  $canvasContainer.scrollTop()  + delta.y );
         }
-          $('#extra').text( 'nT:'+$canvasContainer.scrollLeft()+'/'+$canvasContainer.scrollTop() );
       }
       
       if( callback !== undefined )
