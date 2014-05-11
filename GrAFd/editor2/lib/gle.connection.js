@@ -198,16 +198,16 @@
           maxIdx = 'number' === typeof index ? index  : index[1],
           maxPos = Array.isArray( newPos )   ? newPos[newPos.length-1] : newPos,
           myIdx  = maxIdx;
-      console.log( 'moveWaypoint', index, minIdx, maxIdx, newPos, absolute, waypoints.length );
+      //console.log( 'moveWaypoint', index, minIdx, maxIdx, newPos, absolute, waypoints.length );
       // move prev point
       if( minIdx > 0 )
       {
         if( 1 === minIdx && undefined !== self.start )
         {
-          console.log('add Pt');
-        console.log( waypoints.map(function(p){return p.print()+p.protected;}) );
+          //console.log('add Pt');
+          //console.log( waypoints.map(function(p){return p.print()+p.protected;}) );
           self.insertWaypoint( waypoints[ minIdx ].copy(), minIdx+1 );
-        console.log( waypoints.map(function(p){return p.print()+p.protected;})  );
+          //console.log( waypoints.map(function(p){return p.print()+p.protected;})  );
           minIdx++;
           maxIdx++;
           minIdx++;
@@ -247,17 +247,17 @@
       {
         if( newPos.length )
           minPos = newPos.shift();
-        console.log( i, minIdx, maxIdx, minPos, waypoints.length );
-        console.log( waypoints.map(function(p){return p.print()+p.protected;}) );
+        //console.log( i, minIdx, maxIdx, minPos, waypoints.length );
+        //console.log( waypoints.map(function(p){return p.print()+p.protected;}) );
         
         if( absolute )
           waypoints[ i ].replace( minPos );
         else
           waypoints[ i ].plus( minPos );
-        console.log( waypoints.map(function(p){return p.print()+p.protected+p.handler;}) );
+        //console.log( waypoints.map(function(p){return p.print()+p.protected+p.handler;}) );
       }
       
-      var ret = waypoints[ simplify( myIdx ) ].handler; console.log(ret); return ret;
+      //var ret = waypoints[ simplify( myIdx ) ].handler; console.log(ret); return ret;
       return waypoints[ simplify( myIdx ) ].handler;
     }
       
@@ -351,7 +351,7 @@
     /**
      * Return true if the @parm mousePos doesn't belong to this object
      */
-    this.checkBadSelection = function( mousePos, index, epsilon, scale )
+    this.checkBadSelection = function( mousePos, index, epsilon )
     {
       var eps    = epsilon | 0,
           i      = index   | 0,
@@ -375,7 +375,7 @@
     
     this.prepareUpdate = function( index, handler, mousePos, ctrlKey, shiftKey )
     {
-      console.log( 'prepareUpdate', index, handler , this.waypoints.length );
+      //console.log( 'prepareUpdate', index, handler , this.waypoints.length );
       // start point?
       if( 0 === index )
       {
@@ -394,14 +394,14 @@
                         : (s.y === e.y)
                           ? (s.x > e.x ? 2 : 0)
                           : 5;
-        console.log( 'firstPoint', direction, index, handler, e.handler );
+        //console.log( 'firstPoint', direction, index, handler, e.handler );
         return this.prepareCandidate( e.copy(), direction, false, mousePos );
       }
       
       // last point?
       if( index === this.waypoints.length - 1 )
       {
-        console.log( 'upd last Point 1: end:', this.end );
+        //console.log( 'upd last Point 1: end:', this.end );
         if( undefined !== this.end )
         {
           // unconnect to allow reconnection
@@ -409,7 +409,7 @@
           this.end = undefined;
           this.waypoints.length = Math.max( 1, this.waypoints.length - 3 );
         }
-        console.log( 'upd last Point 2: end:', this.end );
+        //console.log( 'upd last Point 2: end:', this.end );
         
         var s         = this.waypoints[ this.waypoints.length - 2 ],
             e         = this.waypoints[ this.waypoints.length - 1 ],
@@ -418,7 +418,7 @@
                         : (s.y === e.y)
                           ? (s.x > e.x ? 2 : 0)
                           : 5;
-        console.log( 'lastPoint', direction, index, handler, e.handler );
+        //console.log( 'lastPoint', direction, index, handler, e.handler );
         return this.prepareCandidate( e.copy(), direction, true, mousePos );
       }
       return handler;

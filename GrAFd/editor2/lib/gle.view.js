@@ -57,6 +57,7 @@
         idData,              // The data array of the ID map
         idDataInvalid = true,// Collect if id data has to be fetched
         ctxId,               // context of ID map
+        ctxIdInvalid  = true,// Collect if the ID map is valid for lazy evaluation
         ctxDummy = {         // dummy context, can be passed as a context
           beginPath: function(){},
           moveTo: function(){},
@@ -64,6 +65,8 @@
           stroke: function(){},
           fillRect: function(){}
         },
+        selectionCorner,     // draw a selection rectangle when defined
+        selectionSize,
         /**
         * Create a indexBuffer value (i.e. color) out of the @param pos.
         */
@@ -72,17 +75,66 @@
           return '#' + Array( 7 - base.length ).join( '0' ) + base;
         },
         /**
-        * Retrieve the index out of coordinates.
-        * @param thisPos Vec2D
-        */
-        position2id = function( thisPos ) {
+         * Little helper function to make idData valid.
+         */
+        makeIdDataValid = function() {
+          if( ctxIdInvalid )
+            self.updateContext();
+          
           if( idDataInvalid )
           {
             idData = ctxId.getImageData( 0, 0, width, height ).data;
             idDataInvalid = false;
           }
+        },
+        /**
+        * Retrieve the index out of coordinates.
+        * @param thisPos Vec2D
+        */
+        position2id = function( thisPos ) {
+          makeIdDataValid();
           var idxPos = (Math.round(thisPos.x*scale*scaleInternal) + width * Math.round(thisPos.y*scale*scaleInternal))|0;
           return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
+        },
+        /**
+         * Retrieve all indices that are inside the area.
+         * The allowed index range is passed by minIndex and endIndex-1
+         */
+        area2id = function( p1, p2, minIndex, endIndex ) {
+
+          makeIdDataValid();
+          var 
+            minPos = p1.copy().cmin( p2 ).scale(scale*scaleInternal).round(1),
+            maxPos = p1.copy().cmax( p2 ).scale(scale*scaleInternal).round(1),
+            buffer = new ArrayBuffer( endIndex ),
+            idxSet = new Int8Array(buffer),
+            // preassign all loop variables for speed up
+            y,
+            yMin   = 4*width*(minPos.y|0),
+            yMax   = 4*width*(maxPos.y|0),
+            yStep  = 4*width,
+            x,
+            xMin   = 4*(minPos.x|0),
+            xMax   = 4*(maxPos.x|0),
+            xy, thisIdx,   // cache variables
+            retVal = [];
+            
+          for( y = yMin; y <= yMax; y += yStep )
+          {
+            for( x = xMin; x <= xMax; x += 4 )
+            {
+              xy      = x + y,
+              thisIdx = ((idData[ xy++ ] << 16) + (idData[ xy++ ] << 8) + (idData[ xy ]))|0;
+              
+              idxSet[ thisIdx ] = 1;
+            }
+          }
+          
+          for( x = minIndex; x < endIndex; x++ )
+            if( idxSet[x] === 1 )
+              retVal.push( x );
+            
+          return retVal; //Object.keys( idxSet );
         },
         /**
           * Clear a canvas given by its context.
@@ -130,6 +182,7 @@
         foo = 0;
     
     this.position2id = position2id; // FIXME make visible
+    this.area2id     = area2id;     // FIXME make visible
     
     this.getForeground = function() {
       return $canvasFg;
@@ -184,13 +237,23 @@
       if( 0 === canvasValid )
         canvasValid = requestAnimationFrame( this.updateContext );
     };
+    /**
+     * Notify that the ID map is invalid.
+     */
+    this.invalidateIndex = function()
+    {
+      ctxIdInvalid  = true;
+    }
     
     this.updateContext = function()
     {
       //self.updateContentSize(); // FIXME move to a place where that's only called when necessary
       
       if( self.updateBg )
+      {
         self.draw();
+        ctxIdInvalid = false;
+      }
       else
         self.drawFg();
     }
@@ -222,6 +285,12 @@
       clearCanvas( ctxFg );
       ctxFg.setTransform( s, 0, 0, s, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
       thisGLE.drawActive( thisCtx, ctxDummy );
+      
+      // draw selection rectangle when defined
+      if( selectionCorner !== undefined )
+        ctxFg.strokeRect( selectionCorner.x, selectionCorner.y,
+                          selectionSize.x  , selectionSize. y );
+      
       canvasValid = 0;
       // --------------- zeige mausklick
       /*
@@ -240,6 +309,19 @@
       ctxFg.restore();
       */
       // ---------------
+    };
+    
+    /**
+     * 
+     */
+    this.showSelectionArea = function( corner1, corner2 ) {
+      if( corner1 === undefined ) { // deselect
+        selectionCorner = undefined;
+      } else {                      // set selection
+        selectionCorner = corner1.copy();
+        selectionSize   = corner2.copy().minus( corner1 );
+      }
+      self.invalidateForeground();
     };
     
     /**
@@ -388,8 +470,8 @@
         $canvasBg[0].style.height = clientHeight + 'px';
         isViewResized = true;
       
-        idBuffer.width  = $canvasBg[0].width;              // for debug FIXME
-        idBuffer.height = $canvasBg[0].height;             // for debug FIXME
+        idBuffer.width  = $canvasBg[0].width;
+        idBuffer.height = $canvasBg[0].height;
         idBuffer.style.width  = $canvasBg[0].style.width;  // for debug FIXME
         idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
       }
