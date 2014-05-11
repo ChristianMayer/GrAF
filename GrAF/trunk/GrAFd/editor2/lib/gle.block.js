@@ -135,7 +135,7 @@
     /**
      * Return true if the @parm mousePos doesn't belong to this object
      */
-    this.checkBadSelection = function( mousePos, index, epsilon, scale )
+    this.checkBadSelection = function( mousePos, index, epsilon )
     {
       index = index | 0;
       switch( index )
@@ -357,7 +357,7 @@
       var view = thisGLE.view();
       
       // draw shape to index map
-      if( !isDrawFg )
+      //if( !isDrawFg )
       {
         view.prepareHandlerDrawing( handlers[ 0 ] );
         index.fillRect( pos.x, pos.y, size.x, size.y );

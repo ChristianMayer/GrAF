@@ -199,7 +199,8 @@
           blocks.forEach( function( thisBlock, b ) {
             thisBlock.reregisterHandlers();
           } );
-          view.invalidateContext();
+          //view.invalidateContext();
+          view.invalidateIndex();
         }
         
         this.invalidateContext = function(){
@@ -224,10 +225,12 @@
         */
         this.checkHandlerBadSelection = function( mousePos, handlerPos ) {
           var halfSize = this.settings.toleranceHandle;
+          /*
           console.log( 'checkHandlerBadSelection', mousePos.print(), handlerPos.print(), (handlerPos.x-halfSize) > mousePos.x ||
                  (handlerPos.y-halfSize) > mousePos.y || 
                  (handlerPos.x+halfSize) < mousePos.x ||
                  (handlerPos.y+halfSize) < mousePos.y );
+          */
           return (handlerPos.x-halfSize) > mousePos.x ||
                  (handlerPos.y-halfSize) > mousePos.y || 
                  (handlerPos.x+halfSize) < mousePos.x ||
@@ -300,6 +303,29 @@
           }
         }
         
+        /**
+         * Mark all elements selected that are in the area defined by lastPos
+         * and prevPos.
+         */
+        var selectArea = function() {
+          console.log( 'selecting ' + prevPos.print() + ' -> ' + lastPos.print() );
+          var indices   = view.area2id( prevPos, lastPos, 1, elementList.length );
+          for( var i = 0; i < indices.length; i++ )
+          {
+            // check for valid index
+            if( (indices[i] > 0) && (indices[i] < elementList.length) )
+            {
+              var thisElement = elementList[ indices[i] ][0];
+              
+              // Set() type of insert:
+              if( focusElements.indexOf( thisElement ) === -1 )
+                focusElements.push( thisElement );
+            }
+          }
+          // and now make them appear on the forground
+          activeElements = focusElements.slice(); // make copy
+        };
+        
         var dragIndex = 0;
         var dragStart = function( mousePos, ctrlKey, shiftKey ) {
           lastPos = mousePos.round(1);
@@ -313,10 +339,10 @@
               activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
               
           $('#coords').text( lastPos.print() + ':' + index + ' (' + scale + ') [' + ']' );
-          if( undefined !== activeElement ) console.log( lastPos, 'Result:', activeElement.checkBadSelection( lastPos, elementList[ index ][1],  2, scale ), lastPos.print(), index );
+          //if( undefined !== activeElement ) console.log( lastPos, 'Result:', activeElement.checkBadSelection( lastPos, elementList[ index ][1],  2 ), lastPos.print(), index );
  
  
-          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( lastPos, elementList[ index ][1], 2, scale ) )
+          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( lastPos, elementList[ index ][1], 2 ) )
           {
             var redraw = activeElements.length > 0;
             activeElements.length = 0;
@@ -330,7 +356,7 @@
           }
           
           var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, lastPos, ctrlKey, shiftKey );
-          console.log( 'down', index, newIndex, activeElement, elementList[ index ][1] );
+          //console.log( 'down', index, newIndex, activeElement, elementList[ index ][1] );
           index = newIndex;
           activeElement = elementList[ index ][0]; // if index was changed...
           
@@ -339,11 +365,11 @@
             return thisBlock != activeElement;
           });
           blocks.push( activeElement );
-          console.log( 'da', activeElement.getDerivedActive() );
+          //console.log( 'da', activeElement.getDerivedActive() );
           activeElements = activeElement.getDerivedActive();
           activeElements.push( activeElement );
           focusElements = [ activeElement ];
-          console.log( 'activeElement', activeElement, 'activeElements', activeElements, 'self.activeElements', self.activeElements, 'focusElements', focusElements );
+          //console.log( 'activeElement', activeElement, 'activeElements', activeElements, 'self.activeElements', self.activeElements, 'focusElements', focusElements );
           
           dragIndex = index;
           view.invalidateContext();
@@ -359,7 +385,7 @@
               lowerElement  = elementList[lowerIndex];
           
           if( (!lowerElement) ||
-              (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2, scale ) ) )
+              (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2 ) ) )
             lowerElement = [];
           
           var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
@@ -525,9 +551,10 @@
           updateStateInfos();
         };
         
-        var mouseStateNone  = 0, // implies no button pressed
-            mouseStateDrag  = 1, // implies a pressed button
-            mouseStatePinch = 2, // implies two touches
+        var mouseStateNone       = 0, // implies no button pressed
+            mouseStateDrag       = 1, // implies a pressed button and a element
+            mouseStateSelectDrag = 2, // implies a pressed button to select elements
+            mouseStatePinch      = 3, // implies two touches
             mouseState = mouseStateNone;
         function printMouseState() {
           var ret = '[';
@@ -581,12 +608,16 @@
               lastScale = scale;
               prevPos = getMousePos( eventObject ); // abuse it a bit...
           } else {
-            if( dragStart( getMousePos( eventObject ), 
+            if( !eventObject.shiftKey &&            // Shift = add to selection
+                dragStart( getMousePos( eventObject ), 
                            eventObject.ctrlKey, 
-                           eventObject.shiftKey ) )
+                           eventObject.shiftKey ) 
+              )
               mouseState = mouseStateDrag;
-            else
-              mouseState = mouseStateNone;
+            else {
+              mouseState = mouseStateSelectDrag;
+              prevPos = getMousePos( eventObject );
+            }
           }
           
           return false; // stopp propagation as well as bubbling
@@ -612,6 +643,10 @@
               
               if( dragStart( getTouchPos( eventObject )[0] ) )
                 mouseState = mouseStateDrag;
+              else {
+                mouseState = mouseStateSelectDrag;
+                prevPos = getMousePos( eventObject );
+              }
               break;
               
             case 2:
@@ -635,6 +670,10 @@
               
             case mouseStateDrag:
               dragMove( getMousePos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+              break;
+              
+            case mouseStateSelectDrag:
+              view.showSelectionArea( prevPos, getMousePos( eventObject ) );
               break;
               
             case mouseStatePinch:
@@ -666,6 +705,11 @@
               dragMove( getTouchPos( eventObject )[0] );
               break;
               
+            case mouseStateSelectDrag:
+              lastPos = getTouchPos( eventObject )[0]; // store as TouchUp doesn't have corrdinates anymore
+              view.showSelectionArea( prevPos, lastPos );
+              break;
+              
             case mouseStatePinch:
               pinch.move( eventObject );
               break;
@@ -684,6 +728,12 @@
           {
             case mouseStateDrag:
               dragEnd();
+              break;
+              
+            case mouseStateSelectDrag:
+              view.showSelectionArea( undefined ); // unshow selection rectangle
+              lastPos = getMousePos( eventObject );
+              selectArea();
               break;
               
             case mouseStatePinch:
@@ -706,6 +756,11 @@
           {
             case mouseStateDrag:
               dragEnd();
+              break;
+              
+            case mouseStateSelectDrag:
+              view.showSelectionArea( undefined ); // unshow selection rectangle
+              selectArea();
               break;
               
             case mouseStatePinch:
