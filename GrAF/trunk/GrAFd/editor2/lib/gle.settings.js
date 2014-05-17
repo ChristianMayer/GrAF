@@ -36,7 +36,13 @@
         toleranceLine        : 6, // halfsize for hotspot in pixel
         drawSizeLine         : 1, // line width in pixel
         toleranceBlock       : 3, // halfsize for hotspot in pixel
-        drawSizeBlock        : 1  // line width in pixel
+        drawSizeBlock        : 1, // line width in pixel
+        // the default values for text
+        fontSize             : 10, // in px
+        fontFamiliy          : 'sans-serif',
+        fontStyle            : '', // e.g. 'italic'
+        // dummy element to catch the last ',' of the line above
+        end:true
       },
       /**
        * The Settings constructor

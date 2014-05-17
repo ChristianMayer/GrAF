@@ -142,21 +142,21 @@
         /**
          * Draw all blocks
          */
-        this.draw = function( ctxFn, ctxId ) {
+        this.draw = function( ctxFn, ctxId, scale ) {
           blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
             var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
             var thisFocus  = focusElements.indexOf( thisBlock ) !== -1;
-            thisBlock.draw( ctxFn( thisActive ), ctxId, thisFocus, false );
+            thisBlock.draw( ctxFn( thisActive ), ctxId, thisFocus, false, scale );
           } );
         };
         
         /**
          * Draw only active blocks (i.e. the foreground)
          */
-        this.drawActive = function( ctx, ctxId ) {
+        this.drawActive = function( ctx, ctxId, scale ) {
           activeElements.forEach( function( thisActiveElement ) {
             var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
-            thisActiveElement.draw( ctx, ctxId, thisFocus, true );
+            thisActiveElement.draw( ctx, ctxId, thisFocus, true, scale );
           } );
         }
         
@@ -309,17 +309,18 @@
          */
         var selectArea = function() {
           console.log( 'selecting ' + prevPos.print() + ' -> ' + lastPos.print() );
-          var indices   = view.area2id( prevPos, lastPos, 1, elementList.length );
+          var
+            minPos  = prevPos.copy().cmin( lastPos ),
+            maxPos  = prevPos.copy().cmax( lastPos ),
+            indices = view.area2id( minPos, maxPos, 1, elementList.length );
           for( var i = 0; i < indices.length; i++ )
           {
-            // check for valid index
-            if( (indices[i] > 0) && (indices[i] < elementList.length) )
-            {
-              var thisElement = elementList[ indices[i] ][0];
-              
-              // Set() type of insert:
-              if( focusElements.indexOf( thisElement ) === -1 )
-                focusElements.push( thisElement );
+            var thisElement = elementList[ indices[i] ][0];
+            
+            // Set() type of insert:
+            if( !thisElement.checkAreaBadSelection( minPos, maxPos ) &&
+                focusElements.indexOf( thisElement ) === -1 ) {
+              focusElements.push( thisElement );
             }
           }
           // and now make them appear on the forground
@@ -528,6 +529,10 @@
               
             case 66: // key: b - zoom to 100%
               self.zoomDefault();
+              break;
+              
+            case 71: // key: g - toggle grid
+              view.toggleGrid();
               break;
               
             case 82: // key: r - zoom in
