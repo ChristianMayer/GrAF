@@ -108,7 +108,7 @@
      * Draw itself on the canvas @param context and it's shape on the
      * @param index context.
      */
-    this.draw = function( context, index, focus ) {
+    this.draw = function( context, index, focus, isDrawFg, scale ) {
       var view = thisGLE.view();
       //console.log( 'draw conn', this, context, index, active );
       
@@ -117,36 +117,37 @@
       // draw block itself
       context.save(); // make sure to leave the context alone
       context.fillStyle = '#000000';
-      context.lineWidth = thisGLE.settings.drawSizeLine;
+      context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
       context.beginPath();
       index.beginPath();
       var oldIndexPos,
           waypoints = this.candidates.appendEnd 
                       ? this.waypoints.concat( this.candidates.waypoints )
                       : this.candidates.waypoints.slice().reverse().concat( this.waypoints ),
-          wpHalfsize = thisGLE.settings.drawSizeHandle,
+          wpHalfsize = (thisGLE.settings.drawSizeHandle * scale)|0,
           wpSize     = 2 * wpHalfsize + 1;
       
       waypoints.forEach( function drawWaypoint_PROFILENAME(thisPoint, i ){
+        var tP = thisPoint.copy().scale( scale ).round(1);
         if( thisPoint.protected )
           context.fillStyle = '#FF0000';
         else
           context.fillStyle = '#000000';
           
-        context.fillRect( thisPoint.x-wpHalfsize, thisPoint.y-wpHalfsize, wpSize, wpSize );
+        context.fillRect( tP.x-wpHalfsize, tP.y-wpHalfsize, wpSize, wpSize );
         //console.log(thisPoint, i );
         if( 0 == i )
         {
-          context.moveTo( thisPoint.x, thisPoint.y );
-          index.moveTo( thisPoint.x, thisPoint.y );
+          context.moveTo( tP.x, tP.y );
+          index.moveTo( tP.x, tP.y );
           //##//oldIndexPos = thisPoint;
         } else {
-          context.lineTo( thisPoint.x, thisPoint.y );
+          context.lineTo( tP.x, tP.y );
           /**/
-          index.lineTo( thisPoint.x, thisPoint.y );
+          index.lineTo( tP.x, tP.y );
           index.stroke();
           index.beginPath();
-          index.moveTo( thisPoint.x, thisPoint.y );
+          index.moveTo( tP.x, tP.y );
       /**//*
         thisGLE.prepareHandlerDrawing( oldIndexPos.lineHandler );
           index.beginPath();
@@ -164,11 +165,12 @@
       context.beginPath();
       if( waypoints.length > 1 )
       {
-        var lastPoint = waypoints[ waypoints.length - 1 ],
+        var lastPoint = waypoints[ waypoints.length - 1 ].copy(),
             prevPoint = waypoints[ waypoints.length - 2 ],
             direction = lastPoint.copy().minus( prevPoint ).toLength( 1.0 ),
             normal    = direction.getNormal(),
-            headSize  = 5 * context.lineWidth;
+            headSize  = 5 * thisGLE.settings.drawSizeBlock * scale;
+        lastPoint.scale( scale ).round(1);
         context.moveTo( lastPoint.x, lastPoint.y );
         context.lineTo( lastPoint.x - headSize * ( 3 * direction.x + normal.x ),
                         lastPoint.y - headSize * ( 3 * direction.y + normal.y ) );
@@ -181,7 +183,8 @@
       
       // draw waypoints to index map
       this.waypoints.forEach( function drawWaypointHandler_PROFILENAME(thisPoint, i ){
-        view.drawHandler( thisPoint, thisPoint.handler, focus );
+        var tP = thisPoint.copy().scale( scale ).round(1);
+        view.drawHandler( tP, thisPoint.handler, focus );
       } );
       
     }
@@ -346,6 +349,26 @@
         self.GLE.invalidateForeground();
       }
       else console.log( 'Message from worker:', message.data );
+    };
+    
+    /**
+     * Return true when the area between @param minPos and @param maxPos don't
+     * belong to this object.
+     */
+    this.checkAreaBadSelection = function( minPos, maxPos ) {
+      // only a rough check...
+      var bbMin = self.waypoints[0].copy(), // bounding box
+          bbMax = bbMin.copy();
+          
+      self.waypoints.forEach( function(wp) {
+        bbMin.cmin( wp );
+        bbMax.cmax( wp );
+      } );
+      
+      return (
+        (maxPos.x < bbMin.x) || (bbMax.x < minPos.x) ||
+        (maxPos.y < bbMin.y) || (bbMax.y < minPos.y)
+      );
     };
     
     /**

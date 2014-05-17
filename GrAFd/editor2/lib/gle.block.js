@@ -37,6 +37,9 @@
         color    = '#000000',          // how to display
         fill     = '#ffffff',
         name     = '',
+        fontSize,     // undefined --> use global
+        fontFamiliy,  // undefined --> use global
+        fontStyle,    // undefined --> use global
         inPorts  = [], 
         outPorts = [],
         handlers = [],
@@ -130,6 +133,17 @@
     }
     this.getHandler = function() {
       return handlers[0];
+    };
+    
+    /**
+     * Return true when the area between @param minPos and @param maxPos don't
+     * belong to this object.
+     */
+    this.checkAreaBadSelection = function( minPos, maxPos ) {
+      return (
+        (maxPos.x < pos.x) || ((pos.x+size.x) < minPos.x) ||
+        (maxPos.y < pos.y) || ((pos.y+size.y) < minPos.y)
+      );
     };
     
     /**
@@ -353,47 +367,56 @@
      * Draw itself on the canvas @param context and it's shape on the
      * @param index context.
      */
-    this.draw = function( context, index, focus, isDrawFg ) {
-      var view = thisGLE.view();
+    this.draw = function( context, index, focus, isDrawFg, scale ) {
+      var 
+        view = thisGLE.view(),
+        p    = pos.copy().scale( scale ).round(1),
+        s    = size.copy().scale( scale ).round(1),
+        m    = (5 * scale)|0; // the port marker (half-)size
       
       // draw shape to index map
       //if( !isDrawFg )
       {
         view.prepareHandlerDrawing( handlers[ 0 ] );
-        index.fillRect( pos.x, pos.y, size.x, size.y );
+        index.fillRect( p.x, p.y, s.x, s.y );
         
-        view.drawHandler( pos                                       , handlers[ 1 ], focus );
-        view.drawHandler( pos.copy().plus( size.copy().cmul([1,0]) ), handlers[ 2 ], focus );
-        view.drawHandler( pos.copy().plus( size.copy().cmul([0,1]) ), handlers[ 3 ], focus );
-        view.drawHandler( pos.copy().plus( size )                   , handlers[ 4 ], focus );
+        view.drawHandler( p                                    , handlers[ 1 ], focus );
+        view.drawHandler( p.copy().plus( s.copy().cmul([1,0]) ), handlers[ 2 ], focus );
+        view.drawHandler( p.copy().plus( s.copy().cmul([0,1]) ), handlers[ 3 ], focus );
+        view.drawHandler( p.copy().plus( s )                   , handlers[ 4 ], focus );
       }
       
       // draw block itself
       context.save(); // make sure to leave the context alone
       context.colorStyle = color;
       context.fillStyle  = fill;
-      context.lineWidth  = thisGLE.settings.drawSizeBlock;
-      context.fillRect( pos.x, pos.y, size.x, size.y );
-      context.strokeRect( pos.x, pos.y, size.x, size.y );
+      context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
+      context.fillRect( p.x, p.y, s.x, s.y );
+      context.strokeRect( p.x, p.y, s.x, s.y );
       
       context.fillStyle = '#000000';
       context.textAlign = 'center';
       context.textBaseline = 'top';
       
-      context.fillText( name, pos.x + size.x / 2, pos.y + size.y + 2 );
+      context.font = ''
+        + (fontSize    ? fontSize    : thisGLE.settings.fontSize)*scale + 'px '
+        + (fontFamiliy ? fontFamiliy : thisGLE.settings.fontFamiliy) + ' '
+        + (fontStyle   ? fontStyle   : thisGLE.settings.fontStyle) ;
+      
+      context.fillText( name, p.x + s.x / 2, p.y + s.y + 2 );
       
       context.textBaseline = 'middle';
       context.textAlign = 'left';
       var startIndex = 5;
       inPorts.forEach( function( thisPort, index ){
-        var centerY = (size.y * (index+0.5) / inPorts.length) | 0;
-        context.fillText( thisPort.name, pos.x + 5, pos.y + centerY );
+        var centerY = (s.y * (index+0.5) / inPorts.length) | 0;
+        context.fillText( thisPort.name, p.x + m, p.y + centerY );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
-          context.moveTo( pos.x - 5, pos.y - 5 + centerY );
-          context.lineTo( pos.x    , pos.y     + centerY );
-          context.lineTo( pos.x - 5, pos.y + 5 + centerY );
+          context.moveTo( p.x - m, p.y - m + centerY );
+          context.lineTo( p.x    , p.y     + centerY );
+          context.lineTo( p.x - m, p.y + m + centerY );
           context.stroke(); 
           isDrawFg || view.drawHandler( getInPortPos( index ), handlers[ startIndex + index ], focus );
         } else {
@@ -402,14 +425,14 @@
       context.textAlign = 'right';
       startIndex += inPorts.length;
       outPorts.forEach( function( thisPort, index ){
-        var centerY = (size.y * (index+0.5) / outPorts.length) | 0;
-        context.fillText( thisPort.name, pos.x + size.x - 5, pos.y + centerY );
+        var centerY = (s.y * (index+0.5) / outPorts.length) | 0;
+        context.fillText( thisPort.name, p.x + s.x - m, p.y + centerY );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
-          context.moveTo( pos.x + size.x    , pos.y - 5 + centerY );
-          context.lineTo( pos.x + size.x + 5, pos.y     + centerY );
-          context.lineTo( pos.x + size.x    , pos.y + 5 + centerY );
+          context.moveTo( p.x + s.x    , p.y - m + centerY );
+          context.lineTo( p.x + s.x + m, p.y     + centerY );
+          context.lineTo( p.x + s.x    , p.y + m + centerY );
           context.stroke(); 
           isDrawFg || view.drawHandler( getOutPortPos( index ), handlers[ startIndex + index ], focus );
         } else {

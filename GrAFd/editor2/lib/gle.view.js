@@ -67,6 +67,7 @@
         },
         selectionCorner,     // draw a selection rectangle when defined
         selectionSize,
+        showGrid = false,    // draw a grid for easier positioning and debugging
         /**
         * Create a indexBuffer value (i.e. color) out of the @param pos.
         */
@@ -76,7 +77,7 @@
         },
         /**
          * Little helper function to make idData valid.
-         */
+         */ //DEBUGctx, FIXME delete 
         makeIdDataValid = function() {
           if( ctxIdInvalid )
             self.updateContext();
@@ -84,6 +85,8 @@
           if( idDataInvalid )
           {
             idData = ctxId.getImageData( 0, 0, width, height ).data;
+            //DEBUGctx= ctxId.getImageData( 0, 0, width, height );
+            //idData = DEBUGctx.data;
             idDataInvalid = false;
           }
         },
@@ -100,12 +103,12 @@
          * Retrieve all indices that are inside the area.
          * The allowed index range is passed by minIndex and endIndex-1
          */
-        area2id = function( p1, p2, minIndex, endIndex ) {
+        area2id = function( pMin, pMax, minIndex, endIndex ) {
 
           makeIdDataValid();
           var 
-            minPos = p1.copy().cmin( p2 ).scale(scale*scaleInternal).round(1),
-            maxPos = p1.copy().cmax( p2 ).scale(scale*scaleInternal).round(1),
+            minPos = pMin.copy().scale(scale*scaleInternal).round(1),
+            maxPos = pMax.copy().scale(scale*scaleInternal).round(1),
             buffer = new ArrayBuffer( endIndex ),
             idxSet = new Int8Array(buffer),
             // preassign all loop variables for speed up
@@ -125,14 +128,16 @@
             {
               xy      = x + y,
               thisIdx = ((idData[ xy++ ] << 16) + (idData[ xy++ ] << 8) + (idData[ xy ]))|0;
-              
+              //idData[ xy ]=250;
+              //idData[ xy+1 ]=250;
               idxSet[ thisIdx ] = 1;
             }
           }
-          
+          //ctxId.putImageData( DEBUGctx, 0, 0 );
           for( x = minIndex; x < endIndex; x++ )
             if( idxSet[x] === 1 )
               retVal.push( x );
+          console.log('area2id', retVal );
             
           return retVal; //Object.keys( idxSet );
         },
@@ -146,9 +151,8 @@
           ctx.setTransform( 1, 0, 0, 1, 0, 0 );
           ctx.clearRect( 0, 0, width, height );
           var s = scale * scaleInternal;
-          ctx.setTransform( s, 0, 0, s, 0.5, 0.5 );
           //ctx.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
-          //ctx.setTransform( 1, 0, 0, 1, 0.5, 0.5 );
+          ctx.setTransform( 1, 0, 0, 1, 0.5, 0.5 );
         },
         /**
         * Seems to be a good idea to handle anti-aliasing - but can't prevent
@@ -202,9 +206,10 @@
       * @param pos Vec2D
       */
     this.drawHandler = function( pos, id, active ) {
-      var halfSizeFg = thisGLE.settings.drawSizeHandleActive,
+      var thisScale  = scale * scaleInternal,
+          halfSizeFg = (thisGLE.settings.drawSizeHandleActive * thisScale)|0,
           fullSizeFg = 1 + 2 * halfSizeFg,
-          halfSizeId = thisGLE.settings.toleranceHandle,
+          halfSizeId = (thisGLE.settings.toleranceHandle * ((thisScale>1)?thisScale:1))|0,
           fullSizeId = 1 + 2 * halfSizeId;
           
       if( active && !layersClamped ) {
@@ -265,7 +270,36 @@
       clearCanvas( ctxId );
       clearCanvas( ctxBg );
       //console.log( 'draw ---------------------------------------------' );
-      thisGLE.draw( function(isActive){ return isActive ? ctxFg : ctxBg; }, ctxId );
+      if( showGrid ) {
+        var widthTotal = width / (scale * scaleInternal),
+            heightTotal = height / (scale * scaleInternal);
+        ctxBg.save();
+        ctxBg.strokeStyle = '#b0b0b0';
+        ctxBg.beginPath();
+        for( var x = 0; x < widthTotal; x += 20 ) {
+          ctxBg.moveTo( x, 0 );
+          ctxBg.lineTo( x, heightTotal );
+        }
+        for( var y = 0; y < heightTotal; y += 20 ) {
+          ctxBg.moveTo( 0,     y );
+          ctxBg.lineTo( widthTotal, y );
+        }
+        ctxBg.stroke();
+        ctxBg.strokeStyle = '#808080';
+        ctxBg.beginPath();
+        for( var x = 0; x < width; x += 100 ) {
+          ctxBg.moveTo( x, 0 );
+          ctxBg.lineTo( x, height );
+        }
+        for( var y = 0; y < height; y += 100 ) {
+          ctxBg.moveTo( 0,     y );
+          ctxBg.lineTo( width, y );
+        }
+        ctxBg.stroke();
+        ctxBg.restore();
+      }
+      
+      thisGLE.draw( function(isActive){ return isActive ? ctxFg : ctxBg; }, ctxId, scale * scaleInternal );
       
       // show debug:
       ctxBg.save();
@@ -279,17 +313,23 @@
       idDataInvalid = true;
     };
     this.drawFg = function() {
-      var s = scale * scaleInternal,
-          thisCtx = layersClamped ? ctxBg : ctxFg;
+      var thisCtx = layersClamped ? ctxBg : ctxFg;
       //console.log( 'drawFg -------------------------------------------' );
       clearCanvas( ctxFg );
-      ctxFg.setTransform( s, 0, 0, s, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
-      thisGLE.drawActive( thisCtx, ctxDummy );
+      ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
+      thisGLE.drawActive( thisCtx, ctxDummy, scale * scaleInternal );
       
       // draw selection rectangle when defined
       if( selectionCorner !== undefined )
-        ctxFg.strokeRect( selectionCorner.x, selectionCorner.y,
-                          selectionSize.x  , selectionSize. y );
+      {
+        var 
+          sC = selectionCorner.copy().scale( scale*scaleInternal ).round(1),
+          sS = selectionSize.copy().scale( scale*scaleInternal ).round(1);
+        ctxFg.fillStyle = 'rgba(0,0,255,0.25)';
+        ctxFg.fillRect  ( sC.x, sC.y, sS.x, sS.y );
+        ctxFg.strokeRect( sC.x, sC.y, sS.x, sS.y );
+        ctxFg.fillStyle = 'black';
+      }
       
       canvasValid = 0;
       // --------------- zeige mausklick
@@ -322,6 +362,14 @@
         selectionSize   = corner2.copy().minus( corner1 );
       }
       self.invalidateForeground();
+    };
+    
+    /**
+     * Toggle display of grid.
+     */
+    this.toggleGrid = function() {
+      showGrid = !showGrid;
+      self.invalidateContext();
     };
     
     /**
@@ -534,7 +582,7 @@
     ctxBg       = $canvasBg[0].getContext('2d');
     idBuffer    = document.createElement('canvas');
     ////
-    //$('#drawArea').append( idBuffer ); // for debug FIXME
+    $('#drawArea').append( idBuffer ); // for debug FIXME
     ////
     //$canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
     //$canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
