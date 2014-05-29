@@ -38,12 +38,11 @@
         cancelAnimationFrame  = window.cancelAnimationFrame || window.mozCancelAnimationFrame ||
                                 window.webkitCancelAnimationFrame || window.msCancelAnimationFrame,
         cssTransform          = 'transform', // to be overwritten by the browser test
-        width,               // size of the draw area
-        height,
-        contentWidth  = 0,   // maximum needed size of the content
-        contentHeight = 0,
+        drawSize      = new Vec2D(0,0), // size of the draw area
+        contentSize   = new Vec2D(0,0), // maximum needed size of the content
         scaleInternal = window.devicePixelRatio,
         scale         = 1,   // overall scale
+        $drawingPl,          // the <div> that contians the space to draw on
         $canvasFg,           // jQ object with the foreground canvas DOM element
         $canvasBg,           // jQ object with the background canvas DOM element
         ctxFg,               // foreground canvas context
@@ -69,8 +68,26 @@
         selectionSize,
         showGrid = false,    // draw a grid for easier positioning and debugging
         /**
-        * Create a indexBuffer value (i.e. color) out of the @param pos.
-        */
+         * Little helper that a applies the x and y of a Vec2D on the width
+         * and height parameters of an object.
+         */
+        applySize = function( obj, vec, postfix ) {
+          obj.width  = vec.x + (postfix||0);
+          obj.height = vec.y + (postfix||0);
+        },
+        /**
+         * Little helper function that returns a Vec2D with the current
+         * scroll postion.
+         */
+        getScroll = function() {
+          return new Vec2D(
+            $canvasContainer.scrollLeft(),
+            $canvasContainer.scrollTop()
+          );
+        },
+        /**
+         * Create a indexBuffer value (i.e. color) out of the @param pos.
+         */
         id2color = function( pos ) {
           var base = (pos|0).toString( 16 );
           return '#' + Array( 7 - base.length ).join( '0' ) + base;
@@ -84,7 +101,7 @@
           
           if( idDataInvalid )
           {
-            idData = ctxId.getImageData( 0, 0, width, height ).data;
+            idData = ctxId.getImageData( 0, 0, drawSize.x, drawSize.y ).data;
             //DEBUGctx= ctxId.getImageData( 0, 0, width, height );
             //idData = DEBUGctx.data;
             idDataInvalid = false;
@@ -96,7 +113,7 @@
         */
         position2id = function( thisPos ) {
           makeIdDataValid();
-          var idxPos = (Math.round(thisPos.x*scale*scaleInternal) + width * Math.round(thisPos.y*scale*scaleInternal))|0;
+          var idxPos = (Math.round(thisPos.x*scale*scaleInternal) + drawSize.x * Math.round(thisPos.y*scale*scaleInternal))|0;
           return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
         },
         /**
@@ -112,6 +129,7 @@
             buffer = new ArrayBuffer( endIndex ),
             idxSet = new Int8Array(buffer),
             // preassign all loop variables for speed up
+            width  = drawSize.x,
             y,
             yMin   = 4*width*(minPos.y|0),
             yMax   = 4*width*(maxPos.y|0),
@@ -149,7 +167,7 @@
         clearCanvas = function( ctx )
         {
           ctx.setTransform( 1, 0, 0, 1, 0, 0 );
-          ctx.clearRect( 0, 0, width, height );
+          ctx.clearRect( 0, 0, drawSize.x, drawSize.y );
           var s = scale * scaleInternal;
           //ctx.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
           ctx.setTransform( 1, 0, 0, 1, 0.5, 0.5 );
@@ -271,8 +289,8 @@
       clearCanvas( ctxBg );
       //console.log( 'draw ---------------------------------------------' );
       if( showGrid ) {
-        var widthTotal = width / (scale * scaleInternal),
-            heightTotal = height / (scale * scaleInternal);
+        var widthTotal = drawSize.x / (scale * scaleInternal),
+            heightTotal = drawSize.y / (scale * scaleInternal);
         ctxBg.save();
         ctxBg.strokeStyle = '#b0b0b0';
         ctxBg.beginPath();
@@ -287,13 +305,13 @@
         ctxBg.stroke();
         ctxBg.strokeStyle = '#808080';
         ctxBg.beginPath();
-        for( var x = 0; x < width; x += 100 ) {
+        for( var x = 0; x < drawSize.x; x += 100 ) {
           ctxBg.moveTo( x, 0 );
-          ctxBg.lineTo( x, height );
+          ctxBg.lineTo( x, drawSize.y );
         }
-        for( var y = 0; y < height; y += 100 ) {
+        for( var y = 0; y < drawSize.y; y += 100 ) {
           ctxBg.moveTo( 0,     y );
-          ctxBg.lineTo( width, y );
+          ctxBg.lineTo( drawSize.x, y );
         }
         ctxBg.stroke();
         ctxBg.restore();
@@ -305,7 +323,7 @@
       ctxBg.save();
       ctxBg.setTransform( 1, 0, 0, 1, 0, 0 );
       ctxBg.fillStyle = 'rgba(100,100,200,0.75)';
-      ctxBg.fillRect( 0, 0, width, height );
+      ctxBg.fillRect( 0, 0, drawSize.x, drawSize.y );
       ctxBg.restore();
       self.updateBg = false;
       self.drawFg(); // =>  canvasFgValid = 0;
@@ -423,13 +441,15 @@
             delta.plus( scrollDist );
               
           // prevent to scroll too far to show negative regions, but show 10px of it
-          var scrollPos = new Vec2D( $canvasContainer.scrollLeft(), $canvasContainer.scrollTop() );
+          var scrollPos = getScroll();
           if( delta.x > (scrollPos.x+10) ) delta.x = scrollPos.x + 10;
           if( delta.y > (scrollPos.y+10) ) delta.y = scrollPos.y + 10;
           
           // FIXME: nope, that'S not working. But it's be great to have also
           // a scroll limit in the positive regions...
           //if( delta.x < 0 ) delta.x = 0;
+ 
+          applySize( $drawingPl[0].style, contentSize.copy().scale(thisScale), 'px' );
             
           trans = 'matrix3d(' + thisScale + ',0,0,0, 0,' + thisScale + ',0,0, 0,0,' + thisScale + ',0, '+delta.x+','+delta.y+',0,1)';
         }
@@ -463,8 +483,7 @@
      */
     this.resizeSpace = function( newSpaceSize )
     {
-      contentWidth  = newSpaceSize.x;
-      contentHeight = newSpaceSize.y;
+      contentSize = newSpaceSize.copy();
       self.resizeView();
     };
     
@@ -472,19 +491,24 @@
      * 
      */
     this.resizeView = function() {
-      var devicePixelRatio  = window.devicePixelRatio || 1,
-          backingStoreRatio = ctxFg.webkitBackingStorePixelRatio ||
-                              ctxFg.mozBackingStorePixelRatio    ||
-                              ctxFg.msBackingStorePixelRatio     ||
-                              ctxFg.oBackingStorePixelRatio      ||
-                              ctxFg.backingStorePixelRatio       || 1,
-          scaleInternalNew  = devicePixelRatio / backingStoreRatio,
-          screenWidth       = $canvasContainer[0].clientWidth,           // available screenspace that is visible
-          screenHeight      = $canvasContainer[0].clientHeight,
-          clientWidth       = Math.max( screenWidth  + $canvasContainer.scrollLeft(), contentWidth  * scale )|0, // space of the canvas on the screen before browser zoom
-          clientHeight      = Math.max( screenHeight + $canvasContainer.scrollTop() , contentHeight * scale )|0,
-          isFgViewResized   = false,
-          isViewResized     = false;
+      var
+        devicePixelRatio  = window.devicePixelRatio || 1,
+        backingStoreRatio = ctxFg.webkitBackingStorePixelRatio ||
+                            ctxFg.mozBackingStorePixelRatio    ||
+                            ctxFg.msBackingStorePixelRatio     ||
+                            ctxFg.oBackingStorePixelRatio      ||
+                            ctxFg.backingStorePixelRatio       || 1,
+        scaleInternalNew  = devicePixelRatio / backingStoreRatio,
+        // available screenspace that is visible
+        screenSize        = new Vec2D( $canvasContainer[0].clientWidth, $canvasContainer[0].clientHeight ),
+        // space of the canvas on the screen before browser zoom
+        clientSize        = screenSize.copy().plus( getScroll() ).cmax( contentSize.copy().scale(scale) ).floor(),
+        isFgViewResized   = false,
+        isViewResized     = false,
+        neqSize = function( obj, vec, postfix ) {
+          return (obj.width  !== (vec.x+(postfix||0))) ||
+                  (obj.height !== (vec.y+(postfix||0)));
+        };
           
       if( scaleInternal !== scaleInternalNew )
       {
@@ -492,30 +516,22 @@
         isViewResized = true;
       }
       
-      if( ($canvasFg[0].width  !== Math.round( screenWidth  * scaleInternal )) ||
-          ($canvasFg[0].height !== Math.round( screenHeight * scaleInternal )) ||
-          ($canvasFg[0].style.width  !== screenWidth  + 'px') ||
-          ($canvasFg[0].style.height !== screenHeight + 'px') )
+      if( neqSize( $canvasFg[0], screenSize.copy().scale(scaleInternal).round(1) ) ||
+          neqSize( $canvasFg[0].style, screenSize, 'px' ) )
       {
-        $canvasFg[0].width  = Math.round( screenWidth  * scaleInternal );
-        $canvasFg[0].height = Math.round( screenHeight * scaleInternal );
-        $canvasFg[0].style.width  = screenWidth  + 'px';
-        $canvasFg[0].style.height = screenHeight + 'px';
+        applySize( $canvasFg[0], screenSize.copy().scale(scaleInternal).round(1) );
+        applySize($canvasFg[0].style, screenSize, 'px' );
         isFgViewResized = true;
       }
       
-      if( (width  !== Math.round(clientWidth  * scaleInternal)) ||
-          (height !== Math.round(clientHeight * scaleInternal)) ||
-          ($canvasBg[0].style.width  !== clientWidth  + 'px') ||
-          ($canvasBg[0].style.height !== clientHeight + 'px') )
+      if( !drawSize.equal( clientSize.copy().scale(scaleInternal).round(1) ) ||
+          neqSize( $canvasBg[0].style, clientSize, 'px' ) )
       {
-        width  = Math.round(clientWidth  * scaleInternal);
-        height = Math.round(clientHeight * scaleInternal);
+        drawSize = clientSize.copy().scale(scaleInternal).round(1);
         
-        $canvasBg[0].width  = width;
-        $canvasBg[0].height = height;
-        $canvasBg[0].style.width  = clientWidth  + 'px';
-        $canvasBg[0].style.height = clientHeight + 'px';
+        applySize( $drawingPl[0].style, clientSize, 'px' );
+        applySize( $canvasBg[0], drawSize );
+        applySize( $canvasBg[0].style, clientSize, 'px' );
         isViewResized = true;
       
         idBuffer.width  = $canvasBg[0].width;
@@ -524,6 +540,7 @@
         idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
       }
 
+      $('#extra').text(drawSize.x+'/'+drawSize.y+' ['+(drawSize.x*drawSize.y/1000000)+']');
       if( isViewResized || self.updateBg )
       {
         //console.log( 'resizeView - it was resized' );
@@ -551,9 +568,12 @@
     
     ///////////////////////////////////////////////////////////////////////////
     // constructor
-    $canvasContainer.append( '<canvas id="canvas_fg" style="position:absolute;z-index:100;"/><canvas id="canvas"/>' );
-    $canvasFg   = $canvasContainer.find('#canvas_fg');
-    $canvasBg   = $canvasContainer.find('#canvas');
+    //$canvasContainer.append( '<canvas id="canvas_fg" style="position:absolute;z-index:100;"/><canvas id="canvas_bg"/>' );
+    $canvasContainer.append( '<div id="drawingplane" style="width:500;height:500"><canvas id="canvas_bg"/></div><canvas id="canvas_fg" style="position:absolute;z-index:100;top:0;left:0"/>' );
+    //$canvasContainer.append( '<canvas id="canvas_bg"/><canvas id="canvas_fg" style="position:absolute;z-index:100;top:0;left:0"/>' );
+    $drawingPl = $canvasContainer.find('#drawingplane');
+    $canvasFg  = $canvasContainer.find('#canvas_fg');
+    $canvasBg  = $canvasContainer.find('#canvas_bg');
     
     // check for browser to set the correct prefix, based on 
     // https://gist.github.com/lorenzopolidori/3794226

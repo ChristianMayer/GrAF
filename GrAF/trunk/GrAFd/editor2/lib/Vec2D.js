@@ -188,6 +188,14 @@
     this.y = precision * (this.y / precision | 0);
     return this;
   };
+  /**
+   * Floor function and convert to integer.
+   */
+  Vec2D.prototype.floor = function() {
+    this.x = this.x|0;
+    this.y = this.y|0;
+    return this;
+  };
   
   /**
    * Set qualifier.
