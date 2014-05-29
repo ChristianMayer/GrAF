@@ -148,6 +148,13 @@
     var tmp = this.copy().minus( other );
     return tmp.sprod( tmp ) <= epsilon*epsilon;
   };
+  /**
+   * Component wide "greater then".
+   * @return true if any of the components are greater
+   */
+  Vec2D.prototype.gt = function( other ) {
+    return (this.x > other.x) || (this.y > other.y);
+  };
   
   /**
    * Scale vector to passed length.
