@@ -378,7 +378,7 @@
       //if( !isDrawFg )
       {
         view.prepareHandlerDrawing( handlers[ 0 ] );
-        index.fillRect( p.x, p.y, s.x, s.y );
+        index && index.fillRect( p.x, p.y, s.x, s.y );
         
         view.drawHandler( p                                    , handlers[ 1 ], focus );
         view.drawHandler( p.copy().plus( s.copy().cmul([1,0]) ), handlers[ 2 ], focus );

@@ -119,7 +119,7 @@
       context.fillStyle = '#000000';
       context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
       context.beginPath();
-      index.beginPath();
+      index && index.beginPath();
       var oldIndexPos,
           waypoints = this.candidates.appendEnd 
                       ? this.waypoints.concat( this.candidates.waypoints )
@@ -139,15 +139,15 @@
         if( 0 == i )
         {
           context.moveTo( tP.x, tP.y );
-          index.moveTo( tP.x, tP.y );
+          index && index.moveTo( tP.x, tP.y );
           //##//oldIndexPos = thisPoint;
         } else {
           context.lineTo( tP.x, tP.y );
           /**/
-          index.lineTo( tP.x, tP.y );
-          index.stroke();
-          index.beginPath();
-          index.moveTo( tP.x, tP.y );
+          index && index.lineTo( tP.x, tP.y );
+          index && index.stroke();
+          index && index.beginPath();
+          index && index.moveTo( tP.x, tP.y );
       /**//*
         thisGLE.prepareHandlerDrawing( oldIndexPos.lineHandler );
           index.beginPath();
@@ -158,7 +158,7 @@
         }
         view.prepareHandlerDrawing( thisPoint.lineHandler );
       });
-      index.stroke();
+      index && index.stroke();
       context.stroke();
       
       // draw arrow head
@@ -182,7 +182,7 @@
       context.restore();
       
       // draw waypoints to index map
-      this.waypoints.forEach( function drawWaypointHandler_PROFILENAME(thisPoint, i ){
+      index && this.waypoints.forEach( function drawWaypointHandler_PROFILENAME(thisPoint, i ){
         var tP = thisPoint.copy().scale( scale ).round(1);
         view.drawHandler( tP, thisPoint.handler, focus );
       } );
