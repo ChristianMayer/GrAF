@@ -25,6 +25,7 @@
   
   // private variables:
   var defaultValue = {
+        // generic settings
         gridSize: 5, // the distance between grid points
         minScale: 0.05, // minimum scale factor
         maxScale: 10.0, // maximum scale factor
@@ -41,6 +42,9 @@
         fontSize             : 10, // in px
         fontFamiliy          : 'sans-serif',
         fontStyle            : '', // e.g. 'italic'
+        // the maximum sizes not to push the browser too hard
+        maxCanvasSize: new Vec2D( 800, 500 ),
+        maxCanvasArea: 1*1024*1024,
         // dummy element to catch the last ',' of the line above
         end:true
       },

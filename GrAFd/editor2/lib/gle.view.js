@@ -38,7 +38,10 @@
         cancelAnimationFrame  = window.cancelAnimationFrame || window.mozCancelAnimationFrame ||
                                 window.webkitCancelAnimationFrame || window.msCancelAnimationFrame,
         cssTransform          = 'transform', // to be overwritten by the browser test
+        viewOffset    = new Vec2D(0,0), // offset of the viewport, i.e. bascially the scroll of the drawingPlane
+        screenSize    = new Vec2D(0,0), // size that is visible
         drawSize      = new Vec2D(0,0), // size of the draw area
+        drawOffset    = new Vec2D(0,0), // offset of the draw area, i.e. Bg
         contentSize   = new Vec2D(0,0), // maximum needed size of the content
         scaleInternal = window.devicePixelRatio,
         scale         = 1,   // overall scale
@@ -108,24 +111,24 @@
           }
         },
         /**
-        * Retrieve the index out of coordinates.
+        * Retrieve the index out of screen coordinates.
         * @param thisPos Vec2D
         */
-        position2id = function( thisPos ) {
+        position2id = function( thisScreenPos ) {
           makeIdDataValid();
-          var idxPos = (Math.round(thisPos.x*scale*scaleInternal) + drawSize.x * Math.round(thisPos.y*scale*scaleInternal))|0;
+          var idxPos = (Math.round(thisScreenPos.x*scale*scaleInternal) + drawSize.x * Math.round(thisScreenPos.y*scale*scaleInternal))|0;
           return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
         },
         /**
-         * Retrieve all indices that are inside the area.
+         * Retrieve all indices that are inside the screen area.
          * The allowed index range is passed by minIndex and endIndex-1
          */
-        area2id = function( pMin, pMax, minIndex, endIndex ) {
+        area2id = function( pScreenMin, pScreenMax, minIndex, endIndex ) {
 
           makeIdDataValid();
           var 
-            minPos = pMin.copy().scale(scale*scaleInternal).round(1),
-            maxPos = pMax.copy().scale(scale*scaleInternal).round(1),
+            minPos = pScreenMin.copy().scale(scale*scaleInternal).round(1),
+            maxPos = pScreenMax.copy().scale(scale*scaleInternal).round(1),
             buffer = new ArrayBuffer( endIndex ),
             idxSet = new Int8Array(buffer),
             // preassign all loop variables for speed up
@@ -168,9 +171,10 @@
         {
           ctx.setTransform( 1, 0, 0, 1, 0, 0 );
           ctx.clearRect( 0, 0, drawSize.x, drawSize.y );
-          var s = scale * scaleInternal;
+          var s = scale*0+1 * scaleInternal;
           //ctx.setTransform( scale, 0, 0, scale, 0.5, 0.5 );
-          ctx.setTransform( 1, 0, 0, 1, 0.5, 0.5 );
+          //ctx.setTransform( 1, 0, 0, 1, 0.5, 0.5 );
+          ctx.setTransform( 1, 0, 0, 1, 0.5 - drawOffset.x*s, 0.5 - drawOffset.y*s );
         },
         /**
         * Seems to be a good idea to handle anti-aliasing - but can't prevent
@@ -190,6 +194,8 @@
          * 
          */
         clampLayers = function() {
+          if( layersClamped ) return;
+ 
           layersClamped = true;
           self.invalidateForeground(); // only the FG needs a redraw
         },
@@ -197,7 +203,23 @@
          * 
          */
         unclampLayers = function() {
+          if( !layersClamped ) return;
+ 
           layersClamped = false;
+          
+          self.scroll( true ); // update as it might be unsynchronised during clamping
+          
+          self.invalidateContext();
+        },
+        /**
+         * Position background canvas, e.g. after a scroll event.
+         */
+        fixBackgroundPosition = function() {
+          drawOffset = viewOffset.copy();
+          $canvasBg.css( cssTransform, 'matrix3d(1,0,0,0, 0,1,0,0, 0,0,1,0, '+drawOffset.x+','+drawOffset.y+',0,1)' );
+        
+          // redraw:
+          self.updateBg = true;
           self.invalidateContext();
         },
  
@@ -208,6 +230,36 @@
     
     this.getForeground = function() {
       return $canvasFg;
+    };
+    
+    this.showKlick = function( canvasPos ) {
+      $('#klick')[0].style.left = (scale*canvasPos.x-5)+'px';
+      $('#klick')[0].style.top  = (scale*canvasPos.y-5)+'px';
+    }
+    
+    /**
+     * Return Vec2D in screen coordinated for given page coordinates
+     */
+    this.getScreenCoordinate = function( pageX, pageY ) {
+      var offset = $canvasContainer.offset();
+      return new Vec2D( pageX - offset.left, pageY - offset.top );
+    };
+    
+    /**
+     * Calculate from a screen coordinate the canvas coordinate.
+     */
+    this.screen2canvas = function( pos ) {
+      //return getScroll().plus( pos ).scale( 1/scale );
+      console.log( 'screen2canvas: ' + viewOffset.print() + ' - ' + getScroll().print() );
+      return viewOffset.copy().plus( pos ).scale( 1/scale );
+    };
+    /**
+     * Calculate from a canvas coordinate the screen coordinate.
+     */
+    this.canvas2screen = function( pos ) {
+      //return pos.copy().scale( scale ).minus( getScroll() );
+      console.log( 'canvas2screen: ' + viewOffset.print() + ' - ' + getScroll().print() );
+      return pos.copy().scale( scale ).minus( viewOffset );
     };
     
     /**
@@ -288,9 +340,10 @@
       clearCanvas( ctxId );
       clearCanvas( ctxBg );
       //console.log( 'draw ---------------------------------------------' );
+      $('#extra').text( 'Draw:' +  (new Date().getTime()) );
       if( showGrid ) {
-        var widthTotal = drawSize.x / (scale * scaleInternal),
-            heightTotal = drawSize.y / (scale * scaleInternal);
+        var widthTotal = drawSize.x * (scale * scaleInternal),
+            heightTotal = drawSize.y * (scale * scaleInternal);
         ctxBg.save();
         ctxBg.strokeStyle = '#b0b0b0';
         ctxBg.beginPath();
@@ -333,8 +386,10 @@
     this.drawFg = function() {
       var thisCtx = layersClamped ? ctxBg : ctxFg;
       //console.log( 'drawFg -------------------------------------------' );
+      $('#extra').text( 'DrawFg:' +  (new Date().getTime()) );
       clearCanvas( ctxFg );
-      ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
+      //ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
+      ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*drawOffset.x*scaleInternal, 0.5 - 1*drawOffset.y*scaleInternal );
       thisGLE.drawActive( thisCtx, ctxDummy, scale * scaleInternal );
       
       // draw selection rectangle when defined
@@ -391,9 +446,11 @@
     };
     
     /**
-     * Debug method to visualise e.g. a mouse click
+     * Debug method to visualise e.g. a mouse click - canvas coordinates!
      */
     this.showMarker = function( pos ) {
+      console.log( 'showmarker', pos.print() );
+      pos = pos.copy().scale( scaleInternal*scale );
       ctxFg.beginPath();
       ctxFg.moveTo( pos.x-3, pos.y-3 );
       ctxFg.lineTo( pos.x+3, pos.y+3 );
@@ -421,57 +478,57 @@
     };
     
     /**
-     * Zoom the view by setting it to newScale. The origin of the movement is
-     * centerCoord. Additionally it might be scrolled by the scollDist.
+     * Zoom the view by setting it to newScale. 
+     * Also make sure that contentPos (in canvas coordinates) stay below 
+     * screenPos (in screen coordinates).
      * When temporary is true only a hardware accelerated scaling is done, i.e.
      * it's done without repainting - so it's very fast but not sharp.
      * The callback is called in a new animation frame.
      */
-    this.zoomView = function( newScale, centerCoord, scrollDist, temporary, callback ) {
-      if( temporary )
+    this.zoomView = function( newScale, contentPos, screenPos, isTemporary, callback ) {
+      if( undefined === contentPos || undefined === screenPos )
+      {
+        //screenPos = drawSize.copy().scale( 0.5 );
+        screenPos = screenSize.copy().scale( 0.5 );
+        contentPos = self.screen2canvas( screenPos );
+        console.log( 'zoomView undef -> ' + contentPos.print() + ' / ' + screenPos.print() );
+      }
+      
+      viewOffset = contentPos.copy().scale(newScale).minus(screenPos).round(1).
+                    cmax( new Vec2D(0,0) ); 
+      applySize( $drawingPl[0].style, contentSize.copy().scale(newScale), 'px' );
+      $canvasContainer.scrollLeft( viewOffset.x );
+      $canvasContainer.scrollTop(  viewOffset.y );
+      //viewOffset = getScroll(); // TODO really needed here?
+        
+      if( isTemporary )
       {
         clampLayers();
+        var tS = newScale / scale;
         var thisScale = '' + (newScale / scale); // store already as string
-        var trans = 'scale3d(' + thisScale + ', ' + thisScale + ', 1)';
-        if( undefined !== centerCoord )
-        {
-          //var delta = centerCoord.copy().scale( newScale - scale );
-          var delta = centerCoord.copy().scale( scale - newScale );
-          if( undefined !== scrollDist )
-            delta.plus( scrollDist );
-              
-          // prevent to scroll too far to show negative regions, but show 10px of it
-          var scrollPos = getScroll();
-          if( delta.x > (scrollPos.x+10) ) delta.x = scrollPos.x + 10;
-          if( delta.y > (scrollPos.y+10) ) delta.y = scrollPos.y + 10;
-          
-          // FIXME: nope, that'S not working. But it's be great to have also
-          // a scroll limit in the positive regions...
-          //if( delta.x < 0 ) delta.x = 0;
- 
-          applySize( $drawingPl[0].style, contentSize.copy().scale(thisScale), 'px' );
-            
-          trans = 'matrix3d(' + thisScale + ',0,0,0, 0,' + thisScale + ',0,0, 0,0,' + thisScale + ',0, '+delta.x+','+delta.y+',0,1)';
-        }
+        var trans = 'matrix3d(' + thisScale + ',0,0,0, 0,' + thisScale + ',0,0, 0,0,' + thisScale + ',0, '+tS*drawOffset.x+','+tS*drawOffset.y+',0,1)';
         $canvasBg.css( cssTransform, trans );
       } else {
-        unclampLayers();
-        var oldScale = scale;
         scale = newScale;
+        unclampLayers();
         
-        $canvasBg.css( cssTransform, 'scale3d(1, 1, 1)' );
-        self.updateBg = true;
-        self.resizeView();
-        
-        if( undefined !== centerCoord )
-        {
-          var delta = centerCoord.copy().scale( scale - oldScale );
-          if( undefined !== scrollDist )
-            delta.minus( scrollDist );
-          $canvasContainer.scrollLeft( $canvasContainer.scrollLeft() + delta.x );
-          $canvasContainer.scrollTop(  $canvasContainer.scrollTop()  + delta.y );
-        }
+        fixBackgroundPosition();
+        self.draw(); // draw NOW, don't wait for the next animation frame
       }
+      
+      showProps([
+        [ 'screenSize',  screenSize.print()  ],
+        [ 'contentSize', contentSize.print() ],
+        [ 'viewOffset',  viewOffset.print()  ],
+        [ 'drawSize',    drawSize.print()    ],
+        [ 'drawOffset',  drawOffset.print()  ],
+        //[ 'startScroll', startScroll.print() ],
+        [ 'newScale',    newScale            ],
+        //[ 'centerCoord', centerCoord.print() ],
+        //[ 'scrollDist',  scrollDist && scrollDist.print()  ],
+        [ 'contentPos',  contentPos.print() ],
+        [ 'screenPos',   screenPos.print() ]
+      ]);
       
       if( callback !== undefined )
         requestAnimationFrame( callback );
@@ -488,9 +545,29 @@
     };
     
     /**
+     * Handle a resized view, e.g. also due to a zoom event.
+     * There are different sizes that have to be handled. The basic setup is
+     * that there's an <div> ($drawingPl) that has the size that every element
+     * could fit on it. It might only be partly visible as the $canvasContainer
+     * might be smaller and thus it might be scrolled.
+     * Inside the $drawingPl are two canvases - the $canvasBg as a view fixed
+     * to the $drawingPl and the $canvasFg fixed to the screen.
      * 
+     * The relevant sizes and offsets are called:
+     * Object:           Size:                           Offset:
+     * $canvasContainer  screenSize                      (none)
+     * $drawingPl        contentSize                     viewOffset
+     * $canvasBg         drawSize                        drawOffset
+     * $canvasFg         screenSize (just as Container)  none / fixed to screen
+     * 
+     * As the browser might have a zoom set (and retina type displays do) the
+     * scaleInternal contains the factor of that (browser) zoom. The "pixel"
+     * size and the CSS size of the elements must be adjusted by this factor
+     * to make sure that the content is pixel perfect.
      */
     this.resizeView = function() {
+      console.log( 'running "resizeView()"');
+      screenSize        = new Vec2D( $canvasContainer[0].clientWidth, $canvasContainer[0].clientHeight );
       var
         devicePixelRatio  = window.devicePixelRatio || 1,
         backingStoreRatio = ctxFg.webkitBackingStorePixelRatio ||
@@ -500,16 +577,21 @@
                             ctxFg.backingStorePixelRatio       || 1,
         scaleInternalNew  = devicePixelRatio / backingStoreRatio,
         // available screenspace that is visible
-        screenSize        = new Vec2D( $canvasContainer[0].clientWidth, $canvasContainer[0].clientHeight ),
         // space of the canvas on the screen before browser zoom
-        clientSize        = screenSize.copy().plus( getScroll() ).cmax( contentSize.copy().scale(scale) ).floor(),
+        //clientSize        = screenSize.copy().plus( getScroll() ).cmax( contentSize.copy().scale(scale) ).floor(),
+        //clientSize        = screenSize.copy().plus( getScroll() ).cmax( contentSize.copy().scale(scale) ).cmin( thisGLE.settings.maxCanvasSize.copy().scale(1/scaleInternal) ).floor(),
+        clientSize        = screenSize.copy().plus( viewOffset ).cmax( contentSize.copy().scale(scale) ).cmin( thisGLE.settings.maxCanvasSize.copy().scale(1/scaleInternal) ).floor(),
         isFgViewResized   = false,
         isViewResized     = false,
         neqSize = function( obj, vec, postfix ) {
           return (obj.width  !== (vec.x+(postfix||0))) ||
-                  (obj.height !== (vec.y+(postfix||0)));
+                 (obj.height !== (vec.y+(postfix||0)));
         };
-          
+        
+      // thisGLE.settings.maxCanvasSize
+      // thisGLE.settings.maxCanvasArea
+      
+      // figure out if the browser zoom was changed
       if( scaleInternal !== scaleInternalNew )
       {
         scaleInternal = scaleInternalNew;
@@ -520,7 +602,7 @@
           neqSize( $canvasFg[0].style, screenSize, 'px' ) )
       {
         applySize( $canvasFg[0], screenSize.copy().scale(scaleInternal).round(1) );
-        applySize($canvasFg[0].style, screenSize, 'px' );
+        applySize( $canvasFg[0].style, screenSize, 'px' );
         isFgViewResized = true;
       }
       
@@ -541,6 +623,14 @@
       }
 
       $('#extra').text(drawSize.x+'/'+drawSize.y+' ['+(drawSize.x*drawSize.y/1000000)+']');
+      showProps([
+        [ 'screenSize',  screenSize.print()  ],
+        [ 'contentSize', contentSize.print() ],
+        [ 'getScroll',   getScroll().print() ],
+        [ 'viewOffset',  viewOffset.print()  ],
+        [ 'drawSize',    drawSize.print()    ],
+        [ 'drawOffset',  drawOffset.print()  ]
+      ]);
       if( isViewResized || self.updateBg )
       {
         //console.log( 'resizeView - it was resized' );
@@ -556,20 +646,22 @@
     /**
      * 
      */
-    this.scroll = function()
+    this.scroll = function( force )
     {
-      $canvasFg[0].style.left = $canvasContainer.scrollLeft() + 'px';
-      $canvasFg[0].style.top  = $canvasContainer.scrollTop()  + 'px';
-      
-      //self.resizeView();
-      //self.invalidateContext();
-      self.invalidateForeground();
+      var currentScroll = getScroll();
+      if( force || (!layersClamped && !viewOffset.equal( currentScroll ) ) ) {
+        viewOffset = currentScroll;
+        $canvasFg[0].style.left = currentScroll.x + 'px';
+        $canvasFg[0].style.top  = currentScroll.y + 'px';
+        self.invalidateForeground();
+        fixBackgroundPosition();
+      }
     };
     
     ///////////////////////////////////////////////////////////////////////////
     // constructor
     //$canvasContainer.append( '<canvas id="canvas_fg" style="position:absolute;z-index:100;"/><canvas id="canvas_bg"/>' );
-    $canvasContainer.append( '<div id="drawingplane" style="width:500;height:500"><canvas id="canvas_bg"/></div><canvas id="canvas_fg" style="position:absolute;z-index:100;top:0;left:0"/>' );
+    $canvasContainer.append( '<div id="drawingplane" style="width:500;height:500;"><canvas id="canvas_bg"/><div id="klick" style="top:10px;left:10px;"></div><div id="klack" style="top:10px;left:10px;"></div></div><canvas id="canvas_fg" style="position:absolute;z-index:100;top:0;left:0"/>' );
     //$canvasContainer.append( '<canvas id="canvas_bg"/><canvas id="canvas_fg" style="position:absolute;z-index:100;top:0;left:0"/>' );
     $drawingPl = $canvasContainer.find('#drawingplane');
     $canvasFg  = $canvasContainer.find('#canvas_fg');

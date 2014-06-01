@@ -41,12 +41,12 @@
        * Little helper function to convert a Vec2D copy from screen space, i.e.
        * pageX and pageY to canvas space.
        */
-      screen2canvas = function( pos )
+      screen2canvasXXX = function( pos )
       {
         var cC           = $canvasContainer[0],
             targetOffset = $canvasContainer.offset(),
-            offset       = new Vec2D( cC.scrollLeft - targetOffset.left,
-                                      cC.scrollTop  - targetOffset.top );
+            offset       = new Vec2D( cC.scrollLeft - 0*targetOffset.left,
+                                      cC.scrollTop  - 0*targetOffset.top );
         return pos.copy()
                   .plus( offset )
                   .scale( 1.0 / scale );
@@ -55,7 +55,7 @@
        * Little helper function to convert a Vec2D in canvas space to screen
        * space.
        */
-      canvas2screen = function( pos )
+      canvas2screenXXX = function( pos )
       {
         var cC           = $canvasContainer[0],
             targetOffset = $canvasContainer.offset(),
@@ -67,10 +67,22 @@
       },
  
       /**
+      getMouseScreenPosXXX = function( eventObject ) {
+        return view.getScreenCoordinate( eventObject.pageX||eventObject.originalEvent.pageX,
+                          eventObject.pageY||eventObject.originalEvent.pageY );
+        console.log( eventObject, eventObject.offsetX, eventObject.layerX, eventObject.currentTarget.offsetLeft );
+        return new Vec2D( eventObject.pageX||eventObject.originalEvent.pageX,
+                          eventObject.pageY||eventObject.originalEvent.pageY );
+      },
+      getMouseCanvasPos = function( eventObject ) {
+        return screen2canvas( getMouseScreenPos( eventObject ) );
+      },
+      */
+      /**
        * Get the mouse coordinates out of the jQ.Event relative to the canvas.
        * @return Vec2D
        */
-      getMousePos = function( eventObject ) {
+      getMousePosXXX = function( eventObject ) {
         return screen2canvas( new Vec2D( eventObject.pageX||eventObject.originalEvent.pageX,
                                          eventObject.pageY||eventObject.originalEvent.pageY ) );
       },
@@ -78,7 +90,7 @@
        * Get all touch coordinates out of the jQ.Event relative to the canvas.
        * @return Array of Vec2D with one Vec2D per touch position
        */
-      getTouchPos = function( eventObject ) {
+      getTouchPosXXX = function( eventObject ) {
         var touches = eventObject.originalEvent.touches;
             
         return Array.prototype.map.call( touches, function(touch){ 
@@ -99,13 +111,41 @@
        */
       GLE = function( passedCanvasContainer ) {
         // private:
-        var self = this, 
-            blocks = [],  // array of all existent blocks
-            view,
-            lastPos,      // the beginning coordinates of a mouse drag
-            lastScale,    // the beginning scale during a mouse drag
-            prevPos;      // the coordinates of the previous call to mousemove
-        
+        var 
+          self = this, 
+          blocks = [],  // array of all existent blocks
+          view,
+          lastScreenPos,      // the beginning coordinates of a mouse drag
+          lastScale,    // the beginning scale during a mouse drag
+          prevScreenPos,      // the coordinates of the previous call to mousemove
+          // private methods:
+          /**
+           * Return position of eventObject realtive to screen view port.
+           */
+          getMouseScreenPos = function( eventObject ) {
+            return view.getScreenCoordinate( eventObject.pageX||eventObject.originalEvent.pageX,
+                                             eventObject.pageY||eventObject.originalEvent.pageY );
+          },
+          /**
+           * Return mouse position relative to object space, i.e. canvas.
+           */
+          getMouseCanvasPos = function( eventObject ) {
+            return view.screen2canvas( getMouseScreenPos( eventObject ) );
+          },
+          //getMousePos = getMouseCanvasPos;
+          /**
+          * Get all touch coordinates out of the jQ.Event relative to the canvas.
+          * @return Array of Vec2D with one Vec2D per touch position
+          */
+          getTouchScreenPos = function( eventObject ) {
+            var touches = eventObject.originalEvent.touches;
+                
+            return Array.prototype.map.call( touches, function(touch){ 
+                return view.getScreenCoordinate( touch.pageX, touch.pageY );
+            } ).concat([new Vec2D(0,0)]);
+          },
+          dummy = true;
+          
         /**
          * Get the user tuneable settings.
          */
@@ -256,25 +296,39 @@
           }
         }
         
-        this.zoomIn = function( centerCoord )
+        this.zoomIn = function( centerScreenCoord )
         {
           // basically do: scale *= scaleFactor;
-          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale*scaleFactor )/Math.log( scaleFactor ) ) / 10 ), centerCoord );
+          var 
+            newScale = Math.pow( scaleFactor, Math.round( 10*Math.log( scale*scaleFactor )/Math.log( scaleFactor ) ) / 10 ),
+            centerCanvasPos = (undefined !== centerScreenCoord) ? view.screen2canvas( centerScreenCoord ) : undefined;
+          self.setZoom( newScale, centerCanvasPos, centerScreenCoord );
         };
-        this.zoomOut = function( centerCoord )
+        this.zoomOut = function( centerScreenCoord )
         {
           // basically do: scale /= scaleFactor;
-          self.setZoom( Math.pow( scaleFactor, Math.round( 10*Math.log( scale/scaleFactor )/Math.log( scaleFactor ) ) / 10 ), centerCoord );
+          if( undefined === centerScreenCoord )
+            centerScreenCoord = new Vec2D(0,0);
+          
+          var 
+            newScale = Math.pow( scaleFactor, Math.round( 10*Math.log( scale/scaleFactor )/Math.log( scaleFactor ) ) / 10 ),
+            centerCanvasPos = (undefined !== centerScreenCoord) ? view.screen2canvas( centerScreenCoord ) : undefined;
+          self.setZoom( newScale, centerCanvasPos, centerScreenCoord );
         };
-        this.zoomDefault = function( centerCoord )
+        this.zoomDefault = function( centerScreenCoord )
         {
-          self.setZoom( 1.0, centerCoord );
+          if( undefined === centerScreenCoord )
+            centerScreenCoord = new Vec2D(0,0);
+          
+          var 
+            centerCanvasPos = (undefined !== centerScreenCoord) ? view.screen2canvas( centerScreenCoord ) : undefined;
+          self.setZoom( 1.0, centerCanvasPos, centerScreenCoord );
         };
         
         /**
          * Set the zoom level
          */
-        this.setZoom = function( newScale, centerCoord, scrollDist, temporary )
+        this.setZoom = function( newScale, contentPos, screenPos, temporary )
         {
           if( newScale < self.settings.minScale ) 
             newScale = self.settings.minScale;
@@ -287,11 +341,11 @@
             {
               scale = scaleTarget;
               $('#zoom').text('final' + (temporary?'T':'F') );
-              view.zoomView( scale, centerCoord, scrollDist, temporary );
+              view.zoomView( scale, contentPos, screenPos, temporary );
             } else {
               $('#zoom').text('temp');
               scale += (scale < scaleTarget) ? zoomStep : -zoomStep; 
-              view.zoomView( scale, centerCoord, scrollDist, true, zoomAnimation );
+              view.zoomView( scale, contentPos, screenPos, true, zoomAnimation );
             }
           };
           if( scale === scaleTarget )
@@ -304,14 +358,14 @@
         }
         
         /**
-         * Mark all elements selected that are in the area defined by lastPos
-         * and prevPos.
+         * Mark all elements selected that are in the area defined by lastScreenPos
+         * and prevScreenPos.
          */
         var selectArea = function() {
-          console.log( 'selecting ' + prevPos.print() + ' -> ' + lastPos.print() );
+          console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
           var
-            minPos  = prevPos.copy().cmin( lastPos ),
-            maxPos  = prevPos.copy().cmax( lastPos ),
+            minPos  = view.screen2canvas( prevScreenPos.copy().cmin( lastScreenPos ) ),
+            maxPos  = view.screen2canvas( prevScreenPos.copy().cmax( lastScreenPos ) ),
             indices = view.area2id( minPos, maxPos, 1, elementList.length );
           for( var i = 0; i < indices.length; i++ )
           {
@@ -328,22 +382,22 @@
         };
         
         var dragIndex = 0;
-        var dragStart = function( mousePos, ctrlKey, shiftKey ) {
-          lastPos = mousePos.round(1);
-          prevPos = lastPos;
+        var dragStart = function( mouseScreenPos, ctrlKey, shiftKey ) {
+          lastScreenPos = mouseScreenPos.round(1);
+          prevScreenPos = lastScreenPos;
           // ---------------
-          view.showMarker( lastPos );
+          view.showMarker( view.screen2canvas( lastScreenPos ) );
           // ---------------
           
           
-          var index = view.position2id( lastPos ),
+          var index = view.position2id( lastScreenPos ),
               activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
               
-          $('#coords').text( lastPos.print() + ':' + index + ' (' + scale + ') [' + ']' );
-          //if( undefined !== activeElement ) console.log( lastPos, 'Result:', activeElement.checkBadSelection( lastPos, elementList[ index ][1],  2 ), lastPos.print(), index );
+          $('#coords').text( lastScreenPos.print() + ':' + index + ' (' + scale + ') [' + ']' );
+          //if( undefined !== activeElement ) console.log( lastScreenPos, 'Result:', activeElement.checkBadSelection( lastScreenPos, elementList[ index ][1],  2 ), lastScreenPos.print(), index );
  
  
-          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( lastPos, elementList[ index ][1], 2 ) )
+          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( lastScreenPos, elementList[ index ][1], 2 ) )
           {
             var redraw = activeElements.length > 0;
             activeElements.length = 0;
@@ -356,7 +410,7 @@
             return false; // no object found
           }
           
-          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, lastPos, ctrlKey, shiftKey );
+          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, lastScreenPos, ctrlKey, shiftKey );
           //console.log( 'down', index, newIndex, activeElement, elementList[ index ][1] );
           index = newIndex;
           activeElement = elementList[ index ][0]; // if index was changed...
@@ -381,7 +435,7 @@
           var index         = dragIndex, //eventObject.data,
               thisElem      = elementList[ index ],
               thisPos       = mousePos.round(1),
-              shortDeltaPos = thisPos.copy().minus( prevPos ),
+              shortDeltaPos = thisPos.copy().minus( prevScreenPos ),
               lowerIndex    = view.position2id( thisPos ),
               lowerElement  = elementList[lowerIndex];
           
@@ -401,7 +455,7 @@
           // necessary? Causes currently double redraws...
           view.invalidateForeground(); // redraw to fix Id map
           
-          prevPos = thisPos;
+          prevScreenPos = thisPos;
         };
         
         var dragEnd = function() {
@@ -447,28 +501,25 @@
           // The private variables that are hidden to the outside
           var pinchLength, 
               pinchStartScale,
-              pinchStartPos,
-              pinchFinalPos;
+              contentPos, 
+              screenPos;
           // The public methods, callable as "pinch.*()"
           return {
             start: function( eventObject ) {
                 pinchStartScale = scale;
                 pinchLength = getTouchDistance( eventObject );
-                var touches = getTouchPos( eventObject );
-                pinchStartPos = touches[0].plus( touches[1] ).scale( 0.5 );  // The middle between the fingers
-                pinchStartPos = canvas2screen( pinchStartPos );// test...
+                var touches = getTouchScreenPos( eventObject );
+                contentPos = view.screen2canvas( touches[0].plus( touches[1] ).scale( 0.5 ) );// The middle between the fingers
               },
             move: function( eventObject ) {
                 var length  = getTouchDistance( eventObject ),
                     ratio   = length / pinchLength,
-                    touches = getTouchPos( eventObject ),
-                    pos     = touches[0].plus( touches[1] ).scale( 0.5 );    // The middle between the fingers
-                pos = canvas2screen( pos );// test...
-                pinchFinalPos = pos.copy().minus( pinchStartPos.copy().scale( ratio ) );
-                self.setZoom( pinchStartScale * ratio, new Vec2D(0,0), pinchFinalPos, true );
+                    touches = getTouchScreenPos( eventObject );
+                screenPos   = touches[0].plus( touches[1] ).scale( 0.5 );    // The middle between the fingers
+                self.setZoom( pinchStartScale * ratio, contentPos, screenPos, true );
               },
             end: function() {
-                self.setZoom( scale, new Vec2D(0,0), pinchFinalPos ); // finalize temporary zoom
+                self.setZoom( scale, contentPos, screenPos, false ); // finalize temporary zoom
               }
           };
         })();
@@ -601,29 +652,33 @@
         /**
          * Event handler for mousedown.
          */
+        var contentCanvasPos = new Vec2D(0,0);
         this.mousedown = function( eventObject ) {
+          console.log( 'Screen: ' + getMouseScreenPos(eventObject).print() + ', Canvas: ' + getMouseCanvasPos(eventObject).print() );
           // check for double click
           if( isDoubleClick( eventObject.timeStamp ) )
             return false;
           
+          contentCanvasPos = getMouseCanvasPos( eventObject );
           if( eventObject.ctrlKey )
           {
               mouseState = mouseStatePinch;
-              lastPos = new Vec2D( eventObject.pageX, eventObject.pageY );
+              lastScreenPos = new Vec2D( eventObject.pageX, eventObject.pageY );
               lastScale = scale;
-              prevPos = getMousePos( eventObject ); // abuse it a bit...
+              prevScreenPos = getMouseScreenPos( eventObject ); // abuse it a bit...
           } else {
             if( !eventObject.shiftKey &&            // Shift = add to selection
-                dragStart( getMousePos( eventObject ), 
+                dragStart( getMouseScreenPos( eventObject ), 
                            eventObject.ctrlKey, 
                            eventObject.shiftKey ) 
               )
               mouseState = mouseStateDrag;
             else {
               mouseState = mouseStateSelectDrag;
-              prevPos = getMousePos( eventObject );
+              prevScreenPos = getMouseScreenPos( eventObject );
             }
           }
+          view.showKlick( view.screen2canvas( prevScreenPos ) );
           
           return false; // stopp propagation as well as bubbling
         };
@@ -646,11 +701,11 @@
               if( isDoubleClick( eventObject.timeStamp ) )
                 break;
               
-              if( dragStart( getTouchPos( eventObject )[0] ) )
+              if( dragStart( getTouchScreenPos( eventObject )[0] ) )
                 mouseState = mouseStateDrag;
               else {
                 mouseState = mouseStateSelectDrag;
-                prevPos = getMousePos( eventObject );
+                prevScreenPos = getMouseScreenPos( eventObject );
               }
               break;
               
@@ -660,7 +715,7 @@
               break;
           }
           $('#coords').text( 'touchstart' + printMouseState() + eventObject.originalEvent.touches.length);
-          getTouchPos( eventObject );
+          //getTouchPos( eventObject );
           return false; // stopp propagation as well as bubbling
         };
         
@@ -674,19 +729,27 @@
               return true;
               
             case mouseStateDrag:
-              dragMove( getMousePos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+              dragMove( getMouseCanvasPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
               break;
               
             case mouseStateSelectDrag:
-              view.showSelectionArea( prevPos, getMousePos( eventObject ) );
+              view.showSelectionArea( view.screen2canvas( prevScreenPos ), 
+                                      view.screen2canvas( getMouseScreenPos( eventObject ) ) );
               break;
               
             case mouseStatePinch:
-              var length   = lastPos.copy().minus( new Vec2D( eventObject.pageX, eventObject.pageY ) ),
+              var length   = lastScreenPos.copy().minus( new Vec2D( eventObject.pageX, eventObject.pageY ) ),
                   newScale = Math.abs( length.x + length.y ) / 200 + 1; // will allways be bigger than 0
               if( (length.x + length.y) > 0 )
                 newScale = 1/newScale;
-              self.setZoom( newScale * lastScale, prevPos, undefined, true ); // zoom with temporary = true
+              
+              if( eventObject.shiftKey ) { // only move
+                var deltaPos = (new Vec2D( eventObject.pageX, eventObject.pageY ) ).minus( lastScreenPos );
+                self.setZoom( lastScale, contentCanvasPos, deltaPos.plus(prevScreenPos), true ); // zoom with temporary = true
+                break;
+              }
+              
+              self.setZoom( newScale * lastScale, contentCanvasPos, prevScreenPos, true ); // zoom with temporary = true
               break;
           }
           
@@ -707,12 +770,13 @@
               return eventObject.target.id !== 'canvas_fg';
               
             case mouseStateDrag:
-              dragMove( getTouchPos( eventObject )[0] );
+              dragMove( getTouchScreenPos( eventObject )[0] );
               break;
               
             case mouseStateSelectDrag:
-              lastPos = getTouchPos( eventObject )[0]; // store as TouchUp doesn't have corrdinates anymore
-              view.showSelectionArea( prevPos, lastPos );
+              lastScreenPos = getTouchScreenPos( eventObject )[0]; // store as TouchUp doesn't have corrdinates anymore
+              view.showSelectionArea( view.screen2canvas( prevScreenPos ),
+                                      view.screen2canvas( lastScreenPos ) );
               break;
               
             case mouseStatePinch:
@@ -737,12 +801,16 @@
               
             case mouseStateSelectDrag:
               view.showSelectionArea( undefined ); // unshow selection rectangle
-              lastPos = getMousePos( eventObject );
+              lastScreenPos = getMouseScreenPos( eventObject );
               selectArea();
               break;
               
             case mouseStatePinch:
-              self.setZoom( scale, prevPos, undefined, false );
+              if( eventObject.shiftKey ) { // only move
+                var deltaPos = (new Vec2D( eventObject.pageX, eventObject.pageY ) ).minus( lastScreenPos );
+                self.setZoom( lastScale, contentCanvasPos, deltaPos.plus(prevScreenPos), false );
+              } else
+                self.setZoom( scale, contentCanvasPos, prevScreenPos, false );
               break;
           }
           
@@ -836,7 +904,7 @@
                            ( undefined !== e.originalEvent.deltaX      ? e.originalEvent.deltaX      : 0 )),
               up_down    = ( undefined !== e.originalEvent.wheelDeltaY ? -e.originalEvent.wheelDeltaY :
                            ( undefined !== e.originalEvent.deltaY      ? e.originalEvent.deltaY      : 0 )),
-              mousePos   = getMousePos(e);
+              mousePos   = getMouseScreenPos(e);
           /*    
           console.log('sroll', e, left_right, up_down, 
                     mousePos ,  
