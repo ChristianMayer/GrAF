@@ -40,6 +40,12 @@ c5 = GLE.addConnection();
 c5.insertWaypoint( new Vec2D( 400, 400 ) );
 c5.insertWaypoint( new Vec2D( 400, 450 ) );
 
+c6 = GLE.addConnection(); // mark the middle...
+c6.insertWaypoint( new Vec2D( 350/2, 250/2 ) );
+c6.insertWaypoint( new Vec2D( 420/2, 320/2 ) );
+c6.insertWaypoint( new Vec2D( 350/2, 320/2 ) );
+c6.insertWaypoint( new Vec2D( 420/2, 250/2 ) );
+
 GLE.updateContentSize();
 });
 
@@ -54,6 +60,17 @@ function button2()
   //alert( 'b2' );
   jQuery.event.trigger({ type : 'keydown', keyCode : 86 });
   //GLE.zoomOut();
+}
+
+function showProps( props )
+{
+  //return;
+  var content = '<tr><th>Name</th><th>Value</th></tr>';
+  for( var i = 0; i < props.length; i++ )
+  {
+    content += '<tr class="propRow'+(i%2)+'"><td>' + props[i][0] + '</td><td>' + props[i][1] + '</td></tr>';
+  }
+  $('#props').find('table').html( content );
 }
 
 //////////////////////////////////////////////////////////////////
