@@ -79,6 +79,13 @@
           obj.height = vec.y + (postfix||0);
         },
         /**
+         * Little helper to test if an object does not have a given size.
+         */
+        neqSize = function( obj, vec, postfix ) {
+          return (obj.width  !== (vec.x+(postfix||0))) ||
+                 (obj.height !== (vec.y+(postfix||0)));
+        },
+        /**
          * Little helper function that returns a Vec2D with the current
          * scroll postion.
          */
@@ -118,6 +125,7 @@
           makeIdDataValid();
           //var idxPos = (Math.round(thisScreenPos.x*scale*scaleInternal) + drawSize.x * Math.round(thisScreenPos.y*scale*scaleInternal))|0;
           var idxPos = (Math.round(thisScreenPos.x*scaleInternal) + drawSize.x * Math.round(thisScreenPos.y*scaleInternal))|0;
+          //console.log( 'position2id', thisScreenPos.print(), thisScreenPos.copy().scale(scaleInternal).round(1).print() );
           return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
         },
         /**
@@ -125,11 +133,12 @@
          * The allowed index range is passed by minIndex and endIndex-1
          */
         area2id = function( pScreenMin, pScreenMax, minIndex, endIndex ) {
-
           makeIdDataValid();
           var 
-            minPos = pScreenMin.copy().scale(scale*scaleInternal).round(1),
-            maxPos = pScreenMax.copy().scale(scale*scaleInternal).round(1),
+            //minPos = pScreenMin.copy().scale(scale*scaleInternal).round(1),
+            //maxPos = pScreenMax.copy().scale(scale*scaleInternal).round(1),
+            minPos = pScreenMin.copy().scale(scaleInternal).round(1),
+            maxPos = pScreenMax.copy().scale(scaleInternal).round(1),
             buffer = new ArrayBuffer( endIndex ),
             idxSet = new Int8Array(buffer),
             // preassign all loop variables for speed up
@@ -159,7 +168,7 @@
           for( x = minIndex; x < endIndex; x++ )
             if( idxSet[x] === 1 )
               retVal.push( x );
-          console.log('area2id', retVal );
+          //console.log('area2id', retVal, pScreenMin.print(), pScreenMax.print(),';',minPos.print(),maxPos.print() );
             
           return retVal; //Object.keys( idxSet );
         },
@@ -199,6 +208,10 @@
  
           layersClamped = true;
           self.invalidateForeground(); // only the FG needs a redraw
+          
+          // move foreground out of the way
+          //$canvasFg[0].style.left = '0px';
+          //$canvasFg[0].style.top  = '0px';
         },
         /**
          * 
@@ -217,12 +230,46 @@
          */
         fixBackgroundPosition = function() {
           drawOffset = viewOffset.copy();
-          //drawOffset = viewOffset.copy().minus( drawSize.copy().minus(screenSize).scale(0.5) );
+          drawOffset = viewOffset.copy().minus( drawSize.copy().scale(1/scaleInternal).minus(screenSize).scale(0.5) );
+          drawOffset.cmin( contentSize.copy().scale(scale).minus(drawSize.copy().scale(1/scaleInternal)) ); // no need to draw empty space in the bottom right
+          //drawOffset   = ( contentSize.copy().scale(scale).minus(drawSize.copy().scale(1/scaleInternal)) ); // no need to draw empty space in the bottom right
+          drawOffset.cmax( new Vec2D( 0, 0 ) ); // no need to draw in the negative region
+          
+          console.log( 'fixBackgroundPosition:',
+                       scale, scaleInternal,
+                       'drawOffset', drawOffset.print(),
+                       'viewOffset', viewOffset.print(),
+                       'drawSize', drawSize.print(),
+                       'contentSize', contentSize.print(),
+                       'screenSize', screenSize.print()
+                  );
           $canvasBg.css( cssTransform, 'matrix3d(1,0,0,0, 0,1,0,0, 0,0,1,0, '+drawOffset.x+','+drawOffset.y+',0,1)' );
         
           // redraw:
           self.updateBg = true;
           self.invalidateContext();
+        },
+        /**
+         * Resize background for optimal fix, e.g. after a zoom or resize event.
+         */
+        fixBackgroundSize = function() {
+          var 
+            clientSize = screenSize.copy().plus( viewOffset )
+              .cmax( contentSize.copy().scale(scale) )
+              .cmin( thisGLE.settings.maxCanvasSize.copy().scale(1/scaleInternal) ).floor();
+          console.log( 'fixBackgroundSize', clientSize.print() );
+              
+          if( !drawSize.equal( clientSize.copy().scale(scaleInternal).round(1) ) ||
+              neqSize( $canvasBg[0].style, clientSize, 'px' ) )
+          {
+            drawSize = clientSize.copy().scale(scaleInternal).round(1);
+            
+            applySize( $drawingPl[0].style, contentSize.copy().scale(scale), 'px' );
+            //applySize( $drawingPl[0].style, clientSize, 'px' );
+            applySize( $canvasBg[0], drawSize );
+            applySize( $canvasBg[0].style, clientSize, 'px' );
+          }
+          fixBackgroundPosition(); // put it on the correct position
         },
  
         foo = 0;
@@ -344,6 +391,7 @@
       */
     this.draw = function() {
       clearCanvas( ctxId );
+      ctxId.setTransform( 1, 0, 0, 1, 0.5 - 1*viewOffset.x*scaleInternal, 0.5 - 1*viewOffset.y*scaleInternal );
       clearCanvas( ctxBg );
       //console.log( 'draw ---------------------------------------------' );
       $('#extra').text( 'Draw:' +  (new Date().getTime()) );
@@ -392,10 +440,11 @@
     this.drawFg = function() {
       var thisCtx = layersClamped ? ctxBg : ctxFg;
       //console.log( 'drawFg -------------------------------------------' );
-      $('#extra').text( 'DrawFg:' +  (new Date().getTime()) );
+      //$('#extra').text( 'DrawFg:' +  (new Date().getTime()) );
       clearCanvas( ctxFg );
       //ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*$canvasContainer.scrollLeft()*scaleInternal, 0.5 - 1*$canvasContainer.scrollTop()*scaleInternal );
-      ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*drawOffset.x*scaleInternal, 0.5 - 1*drawOffset.y*scaleInternal );
+      //ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*drawOffset.x*scaleInternal, 0.5 - 1*drawOffset.y*scaleInternal );
+      ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*viewOffset.x*scaleInternal, 0.5 - 1*viewOffset.y*scaleInternal );
       thisGLE.drawActive( thisCtx, ctxDummy, scale * scaleInternal );
       
       // draw selection rectangle when defined
@@ -502,14 +551,15 @@
       viewOffset = contentPos.copy().scale(newScale).minus(screenPos).round(1).
                     cmax( new Vec2D(0,0) ); 
       applySize( $drawingPl[0].style, contentSize.copy().scale(newScale), 'px' );
-      $canvasContainer.scrollLeft( viewOffset.x );
-      $canvasContainer.scrollTop(  viewOffset.y );
+      //$canvasContainer.scrollLeft( viewOffset.x );
+      //$canvasContainer.scrollTop(  viewOffset.y );
+      $canvasContainer[0].scrollLeft = viewOffset.x;
+      $canvasContainer[0].scrollTop  = viewOffset.y;
       //viewOffset = getScroll(); // TODO really needed here?
         
       if( isTemporary )
       {
         scale = newScale;
-        clampLayers();
         var tS = newScale / oldScale;
         var thisScale = '' + (newScale / oldScale); // store already as string
         var trans = 'matrix3d(' + thisScale + ',0,0,0, 0,' + thisScale + ',0,0, 0,0,' + thisScale + ',0, '+tS*drawOffset.x+','+tS*drawOffset.y+',0,1)';
@@ -518,7 +568,7 @@
         scale = oldScale = newScale;
         unclampLayers();
         
-        fixBackgroundPosition();
+        fixBackgroundSize();
         self.draw(); // draw NOW, don't wait for the next animation frame
       }
       
@@ -547,7 +597,8 @@
     this.resizeSpace = function( newSpaceSize )
     {
       contentSize = newSpaceSize.copy();
-      self.resizeView();
+      //self.resizeView();
+      fixBackgroundSize();
     };
     
     /**
@@ -588,11 +639,7 @@
         //clientSize        = screenSize.copy().plus( getScroll() ).cmax( contentSize.copy().scale(scale) ).cmin( thisGLE.settings.maxCanvasSize.copy().scale(1/scaleInternal) ).floor(),
         clientSize        = screenSize.copy().plus( viewOffset ).cmax( contentSize.copy().scale(scale) ).cmin( thisGLE.settings.maxCanvasSize.copy().scale(1/scaleInternal) ).floor(),
         isFgViewResized   = false,
-        isViewResized     = false,
-        neqSize = function( obj, vec, postfix ) {
-          return (obj.width  !== (vec.x+(postfix||0))) ||
-                 (obj.height !== (vec.y+(postfix||0)));
-        };
+        isViewResized     = false;
         
       // thisGLE.settings.maxCanvasSize
       // thisGLE.settings.maxCanvasArea
@@ -610,8 +657,15 @@
         applySize( $canvasFg[0], screenSize.copy().scale(scaleInternal).round(1) );
         applySize( $canvasFg[0].style, screenSize, 'px' );
         isFgViewResized = true;
+        
+        idBuffer.width  = $canvasFg[0].width;
+        idBuffer.height = $canvasFg[0].height;
+        idBuffer.style.width  = $canvasFg[0].style.width;  // for debug FIXME
+        idBuffer.style.height = $canvasFg[0].style.height; // for debug FIXME
       }
       
+      fixBackgroundSize();
+      /*
       if( !drawSize.equal( clientSize.copy().scale(scaleInternal).round(1) ) ||
           neqSize( $canvasBg[0].style, clientSize, 'px' ) )
       {
@@ -622,11 +676,11 @@
         applySize( $canvasBg[0].style, clientSize, 'px' );
         isViewResized = true;
       
-        idBuffer.width  = $canvasBg[0].width;
-        idBuffer.height = $canvasBg[0].height;
-        idBuffer.style.width  = $canvasBg[0].style.width;  // for debug FIXME
-        idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
-      }
+        //idBuffer.width  = $canvasBg[0].width;
+        //idBuffer.height = $canvasBg[0].height;
+        //idBuffer.style.width  = $canvasBg[0].style.width;  // for debug FIXME
+        //idBuffer.style.height = $canvasBg[0].style.height; // for debug FIXME
+      }*/
 
       $('#extra').text(drawSize.x+'/'+drawSize.y+' ['+(drawSize.x*drawSize.y/1000000)+']');
       showProps([
@@ -654,8 +708,11 @@
      */
     this.scroll = function( force )
     {
+      if( layersClamped )
+        return;
+      
       var currentScroll = getScroll();
-      if( force || (!layersClamped && !viewOffset.equal( currentScroll ) ) ) {
+      if( force || !viewOffset.equal( currentScroll ) ) {
         viewOffset = currentScroll;
         $canvasFg[0].style.left = currentScroll.x + 'px';
         $canvasFg[0].style.top  = currentScroll.y + 'px';

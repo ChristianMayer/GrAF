@@ -329,6 +329,8 @@
             newScale = self.settings.minScale;
           else if( newScale > self.settings.maxScale ) 
             newScale = self.settings.maxScale;
+          else if( isNaN( newScale ) )
+            newScale = scale;
           
           var zoomAnimation = function(){
             var zoomStep = 0.05;
@@ -359,9 +361,13 @@
         var selectArea = function() {
           console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
           var
-            minPos  = view.screen2canvas( prevScreenPos.copy().cmin( lastScreenPos ) ),
-            maxPos  = view.screen2canvas( prevScreenPos.copy().cmax( lastScreenPos ) ),
-            indices = view.area2id( minPos, maxPos, 1, elementList.length );
+            //minPos  = view.screen2canvas( prevScreenPos.copy().cmin( lastScreenPos ) ),
+            //maxPos  = view.screen2canvas( prevScreenPos.copy().cmax( lastScreenPos ) ),
+            minScreenPos  = prevScreenPos.copy().cmin( lastScreenPos ),
+            maxScreenPos  = prevScreenPos.copy().cmax( lastScreenPos ),
+            minPos        = view.screen2canvas( minScreenPos ),
+            maxPos        = view.screen2canvas( maxScreenPos ),
+            indices = view.area2id( minScreenPos, maxScreenPos, 1, elementList.length );
           for( var i = 0; i < indices.length; i++ )
           {
             var thisElement = elementList[ indices[i] ][0];
@@ -701,8 +707,10 @@
                 mouseState = mouseStateDrag;
               else {
                 mouseState = mouseStateSelectDrag;
-                prevScreenPos = getMouseScreenPos( eventObject );
-                self.startGesture( getMouseScreenPos( eventObject ), scale );
+                //prevScreenPos = getMouseScreenPos( eventObject );
+                prevScreenPos = getTouchScreenPos( eventObject )[0];
+                //self.startGesture( getMouseScreenPos( eventObject ), scale );
+                self.startGesture( prevScreenPos, scale );
               }
               break;
               
