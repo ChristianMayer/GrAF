@@ -46,8 +46,8 @@
         fontFamiliy          : 'sans-serif',
         fontStyle            : '', // e.g. 'italic'
         // the maximum sizes not to push the browser too hard
-        maxCanvasSize: new Vec2D( 1400, 1400 ),
-        maxCanvasArea: 3*1024*1024,
+        maxCanvasSize: new Vec2D( 2048, 2048 ),
+        maxCanvasArea: 5*1024*1024,  // 5 MPix = limit for iOS with >256MB RAM
         // dummy element to catch the last ',' of the line above
         end:true
       },

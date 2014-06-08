@@ -35,6 +35,7 @@
     // private:
     var self     = this,
         worker   = (typeof Worker !== 'undefined') ? new Worker("lib/autorouter.js") : undefined,
+        bottomRightPos, // bounding box
         /**
          * Remove double waypoints.
          * If the @param currentIndex gets a new number it's @returned.
@@ -91,7 +92,13 @@
           thisGLE.invalidateHandlers();
           
           return newIndex;
-        };
+        },
+      updateBoundingBox = function() {
+        bottomRightPos = new Vec2D( 0, 0 );
+        for( var i = self.waypoints.length - 1; i >= 0; i-- )
+          bottomRightPos.cmax( self.waypoints[i] );
+        console.log( 'update bounding box [' + self.name + ']:', bottomRightPos.print() );
+      };
         
     this.name      = parameters.name;
     this.start     = parameters.start; // object where the connection begins
@@ -101,7 +108,10 @@
     this.GLE       = thisGLE;
     
     this.getBottomRight = function() {
-      return new Vec2D(-1,-1);
+      if( undefined === bottomRightPos )
+        updateBoundingBox();
+      
+      return bottomRightPos;
     }
 
     /**
@@ -201,6 +211,9 @@
           maxIdx = 'number' === typeof index ? index  : index[1],
           maxPos = Array.isArray( newPos )   ? newPos[newPos.length-1] : newPos,
           myIdx  = maxIdx;
+          
+      bottomRightPos = undefined; // invalidate current bounding box
+      
       //console.log( 'moveWaypoint', index, minIdx, maxIdx, newPos, absolute, waypoints.length );
       // move prev point
       if( minIdx > 0 )
