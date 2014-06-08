@@ -183,7 +183,7 @@
     
     this.prepareUpdate = function( handler, index, mousePos, ctrlKey, shiftKey )
     {
-      console.log( 'Block prepareUpdate', index, handler, ctrlKey );
+      console.log( 'Block prepareUpdate', index, handler, ctrlKey, mousePos.print(), '['+pos.print()+']' );
       if( 0 === handler )
       {
         if( ctrlKey )
@@ -226,7 +226,7 @@
     this.update = function( index, newPos, shortDeltaPos )
     {
       index = index | 0;
-      //console.log( 'block update',  index, newPos, shortDeltaPos );
+      //console.log( 'block update', index, newPos.print(), shortDeltaPos.print(), '['+pos.print()+']' );
       switch( index )
       {
         case 0: // main
@@ -326,7 +326,7 @@
     
     this.finishUpdate = function( index )
     {
-      console.log( 'Block finishUpdate', index );
+      console.log( 'Block finishUpdate', index, '['+pos.print()+']' );
     }
     
     /**

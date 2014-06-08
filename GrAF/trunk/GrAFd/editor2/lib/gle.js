@@ -198,6 +198,7 @@
             var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
             thisActiveElement.draw( ctx, ctxId, thisFocus, true, scale );
           } );
+          self.showGesture();
         }
         
         /**
@@ -307,9 +308,6 @@
         this.zoomOut = function( centerScreenCoord )
         {
           // basically do: scale /= scaleFactor;
-          if( undefined === centerScreenCoord )
-            centerScreenCoord = new Vec2D(0,0);
-          
           var 
             newScale = Math.pow( scaleFactor, Math.round( 10*Math.log( scale/scaleFactor )/Math.log( scaleFactor ) ) / 10 ),
             centerCanvasPos = (undefined !== centerScreenCoord) ? view.screen2canvas( centerScreenCoord ) : undefined;
@@ -317,9 +315,6 @@
         };
         this.zoomDefault = function( centerScreenCoord )
         {
-          if( undefined === centerScreenCoord )
-            centerScreenCoord = new Vec2D(0,0);
-          
           var 
             centerCanvasPos = (undefined !== centerScreenCoord) ? view.screen2canvas( centerScreenCoord ) : undefined;
           self.setZoom( 1.0, centerCanvasPos, centerScreenCoord );
@@ -389,15 +384,14 @@
           view.showMarker( view.screen2canvas( lastScreenPos ) );
           // ---------------
           
-          
           var index = view.position2id( lastScreenPos ),
               activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
               
-          $('#coords').text( lastScreenPos.print() + ':' + index + ' (' + scale + ') [' + ']' );
+          $('#coords').text( lastScreenPos.print() + '<>' + view.screen2canvas(lastScreenPos).print() + ':' + index + ' (' + scale + ') [' + ']' );
           //if( undefined !== activeElement ) console.log( lastScreenPos, 'Result:', activeElement.checkBadSelection( lastScreenPos, elementList[ index ][1],  2 ), lastScreenPos.print(), index );
  
  
-          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( lastScreenPos, elementList[ index ][1], 2 ) )
+          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( view.screen2canvas(lastScreenPos ), elementList[ index ][1], 2 ) )
           {
             var redraw = activeElements.length > 0;
             activeElements.length = 0;
@@ -410,7 +404,7 @@
             return false; // no object found
           }
           
-          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, lastScreenPos, ctrlKey, shiftKey );
+          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
           //console.log( 'down', index, newIndex, activeElement, elementList[ index ][1] );
           index = newIndex;
           activeElement = elementList[ index ][0]; // if index was changed...
@@ -431,11 +425,11 @@
           return true;
         };
         
-        var dragMove = function( mousePos, ctrlKey, shiftKey ) {
+        var dragMove = function( mouseCanvasPos, ctrlKey, shiftKey ) {
           var index         = dragIndex, //eventObject.data,
               thisElem      = elementList[ index ],
-              thisPos       = mousePos.round(1),
-              shortDeltaPos = thisPos.copy().minus( prevScreenPos ),
+              thisPos       = mouseCanvasPos.round(1),
+              shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
               lowerIndex    = view.position2id( thisPos ),
               lowerElement  = elementList[lowerIndex];
           
@@ -443,6 +437,7 @@
               (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2 ) ) )
             lowerElement = [];
           
+          //var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
           var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
           ////console.log( index, newIndex );
           // check if the handler might have been changed during the update
@@ -455,7 +450,7 @@
           // necessary? Causes currently double redraws...
           view.invalidateForeground(); // redraw to fix Id map
           
-          prevScreenPos = thisPos;
+          prevScreenPos = view.canvas2screen( thisPos );
         };
         
         var dragEnd = function() {
@@ -676,6 +671,7 @@
             else {
               mouseState = mouseStateSelectDrag;
               prevScreenPos = getMouseScreenPos( eventObject );
+              self.startGesture( getMouseScreenPos( eventObject ), scale );
             }
           }
           view.showKlick( view.screen2canvas( prevScreenPos ) );
@@ -706,6 +702,7 @@
               else {
                 mouseState = mouseStateSelectDrag;
                 prevScreenPos = getMouseScreenPos( eventObject );
+                self.startGesture( getMouseScreenPos( eventObject ), scale );
               }
               break;
               
@@ -735,6 +732,7 @@
             case mouseStateSelectDrag:
               view.showSelectionArea( view.screen2canvas( prevScreenPos ), 
                                       view.screen2canvas( getMouseScreenPos( eventObject ) ) );
+              self.continueGesture( getMouseScreenPos( eventObject ) ); // FIXME TEMP
               break;
               
             case mouseStatePinch:
@@ -770,13 +768,14 @@
               return eventObject.target.id !== 'canvas_fg';
               
             case mouseStateDrag:
-              dragMove( getTouchScreenPos( eventObject )[0] );
+              dragMove( view.screen2canvas( getTouchScreenPos( eventObject )[0] ) );
               break;
               
             case mouseStateSelectDrag:
               lastScreenPos = getTouchScreenPos( eventObject )[0]; // store as TouchUp doesn't have corrdinates anymore
               view.showSelectionArea( view.screen2canvas( prevScreenPos ),
                                       view.screen2canvas( lastScreenPos ) );
+              self.continueGesture( getTouchScreenPos( eventObject )[0] ); // FIXME TEMP
               break;
               
             case mouseStatePinch:
@@ -880,6 +879,17 @@
           
           updateStateInfos();
         };
+        
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        // Big temporary hack
+        var gesture = new _GLE.gesture( self );
+        this.startGesture = gesture.start;
+        this.continueGesture = gesture.update;
+        this.showGesture = function(){ gesture.show( view ); }
+        // End: Big temporary hack
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
+        ///////////////////////////////////////////////////////////////////////////////////////////////////
         
         // Constructor
         $canvasContainer = passedCanvasContainer;
