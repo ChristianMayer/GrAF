@@ -38,13 +38,16 @@
         drawSizeLine         : 1, // line width in pixel
         toleranceBlock       : 3, // halfsize for hotspot in pixel
         drawSizeBlock        : 1, // line width in pixel
+        // gesture recognition tolerances:
+        gestureCircleMinR    : 15,  // in screen pixel
+        gestureCircleMaxR    : 35, // in screen pixel
         // the default values for text
         fontSize             : 10, // in px
         fontFamiliy          : 'sans-serif',
         fontStyle            : '', // e.g. 'italic'
         // the maximum sizes not to push the browser too hard
-        maxCanvasSize: new Vec2D( 800, 500 ),
-        maxCanvasArea: 1*1024*1024,
+        maxCanvasSize: new Vec2D( 1400, 1400 ),
+        maxCanvasArea: 3*1024*1024,
         // dummy element to catch the last ',' of the line above
         end:true
       },

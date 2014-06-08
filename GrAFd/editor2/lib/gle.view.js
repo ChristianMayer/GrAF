@@ -116,7 +116,8 @@
         */
         position2id = function( thisScreenPos ) {
           makeIdDataValid();
-          var idxPos = (Math.round(thisScreenPos.x*scale*scaleInternal) + drawSize.x * Math.round(thisScreenPos.y*scale*scaleInternal))|0;
+          //var idxPos = (Math.round(thisScreenPos.x*scale*scaleInternal) + drawSize.x * Math.round(thisScreenPos.y*scale*scaleInternal))|0;
+          var idxPos = (Math.round(thisScreenPos.x*scaleInternal) + drawSize.x * Math.round(thisScreenPos.y*scaleInternal))|0;
           return ( (idData[ idxPos*4 ] << 16) + (idData[ idxPos*4+1 ] << 8) + idData[ idxPos*4+2 ] )|0;
         },
         /**
@@ -216,6 +217,7 @@
          */
         fixBackgroundPosition = function() {
           drawOffset = viewOffset.copy();
+          //drawOffset = viewOffset.copy().minus( drawSize.copy().minus(screenSize).scale(0.5) );
           $canvasBg.css( cssTransform, 'matrix3d(1,0,0,0, 0,1,0,0, 0,0,1,0, '+drawOffset.x+','+drawOffset.y+',0,1)' );
         
           // redraw:
@@ -230,6 +232,14 @@
     
     this.getForeground = function() {
       return $canvasFg;
+    };
+    
+    // only for debug purposes as it's circumventing a clear separation...
+    this.debugGetCtxFg = function() {
+      return ctxFg;
+    };
+    this.debugGetCtxBg = function() {
+      return ctxBg;
     };
     
     this.showKlick = function( canvasPos ) {
@@ -249,16 +259,12 @@
      * Calculate from a screen coordinate the canvas coordinate.
      */
     this.screen2canvas = function( pos ) {
-      //return getScroll().plus( pos ).scale( 1/scale );
-      console.log( 'screen2canvas: ' + viewOffset.print() + ' - ' + getScroll().print() );
       return viewOffset.copy().plus( pos ).scale( 1/scale );
     };
     /**
      * Calculate from a canvas coordinate the screen coordinate.
      */
     this.canvas2screen = function( pos ) {
-      //return pos.copy().scale( scale ).minus( getScroll() );
-      console.log( 'canvas2screen: ' + viewOffset.print() + ' - ' + getScroll().print() );
       return pos.copy().scale( scale ).minus( viewOffset );
     };
     
@@ -485,13 +491,12 @@
      * it's done without repainting - so it's very fast but not sharp.
      * The callback is called in a new animation frame.
      */
+    var oldScale = 1;
     this.zoomView = function( newScale, contentPos, screenPos, isTemporary, callback ) {
       if( undefined === contentPos || undefined === screenPos )
       {
-        //screenPos = drawSize.copy().scale( 0.5 );
         screenPos = screenSize.copy().scale( 0.5 );
         contentPos = self.screen2canvas( screenPos );
-        console.log( 'zoomView undef -> ' + contentPos.print() + ' / ' + screenPos.print() );
       }
       
       viewOffset = contentPos.copy().scale(newScale).minus(screenPos).round(1).
@@ -503,13 +508,14 @@
         
       if( isTemporary )
       {
+        scale = newScale;
         clampLayers();
-        var tS = newScale / scale;
-        var thisScale = '' + (newScale / scale); // store already as string
+        var tS = newScale / oldScale;
+        var thisScale = '' + (newScale / oldScale); // store already as string
         var trans = 'matrix3d(' + thisScale + ',0,0,0, 0,' + thisScale + ',0,0, 0,0,' + thisScale + ',0, '+tS*drawOffset.x+','+tS*drawOffset.y+',0,1)';
         $canvasBg.css( cssTransform, trans );
       } else {
-        scale = newScale;
+        scale = oldScale = newScale;
         unclampLayers();
         
         fixBackgroundPosition();
