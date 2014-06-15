@@ -38,66 +38,6 @@
       focusElements = [],  // The focused elements, i.e. the user selected ones
  
       /**
-       * Little helper function to convert a Vec2D copy from screen space, i.e.
-       * pageX and pageY to canvas space.
-       */
-      screen2canvasXXX = function( pos )
-      {
-        var cC           = $canvasContainer[0],
-            targetOffset = $canvasContainer.offset(),
-            offset       = new Vec2D( cC.scrollLeft - 0*targetOffset.left,
-                                      cC.scrollTop  - 0*targetOffset.top );
-        return pos.copy()
-                  .plus( offset )
-                  .scale( 1.0 / scale );
-      },
-      /**
-       * Little helper function to convert a Vec2D in canvas space to screen
-       * space.
-       */
-      canvas2screenXXX = function( pos )
-      {
-        var cC           = $canvasContainer[0],
-            targetOffset = $canvasContainer.offset(),
-            offset       = new Vec2D( cC.scrollLeft - targetOffset.left,
-                                      cC.scrollTop  - targetOffset.top );
-        return pos.copy()
-                  .scale( scale )
-                  .minus( offset );
-      },
- 
-      /**
-      getMouseScreenPosXXX = function( eventObject ) {
-        return view.getScreenCoordinate( eventObject.pageX||eventObject.originalEvent.pageX,
-                          eventObject.pageY||eventObject.originalEvent.pageY );
-        console.log( eventObject, eventObject.offsetX, eventObject.layerX, eventObject.currentTarget.offsetLeft );
-        return new Vec2D( eventObject.pageX||eventObject.originalEvent.pageX,
-                          eventObject.pageY||eventObject.originalEvent.pageY );
-      },
-      getMouseCanvasPos = function( eventObject ) {
-        return screen2canvas( getMouseScreenPos( eventObject ) );
-      },
-      */
-      /**
-       * Get the mouse coordinates out of the jQ.Event relative to the canvas.
-       * @return Vec2D
-       */
-      getMousePosXXX = function( eventObject ) {
-        return screen2canvas( new Vec2D( eventObject.pageX||eventObject.originalEvent.pageX,
-                                         eventObject.pageY||eventObject.originalEvent.pageY ) );
-      },
-      /**
-       * Get all touch coordinates out of the jQ.Event relative to the canvas.
-       * @return Array of Vec2D with one Vec2D per touch position
-       */
-      getTouchPosXXX = function( eventObject ) {
-        var touches = eventObject.originalEvent.touches;
-            
-        return Array.prototype.map.call( touches, function(touch){ 
-            return screen2canvas(new Vec2D( touch.pageX, touch.pageY ));
-        } ).concat([new Vec2D(0,0)]);
-      },
-      /**
        * Get the distance between the fingers in screen pixels.
        */
       getTouchDistance = function( eventObject ) {
@@ -106,6 +46,7 @@
             dy      = touches[0].pageY - touches[1].pageY;
         return Math.sqrt( dx*dx + dy*dy );
       },
+ 
       /**
        * The GLE constructor
        */
@@ -144,6 +85,15 @@
                 return view.getScreenCoordinate( touch.pageX, touch.pageY );
             } ).concat([new Vec2D(0,0)]);
           },
+          /**
+          * Update the state information that the user can see
+          */
+          updateStateInfos = (function(){
+            var $zoom = $('#zoom'); // cache DOM element
+            return function() {
+              $zoom.text( Math.round(scale * 100) + '% (scale: ' + scale + ' / scaleInternal: ' + 'n/a' + ')' );
+            }
+          })(),
           dummy = true;
           
         /**
@@ -255,23 +205,10 @@
         }
         
         /**
-         * Update the state information that the user can see
-         */
-        var updateStateInfos = function() {
-          $('#zoom').text( Math.round(scale * 100) + '% (scale: ' + scale + ' / scaleInternal: ' + 'n/a' + ')' );
-        };
-        
-        /**
         * Return true if the @parm mousePos doesn't belong to this handler
         */
         this.checkHandlerBadSelection = function( mousePos, handlerPos ) {
           var halfSize = this.settings.toleranceHandle;
-          /*
-          console.log( 'checkHandlerBadSelection', mousePos.print(), handlerPos.print(), (handlerPos.x-halfSize) > mousePos.x ||
-                 (handlerPos.y-halfSize) > mousePos.y || 
-                 (handlerPos.x+halfSize) < mousePos.x ||
-                 (handlerPos.y+halfSize) < mousePos.y );
-          */
           return (handlerPos.x-halfSize) > mousePos.x ||
                  (handlerPos.y-halfSize) > mousePos.y || 
                  (handlerPos.x+halfSize) < mousePos.x ||
@@ -361,8 +298,6 @@
         var selectArea = function() {
           console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
           var
-            //minPos  = view.screen2canvas( prevScreenPos.copy().cmin( lastScreenPos ) ),
-            //maxPos  = view.screen2canvas( prevScreenPos.copy().cmax( lastScreenPos ) ),
             minScreenPos  = prevScreenPos.copy().cmin( lastScreenPos ),
             maxScreenPos  = prevScreenPos.copy().cmax( lastScreenPos ),
             minPos        = view.screen2canvas( minScreenPos ),
@@ -394,8 +329,6 @@
               activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
               
           $('#coords').text( lastScreenPos.print() + '<>' + view.screen2canvas(lastScreenPos).print() + ':' + index + ' (' + scale + ') [' + ']' );
-          //if( undefined !== activeElement ) console.log( lastScreenPos, 'Result:', activeElement.checkBadSelection( lastScreenPos, elementList[ index ][1],  2 ), lastScreenPos.print(), index );
- 
  
           if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( view.screen2canvas(lastScreenPos ), elementList[ index ][1], 2 ) )
           {
@@ -443,7 +376,6 @@
               (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2 ) ) )
             lowerElement = [];
           
-          //var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
           var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
           ////console.log( index, newIndex );
           // check if the handler might have been changed during the update
@@ -452,7 +384,6 @@
             dragIndex = newIndex;
           }
           
-          //console.timeEnd("my mousemove"); // DEBUG
           // necessary? Causes currently double redraws...
           view.invalidateForeground(); // redraw to fix Id map
           
@@ -655,7 +586,6 @@
          */
         var contentCanvasPos = new Vec2D(0,0);
         this.mousedown = function( eventObject ) {
-          console.log( 'Screen: ' + getMouseScreenPos(eventObject).print() + ', Canvas: ' + getMouseCanvasPos(eventObject).print() );
           // check for double click
           if( isDoubleClick( eventObject.timeStamp ) )
             return false;
@@ -707,9 +637,7 @@
                 mouseState = mouseStateDrag;
               else {
                 mouseState = mouseStateSelectDrag;
-                //prevScreenPos = getMouseScreenPos( eventObject );
                 prevScreenPos = getTouchScreenPos( eventObject )[0];
-                //self.startGesture( getMouseScreenPos( eventObject ), scale );
                 self.startGesture( prevScreenPos, scale );
               }
               break;
@@ -791,8 +719,6 @@
               break;
           }
           
-          //$('#coords').text( 'touchmove' + printMouseState()  + eventObject.originalEvent.touches.length);
-          //$('#coords').text( $('#coords').text()+';'+ 'touchmove' + printMouseState()  + eventObject.originalEvent.touches.length);
           return false; // stopp propagation as well as bubbling
         };
         
