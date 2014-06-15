@@ -198,7 +198,7 @@
             var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
             thisActiveElement.draw( ctx, ctxId, thisFocus, true, scale );
           } );
-          self.showGesture();
+          self.showGesture(scale);
         }
         
         /**
@@ -334,13 +334,13 @@
           
           var zoomAnimation = function(){
             var zoomStep = 0.05;
-            if( temporary || (Math.abs( scale - scaleTarget ) <= zoomStep) )
+            if( temporary===true || (Math.abs( scale - scaleTarget ) <= zoomStep) )
             {
               scale = scaleTarget;
-              $('#zoom').text('final' + (temporary?'T':'F') );
               view.zoomView( scale, contentPos, screenPos, temporary );
+              if( !temporary )
+                updateStateInfos();
             } else {
-              $('#zoom').text('temp');
               scale += (scale < scaleTarget) ? zoomStep : -zoomStep; 
               view.zoomView( scale, contentPos, screenPos, true, zoomAnimation );
             }
@@ -605,7 +605,7 @@
               console.log( 'key', eventObject, eventObject.keyCode );
           }
           
-          updateStateInfos();
+          // updateStateInfos(); // FIXME should be done with each operation that changes state and not here...
         };
         
         var mouseStateNone       = 0, // implies no button pressed
@@ -680,7 +680,7 @@
               self.startGesture( getMouseScreenPos( eventObject ), scale );
             }
           }
-          view.showKlick( view.screen2canvas( prevScreenPos ) );
+          //view.showKlick( view.screen2canvas( prevScreenPos ) );
           
           return false; // stopp propagation as well as bubbling
         };
@@ -894,7 +894,7 @@
         var gesture = new _GLE.gesture( self );
         this.startGesture = gesture.start;
         this.continueGesture = gesture.update;
-        this.showGesture = function(){ gesture.show( view ); }
+        this.showGesture = function(scale){ gesture.show( view, scale ); }
         // End: Big temporary hack
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////
