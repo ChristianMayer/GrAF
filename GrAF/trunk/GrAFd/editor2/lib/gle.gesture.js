@@ -156,7 +156,7 @@
       };
       
       // FIXME and TODO: remove and put function to the update function what is necessary...
-      this.show = function( view ) {
+      this.show = function( view, scale ) {
         /*
         console.log( 'det:',detGesPos, 'x',xGesPos/detGesPos, 'y',yGesPos/detGesPos, '2A',doubleA, 'r',rGesPos );
         console.log( 'Erkannt?', 
@@ -187,12 +187,13 @@
             ctxBg = view.debugGetCtxBg(),
             ctxFg = view.debugGetCtxFg(),
             pScreen = new Vec2D( xGesPos/detGesPos, yGesPos/detGesPos ),
-            p = view.screen2canvas( pScreen );
+            p = view.screen2canvas( pScreen ).scale(scale);
           ctxFg.fillRect( p.x, p.y, 2, 2 );
           if( undefined !== confirmedGesPos ) {
+            var confirmedGesPosCanvas = view.screen2canvas( confirmedGesPos ).scale(scale);
             ctxFg.beginPath();
             ctxFg.fillStyle = 'rgba(0,255,0,0.2)';
-            ctxFg.arc( confirmedGesPos.x, confirmedGesPos.y, confirmedGesR, 0, 2 * Math.PI, false);
+            ctxFg.arc( confirmedGesPosCanvas.x, confirmedGesPosCanvas.y, confirmedGesR, 0, 2 * Math.PI, false);
             ctxFg.fill();
             ctxFg.fillStyle = '#000000';
           }

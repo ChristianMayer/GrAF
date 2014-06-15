@@ -32,6 +32,8 @@
     
     // private:
     var self     = this,
+        // constants
+        Vec2DZero = new Vec2D( 0, 0 ),
         // cross browser compatabilities:
         requestAnimationFrame = window.requestAnimationFrame || window.mozRequestAnimationFrame ||
                                 window.webkitRequestAnimationFrame || window.msRequestAnimationFrame,
@@ -207,11 +209,10 @@
           if( layersClamped ) return;
  
           layersClamped = true;
-          self.invalidateForeground(); // only the FG needs a redraw
           
-          // move foreground out of the way
-          //$canvasFg[0].style.left = '0px';
-          //$canvasFg[0].style.top  = '0px';
+          $canvasFg.css( 'display', 'none' );
+          self.draw(); // draw everything NOW as the clamping is done to allow
+                       // the next manipulations to be done without drawing...
         },
         /**
          * 
@@ -221,6 +222,7 @@
  
           layersClamped = false;
           
+          $canvasFg.css( 'display', '' );
           self.scroll( true ); // update as it might be unsynchronised during clamping
           
           self.invalidateContext();
@@ -233,7 +235,7 @@
           drawOffset = viewOffset.copy().minus( drawSize.copy().scale(1/scaleInternal).minus(screenSize).scale(0.5) );
           drawOffset.cmin( contentSize.copy().scale(scale).minus(drawSize.copy().scale(1/scaleInternal)) ); // no need to draw empty space in the bottom right
           //drawOffset   = ( contentSize.copy().scale(scale).minus(drawSize.copy().scale(1/scaleInternal)) ); // no need to draw empty space in the bottom right
-          drawOffset.cmax( new Vec2D( 0, 0 ) ); // no need to draw in the negative region
+          drawOffset.cmax( Vec2DZero ); // no need to draw in the negative region
           
           console.log( 'fixBackgroundPosition:',
                        scale, scaleInternal,
@@ -548,9 +550,11 @@
         contentPos = self.screen2canvas( screenPos );
       }
       
-      viewOffset = contentPos.copy().scale(newScale).minus(screenPos).round(1).
-                    cmax( new Vec2D(0,0) ); 
-      applySize( $drawingPl[0].style, contentSize.copy().scale(newScale), 'px' );
+      var newPlaneSize = contentSize.copy().scale( newScale );
+      viewOffset = contentPos.copy().scale(newScale).minus(screenPos).round(1)
+                    .cmax( Vec2DZero )
+                    .cmin( newPlaneSize ); 
+      applySize( $drawingPl[0].style, newPlaneSize, 'px' );
       //$canvasContainer.scrollLeft( viewOffset.x );
       //$canvasContainer.scrollTop(  viewOffset.y );
       $canvasContainer[0].scrollLeft = viewOffset.x;
@@ -559,6 +563,7 @@
         
       if( isTemporary )
       {
+        clampLayers();
         scale = newScale;
         var tS = newScale / oldScale;
         var thisScale = '' + (newScale / oldScale); // store already as string
@@ -572,18 +577,19 @@
         self.draw(); // draw NOW, don't wait for the next animation frame
       }
       
-      showProps([
+      false && showProps([
         [ 'screenSize',  screenSize.print()  ],
         [ 'contentSize', contentSize.print() ],
         [ 'viewOffset',  viewOffset.print()  ],
+        [ 'scroll', (new Vec2D($canvasContainer[0].scrollLeft,$canvasContainer[0].scrollTop)).print() ],
         [ 'drawSize',    drawSize.print()    ],
         [ 'drawOffset',  drawOffset.print()  ],
         //[ 'startScroll', startScroll.print() ],
         [ 'newScale',    newScale            ],
         //[ 'centerCoord', centerCoord.print() ],
         //[ 'scrollDist',  scrollDist && scrollDist.print()  ],
-        [ 'contentPos',  contentPos.print() ],
-        [ 'screenPos',   screenPos.print() ]
+        [ 'contentPos',  contentPos.print()  ],
+        [ 'screenPos',   screenPos.print()   ]
       ]);
       
       if( callback !== undefined )
