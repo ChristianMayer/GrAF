@@ -153,6 +153,41 @@
         curTriangleDoubleA = (detGesPos == 0) ? 0 :
           (xGesPos/detGesPos - initPos.x) * (y - initPos.y) -
           (yGesPos/detGesPos - initPos.y) * (x - initPos.x);
+          
+        // check if gesture was detected:
+        var 
+          // is the gesture far enough to be able to call it a (half-)circle?
+          validCircleReached =
+            ( straightDistSqCurMax > straightDistSqMin   ) &&
+            ( Math.abs( doubleA )  > filledDoubleAreaMin ) &&
+            ( curTriangleDoubleA*doubleA > 0 ), // check that cursor moved in the second half of the circle
+          // has the gesture not gone too far so that it can never be a vaild
+          // circle again
+          validCircleNotOverreached =
+            ( straightDistSqCurMax < straightDistSqMax   ) &&
+            true;
+            
+        if( validCircleReached && validCircleNotOverreached && detGesPos != 0 ) {
+          confirmedGesPos = new Vec2D( xGesPos/detGesPos, yGesPos/detGesPos );
+          confirmedGesR   = rGesPos;
+          return true;
+         }
+         
+         return false;
+      };
+      
+      /**
+       * Return information about the detected gesture.
+       */
+      this.getInfo = function() {
+        if( undefined === confirmedGesPos ) {
+          return {};
+        } else {
+          return {
+            center: confirmedGesPos,
+            radius: confirmedGesR
+          };
+        }
       };
       
       // FIXME and TODO: remove and put function to the update function what is necessary...

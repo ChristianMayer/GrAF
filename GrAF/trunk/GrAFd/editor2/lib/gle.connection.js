@@ -144,7 +144,9 @@
         else
           context.fillStyle = '#000000';
           
-        context.fillRect( tP.x-wpHalfsize, tP.y-wpHalfsize, wpSize, wpSize );
+        if( isDrawFg )
+          context.fillRect( tP.x-wpHalfsize, tP.y-wpHalfsize, wpSize, wpSize );
+        
         //console.log(thisPoint, i );
         if( 0 == i )
         {

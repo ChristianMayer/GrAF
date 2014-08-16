@@ -418,7 +418,7 @@
           context.lineTo( p.x    , p.y     + centerY );
           context.lineTo( p.x - m, p.y + m + centerY );
           context.stroke(); 
-          isDrawFg || view.drawHandler( getInPortPos( index ), handlers[ startIndex + index ], focus );
+          isDrawFg || view.drawHandler( getInPortPos( index ).copy().scale( scale ).round(1), handlers[ startIndex + index ], focus );
         } else {
         }
       });
@@ -434,7 +434,7 @@
           context.lineTo( p.x + s.x + m, p.y     + centerY );
           context.lineTo( p.x + s.x    , p.y + m + centerY );
           context.stroke(); 
-          isDrawFg || view.drawHandler( getOutPortPos( index ), handlers[ startIndex + index ], focus );
+          isDrawFg || view.drawHandler( getOutPortPos( index ).copy().scale( scale ).round(1), handlers[ startIndex + index ], focus );
         } else {
         }
       });
