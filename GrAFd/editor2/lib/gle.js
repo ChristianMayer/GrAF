@@ -35,7 +35,7 @@
       elementList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
       clickTimestamp = 0,  // used to check for double click
       activeElements = [], // The active elements, i.e. the one on the Fg
-      focusElements = [],  // The focused elements, i.e. the user selected ones
+      selectedElements = [],  // The user selected elements
  
       /**
        * Get the distance between the fingers in screen pixels.
@@ -106,7 +106,7 @@
          */
         this.view           = function(){ return view;           };
         //this.activeElements = function(){ return activeElements; };
-        //this.focusElements  = function(){ return focusElements;  };
+        //this.selectedElements  = function(){ return selectedElements;  };
         //this.blocks = blocks; // FIXME only for transision
         
         /**
@@ -135,8 +135,8 @@
         this.draw = function( ctxFn, ctxId, scale ) {
           blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
             var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
-            var thisFocus  = focusElements.indexOf( thisBlock ) !== -1;
-            thisBlock.draw( ctxFn( thisActive ), ctxId, thisFocus, false, scale );
+            var thisSelected = selectedElements.indexOf( thisBlock ) !== -1;
+            thisBlock.draw( ctxFn( thisActive ), ctxId, thisSelected, false, scale );
           } );
         };
         
@@ -145,8 +145,8 @@
          */
         this.drawActive = function( ctx, ctxId, scale ) {
           activeElements.forEach( function( thisActiveElement ) {
-            var thisFocus  = focusElements.indexOf( thisActiveElement ) !== -1;
-            thisActiveElement.draw( ctx, ctxId, thisFocus, true, scale );
+            var thisSelected = selectedElements.indexOf( thisActiveElement ) !== -1;
+            thisActiveElement.draw( ctx, ctxId, thisSelected, true, scale );
           } );
           self.showGesture(scale);
         }
@@ -332,6 +332,49 @@
           }
         };
         
+        var
+        /**
+         * Clear complete selection.
+         */
+        selectionClear = function() {
+          var redraw = false;
+          
+          // remove all selectedElements from the activeElements
+          selectedElements.forEach( function( thisElement ) {
+            var index = activeElements.indexOf( thisElement );
+            if( -1 !== index )
+            {
+              activeElements.splice( index, 1 );
+              redraw = true;
+            }
+          } );
+          selectedElements.length = 0;
+          
+          if( redraw )
+            view.invalidateContext();
+        },
+        /**
+         * Add element to current selection.
+         */
+        selectElement = function( element ) {
+          console.log( 'implement me!');
+        },
+        /**
+         * Unselect a single element and leave other selections as is.
+         */
+        unselectElement = function( element ) {
+          var 
+            aEindex = activeElements.indexOf( element ),
+            sEindex = selectedElements.indexOf( element );
+            
+          if( -1 !== aEindex )
+            activeElements.splice( aEindex, 1 );
+          if( -1 !== sEindex )
+            selectedElements.splice( sEindex, 1 );
+          
+          if( -1 !== aEindex || -1 !== sEindex )
+            view.invalidateContext();
+        },
         /**
          * Mark all elements selected that are in the area defined by pos1 and
          * pos2.
@@ -341,7 +384,7 @@
          * and prevScreenPos.lastScreenPos
          * and prevScreenPos, lastScreenPos
          */
-        var selectArea = function( pos1, pos2 ) {
+        selectArea = function( pos1, pos2 ) {
           console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
           /*
           var
@@ -356,14 +399,14 @@
             
             // Set() type of insert:
             if( !thisElement.checkAreaBadSelection( minPos, maxPos ) &&
-                focusElements.indexOf( thisElement ) === -1 ) {
-              focusElements.push( thisElement );
+                selectedElements.indexOf( thisElement ) === -1 ) {
+              selectedElements.push( thisElement );
             }
           }
           */
-          getSelectionCandidatesInArea( pos1, pos2, focusElements );
+          getSelectionCandidatesInArea( pos1, pos2, selectedElements );
           // and now make them appear on the forground
-          activeElements = focusElements.slice(); // make copy
+          activeElements = selectedElements.slice(); // make copy
         };
         
         var dragIndex = 0;
@@ -381,12 +424,7 @@
  
           if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( view.screen2canvas(lastScreenPos ), elementList[ index ][1], 2 ) )
           {
-            var redraw = activeElements.length > 0;
-            activeElements.length = 0;
-            focusElements.length = 0;
-            
-            if( redraw )
-              view.invalidateContext();
+            selectionClear();
             
             dragIndex = 0;
             return false; // no object found
@@ -405,8 +443,8 @@
           //console.log( 'da', activeElement.getDerivedActive() );
           activeElements = activeElement.getDerivedActive();
           activeElements.push( activeElement );
-          focusElements = [ activeElement ];
-          //console.log( 'activeElement', activeElement, 'activeElements', activeElements, 'self.activeElements', self.activeElements, 'focusElements', focusElements );
+          selectedElements = [ activeElement ];
+          //console.log( 'activeElement', activeElement, 'activeElements', activeElements, 'self.activeElements', self.activeElements, 'selectedElements', selectedElements );
           
           dragIndex = index;
           view.invalidateContext();
@@ -525,7 +563,7 @@
           var keyMoveDistance = 10,
               moveAll = function( direction ) { // helper function
                 eventObject.preventDefault();
-                focusElements.forEach( function( thisElement ) {
+                selectedElements.forEach( function( thisElement ) {
                   thisElement.update( undefined, undefined, direction );
                 } );
                 self.invalidateForeground();
@@ -551,14 +589,13 @@
               
             case 46: // delete
               eventObject.preventDefault();
-              focusElements.forEach( function( thisElement ) {
+              selectedElements.forEach( function( thisElement ) {
                 blocks = blocks.filter( function( thisBlock ){
                   return thisBlock != thisElement;
                 } );
                 thisElement.delete();
               } );
-              focusElements.length = 0;
-              activeElements.length = 0;
+              selectionClear(); // elements were deleted -> remove them from the selection...
               self.invalidateHandlers();
               break;
               
@@ -650,6 +687,29 @@
               lastScale = scale;
               prevScreenPos = getMouseScreenPos( eventObject ); // abuse it a bit...
           } else {
+            var
+              thisScreenPos = getMouseScreenPos( eventObject ),
+              index         = view.position2id( thisScreenPos ),
+              validObject   = (index > 0) && (index < elementList.length);
+            if( eventObject.shiftKey )   // Shift = add to selection
+            {
+              if( validObject &&
+                  0 <= selectedElements.indexOf( elementList[ index ][0] ) ) // already selected?
+              { // yes -> toggle away
+                unselectElement( elementList[ index ][0] );
+              } else {
+                mouseState = mouseStateSelectDrag;
+                prevScreenPos = getMouseScreenPos( eventObject );
+                self.startGesture( getMouseScreenPos( eventObject ), scale );
+              }
+            } else {
+              if( dragStart( getMouseScreenPos( eventObject ), 
+                             eventObject.ctrlKey, 
+                             eventObject.shiftKey ) )
+                mouseState = mouseStateDrag;
+            }
+            //&&&&6
+            /*
             if( !eventObject.shiftKey &&            // Shift = add to selection
                 dragStart( getMouseScreenPos( eventObject ), 
                            eventObject.ctrlKey, 
@@ -660,7 +720,7 @@
               mouseState = mouseStateSelectDrag;
               prevScreenPos = getMouseScreenPos( eventObject );
               self.startGesture( getMouseScreenPos( eventObject ), scale );
-            }
+            }*/
           }
           //view.showKlick( view.screen2canvas( prevScreenPos ) );
           
