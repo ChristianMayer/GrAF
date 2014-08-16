@@ -292,11 +292,58 @@
         }
         
         /**
-         * Mark all elements selected that are in the area defined by lastScreenPos
-         * and prevScreenPos.
+         * Get all elements selected that are in the area defined by pos1 and
+         * pos2.
+         * When pos2 is a Number and not a Vec2D the circle around pos1 with
+         * radius "pos2" is checked.
+         * The found elements are inserted in the elementContainer.
          */
-        var selectArea = function() {
+        var getSelectionCandidatesInArea = function( pos1, pos2, elementContainer ) {
+          var 
+            minScreenPos,
+            maxScreenPos,
+            pos1screen, // pos1 in screen coordinates
+            pos2screen, // pos2 in screen coordinates OR the radius
+            indices;
+          if( 'number' === typeof pos2 ) {
+            // fake circular selection by similar square selection - the user
+            // won't notice it anyway...
+            var delta = new Vec2D( pos2, pos2 );
+            minScreenPos = pos1.copy().minus( delta );
+            maxScreenPos = pos1.copy().plus( delta );
+            //pos1screen = view.screen2canvas( pos1 );
+            //pos2screen = pos2;
+          } else {
+            minScreenPos  = pos1.copy().cmin( pos2 );
+            maxScreenPos  = pos1.copy().cmax( pos2 );
+          }
+          pos1screen = view.screen2canvas( minScreenPos ),
+          pos2screen = view.screen2canvas( maxScreenPos );
+          indices = view.area2id( minScreenPos, maxScreenPos, 1, elementList.length );
+          for( var i = 0; i < indices.length; i++ )
+          {
+            var thisElement = elementList[ indices[i] ][0];
+            
+            // Set() type of insert:
+            if( !thisElement.checkAreaBadSelection( pos1screen, pos2screen ) &&
+                elementContainer.indexOf( thisElement ) === -1 ) {
+              elementContainer.push( thisElement );
+            }
+          }
+        };
+        
+        /**
+         * Mark all elements selected that are in the area defined by pos1 and
+         * pos2.
+         * When pos2 is a Number and not a Vec2D the circle around pos1 with
+         * radius "pos2" is checked.
+         * lastScreenPos
+         * and prevScreenPos.lastScreenPos
+         * and prevScreenPos, lastScreenPos
+         */
+        var selectArea = function( pos1, pos2 ) {
           console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
+          /*
           var
             minScreenPos  = prevScreenPos.copy().cmin( lastScreenPos ),
             maxScreenPos  = prevScreenPos.copy().cmax( lastScreenPos ),
@@ -313,6 +360,8 @@
               focusElements.push( thisElement );
             }
           }
+          */
+          getSelectionCandidatesInArea( pos1, pos2, focusElements );
           // and now make them appear on the forground
           activeElements = focusElements.slice(); // make copy
         };
@@ -364,12 +413,15 @@
           return true;
         };
         
-        var dragMove = function( mouseCanvasPos, ctrlKey, shiftKey ) {
+        //var dragMove = function( mouseCanvasPos, ctrlKey, shiftKey ) {
+        var dragMove = function( mouseScreenPos, ctrlKey, shiftKey ) {
           var index         = dragIndex, //eventObject.data,
               thisElem      = elementList[ index ],
-              thisPos       = mouseCanvasPos.round(1),
+              //thisPos       = mouseCanvasPos.round(1),
+              thisPos       = view.screen2canvas(mouseScreenPos).round(1),
               shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
-              lowerIndex    = view.position2id( thisPos ),
+              //lowerIndex    = view.position2id( thisPos ),
+              lowerIndex    = view.position2id( mouseScreenPos ),
               lowerElement  = elementList[lowerIndex];
           
           if( (!lowerElement) ||
@@ -662,13 +714,23 @@
               return true;
               
             case mouseStateDrag:
-              dragMove( getMouseCanvasPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+              //dragMove( getMouseCanvasPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+              dragMove( getMouseScreenPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
               break;
               
             case mouseStateSelectDrag:
               view.showSelectionArea( view.screen2canvas( prevScreenPos ), 
                                       view.screen2canvas( getMouseScreenPos( eventObject ) ) );
-              self.continueGesture( getMouseScreenPos( eventObject ) ); // FIXME TEMP
+              if( gesture.update( getMouseScreenPos( eventObject ) ) ) {
+                // gesture detection sucessfull...
+                var 
+                  gestureInfo = gesture.getInfo(),
+                  dS = dragStart( gestureInfo.center, false, false ),
+                  eL = [];
+                getSelectionCandidatesInArea( gestureInfo.center, gestureInfo.radius, eL );
+                console.log( gestureInfo.center.print(), gestureInfo.radius, dS, eL );
+                //mouseState = mouseStateDrag;
+              }
               break;
               
             case mouseStatePinch:
@@ -704,7 +766,8 @@
               return eventObject.target.id !== 'canvas_fg';
               
             case mouseStateDrag:
-              dragMove( view.screen2canvas( getTouchScreenPos( eventObject )[0] ) );
+              //dragMove( view.screen2canvas( getTouchScreenPos( eventObject )[0] ) );
+              dragMove( getTouchScreenPos( eventObject )[0] );
               break;
               
             case mouseStateSelectDrag:
@@ -735,7 +798,7 @@
             case mouseStateSelectDrag:
               view.showSelectionArea( undefined ); // unshow selection rectangle
               lastScreenPos = getMouseScreenPos( eventObject );
-              selectArea();
+              selectArea( prevScreenPos, lastScreenPos );
               break;
               
             case mouseStatePinch:
@@ -766,7 +829,7 @@
               
             case mouseStateSelectDrag:
               view.showSelectionArea( undefined ); // unshow selection rectangle
-              selectArea();
+              selectArea( prevScreenPos, lastScreenPos );
               break;
               
             case mouseStatePinch:

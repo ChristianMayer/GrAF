@@ -309,7 +309,7 @@
       var thisScale  = scale * scaleInternal,
           halfSizeFg = (thisGLE.settings.drawSizeHandleActive * thisScale)|0,
           fullSizeFg = 1 + 2 * halfSizeFg,
-          halfSizeId = (thisGLE.settings.toleranceHandle * ((thisScale>1)?thisScale:1))|0,
+          halfSizeId = Math.min(thisGLE.settings.toleranceHandle * ((thisScale>1)?thisScale:1), halfSizeFg)|0,
           fullSizeId = 1 + 2 * halfSizeId;
           
       if( active && !layersClamped ) {
@@ -693,6 +693,7 @@
     idBuffer    = document.createElement('canvas');
     ////
     $('#drawArea').append( idBuffer ); // for debug FIXME
+    $('#drawArea canvas').css( 'border', 'solid green' );  // for debug FIXME
     ////
     //$canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
     //$canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
