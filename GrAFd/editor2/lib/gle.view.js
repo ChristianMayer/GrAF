@@ -501,11 +501,11 @@
      */
     var oldScale = 1;
     this.zoomView = function( newScale, contentPos, screenPos, isTemporary, callback ) {
-      if( undefined === contentPos || undefined === screenPos )
-      {
+      if( undefined === screenPos )
         screenPos = screenSize.copy().scale( 0.5 );
+      
+      if( undefined === contentPos )
         contentPos = self.screen2canvas( screenPos );
-      }
       
       var newPlaneSize = contentSize.copy().scale( newScale );
       viewOffset = contentPos.copy().scale(newScale).minus(screenPos).round(1)
@@ -548,6 +548,15 @@
       
       if( callback !== undefined )
         requestAnimationFrame( callback );
+    };
+    
+    /**
+     * Calculate zoom factor that is needed to make size fullscreen.
+     * @param newSize {Vec2D} The size to fit in the full screen
+     */
+    this.zoomGetFactor = function( newSize ) {
+      var factor = screenSize.copy().cdiv( newSize );
+      return (factor.x < factor.y) ? factor.x : factor.y;
     };
     
     /**

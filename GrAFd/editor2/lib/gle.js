@@ -256,6 +256,28 @@
             centerCanvasPos = (undefined !== centerScreenCoord) ? view.screen2canvas( centerScreenCoord ) : undefined;
           self.setZoom( 1.0, centerCanvasPos, centerScreenCoord );
         };
+        this.zoomElements = function( elements )
+        {
+          var firstElement = elements.shift();
+          if( undefined === firstElement )  // when all elements are passed the fist is undefined as it is a placeholder for the background
+            firstElement = elements.shift();
+          
+          var
+            topLeft     = firstElement.getTopLeft(),
+            bottomRight = firstElement.getBottomRight();
+            
+          elements.forEach( function( thisElement ){
+            topLeft.cmin( thisElement.getTopLeft() );
+            bottomRight.cmax( thisElement.getBottomRight() );
+          });
+          
+          var 
+            newSize = bottomRight.copy().minus( topLeft ),
+            centerCanvasPos = topLeft.copy().plus( newSize.copy().scale( 0.5 ) );
+          
+          // center the selection => screen pos = undefined
+          self.setZoom( view.zoomGetFactor(newSize), centerCanvasPos, undefined );
+        };
         
         /**
          * Set the zoom level
@@ -616,9 +638,10 @@
               break;
               
             case 70: // key: f - zoom to fit
-              // FIXME DUMMY for development - change to other function...
-              self.zoomDefault();
-              console.log( 'f - fit - not implemented' );
+              if( selectedElements.length > 0 ) // fit to selection
+                self.zoomElements( selectedElements );
+              else                              // fit to all 
+                self.zoomElements( elementList.map( function(a){return a[0];} ) );
               break;
               
             default:
