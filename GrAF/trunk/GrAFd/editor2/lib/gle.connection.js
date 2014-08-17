@@ -35,6 +35,7 @@
     // private:
     var self     = this,
         worker   = (typeof Worker !== 'undefined') ? new Worker("lib/autorouter.js") : undefined,
+        topLeftPos,     // bounding box
         bottomRightPos, // bounding box
         /**
          * Remove double waypoints.
@@ -94,9 +95,13 @@
           return newIndex;
         },
       updateBoundingBox = function() {
-        bottomRightPos = new Vec2D( 0, 0 );
-        for( var i = self.waypoints.length - 1; i >= 0; i-- )
+        topLeftPos = self.waypoints[self.waypoints.length - 1].copy();
+        bottomRightPos = topLeftPos.copy();
+        for( var i = self.waypoints.length - 2; i >= 0; i-- )
+        {
+          topLeftPos.cmin( self.waypoints[i] );
           bottomRightPos.cmax( self.waypoints[i] );
+        }
         console.log( 'update bounding box [' + self.name + ']:', bottomRightPos.print() );
       };
         
@@ -106,6 +111,13 @@
     this.waypoints = [];
     this.candidates = { waypoints: [], direction: 5 };
     this.GLE       = thisGLE;
+    
+    this.getTopLeft = function() {
+      if( undefined === topLeftPos )
+        updateBoundingBox();
+      
+      return topLeftPos;
+    };
     
     this.getBottomRight = function() {
       if( undefined === bottomRightPos )
