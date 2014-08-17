@@ -35,7 +35,6 @@
       elementList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
       clickTimestamp = 0,  // used to check for double click
       activeElements = [], // The active elements, i.e. the one on the Fg
-      selectedElements = [],  // The user selected elements
  
       /**
        * Get the distance between the fingers in screen pixels.
@@ -86,6 +85,31 @@
             } ).concat([new Vec2D(0,0)]);
           },
           /**
+           * Return array of two Vec2D that define the bounding box of the 
+           * current content (i.e. blocks and connections.)
+           * @param elements {Array} Array of the elements for the calculation
+           *                         or undefined if all.
+           */
+          getBoundingBox = function( elements ) {
+            if( undefined === elements )
+              elements = elementList.map( function(a){return a[0];} );
+            
+            var firstElement = elements.shift();
+            if( undefined === firstElement )  // when all elements are passed the fist is undefined as it is a placeholder for the background
+              firstElement = elements.shift();
+            
+            var
+              topLeft     = firstElement.getTopLeft(),
+              bottomRight = firstElement.getBottomRight();
+              
+            elements.forEach( function( thisElement ){
+              topLeft.cmin( thisElement.getTopLeft() );
+              bottomRight.cmax( thisElement.getBottomRight() );
+            });
+            
+            return [ topLeft, bottomRight ];
+          },
+          /**
           * Update the state information that the user can see
           */
           updateStateInfos = (function(){
@@ -106,7 +130,6 @@
          */
         this.view           = function(){ return view;           };
         //this.activeElements = function(){ return activeElements; };
-        //this.selectedElements  = function(){ return selectedElements;  };
         //this.blocks = blocks; // FIXME only for transision
         
         /**
@@ -135,7 +158,7 @@
         this.draw = function( ctxFn, ctxId, scale ) {
           blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
             var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
-            var thisSelected = selectedElements.indexOf( thisBlock ) !== -1;
+            var thisSelected = selection.isSelected( thisBlock );
             thisBlock.draw( ctxFn( thisActive ), ctxId, thisSelected, false, scale );
           } );
         };
@@ -145,7 +168,7 @@
          */
         this.drawActive = function( ctx, ctxId, scale ) {
           activeElements.forEach( function( thisActiveElement ) {
-            var thisSelected = selectedElements.indexOf( thisActiveElement ) !== -1;
+            var thisSelected = selection.isSelected( thisActiveElement );
             thisActiveElement.draw( ctx, ctxId, thisSelected, true, scale );
           } );
           self.showGesture(scale);
@@ -221,10 +244,9 @@
         this.updateContentSize = function()
         {
           // grow or shrink canvas depending on content size
-          var contentSizeNew = new Vec2D( 0, 0 );
-          blocks.forEach( function( thisBlock ) {
-            contentSizeNew.cmax( thisBlock.getBottomRight() );
-          } );
+          var 
+            bbox = getBoundingBox(),
+            contentSizeNew = bbox[1];
           contentSizeNew.plus( new Vec2D( self.settings.borderWidth,
                                           self.settings.borderWidth ) );
           if( !contentSize.equal( contentSizeNew ) )
@@ -258,22 +280,13 @@
         };
         this.zoomElements = function( elements )
         {
-          var firstElement = elements.shift();
-          if( undefined === firstElement )  // when all elements are passed the fist is undefined as it is a placeholder for the background
-            firstElement = elements.shift();
-          
-          var
-            topLeft     = firstElement.getTopLeft(),
-            bottomRight = firstElement.getBottomRight();
-            
-          elements.forEach( function( thisElement ){
-            topLeft.cmin( thisElement.getTopLeft() );
-            bottomRight.cmax( thisElement.getBottomRight() );
-          });
+          if( elements && elements.length === 0 )
+            elements = undefined;
           
           var 
-            newSize = bottomRight.copy().minus( topLeft ),
-            centerCanvasPos = topLeft.copy().plus( newSize.copy().scale( 0.5 ) );
+            bbox = getBoundingBox( elements ),
+            newSize = bbox[1].copy().minus( bbox[0] ),
+            centerCanvasPos = bbox[0].copy().plus( newSize.copy().scale( 0.5 ) );
           
           // center the selection => screen pos = undefined
           self.setZoom( view.zoomGetFactor(newSize), centerCanvasPos, undefined );
@@ -354,83 +367,160 @@
           }
         };
         
-        var
-        /**
-         * Clear complete selection.
-         */
-        selectionClear = function() {
-          var redraw = false;
+        // ****************************************************************** //
+        // ****************************************************************** //
+        // **                                                              ** //
+        // ** Selection handling                                           ** //
+        // **                                                              ** //
+        // ****************************************************************** //
+        // ****************************************************************** //
+        var selection = (function(){
+          // private variables:
+          var selectedElements = []; // The user selected elements
           
-          // remove all selectedElements from the activeElements
-          selectedElements.forEach( function( thisElement ) {
-            var index = activeElements.indexOf( thisElement );
-            if( -1 !== index )
-            {
-              activeElements.splice( index, 1 );
-              redraw = true;
+          // public methods:
+          return {
+            /**
+            * Check if element is selected
+            */
+            isSelected: function( element ) {
+              return -1 !== selectedElements.indexOf( element );
+            },
+            /**
+             * Return the list of selected elements
+             * NOTE: the returned value should be read only!
+             */
+            getElements: function() {
+              return selectedElements;
+            },
+            /**
+            * Call a function for each selected element
+            */
+            forEach: function( callback ) {
+              selectedElements.forEach( callback );
+            },
+            /**
+            * Clear complete selection.
+            * @param resetActiveElements {Bool} Clear also active elements when true
+            */
+            clear: function( resetActiveElements ) {
+              var redraw = false;
+              
+              if( resetActiveElements )
+              {
+                if( 0 < activeElements.length )
+                {
+                  activeElements.length = 0;
+                  redraw = true;
+                }
+              } else {
+                // remove all selectedElements from the activeElements
+                selectedElements.forEach( function( thisElement ) {
+                  var index = activeElements.indexOf( thisElement );
+                  if( -1 !== index )
+                  {
+                    activeElements.splice( index, 1 );
+                    redraw = true;
+                  }
+                } );
+              }
+              selectedElements.length = 0;
+              
+              if( redraw )
+                view.invalidateContext();
+            },
+            /**
+            * Add element to current selection.
+            * @param activateDerivedElements {Bool} Make also derived elements 
+            *                                       active
+            */
+            doSelection: function( element, activateDerivedElements ) {
+              var redraw = false;
+              
+              // activate derived elements
+              if( activateDerivedElements )
+              {
+                element.getDerivedActive().forEach( function(dE){
+                  if( -1 === activeElements.indexOf( dE ) )
+                  {
+                    activeElements.push( dE );
+                    redraw = true;
+                  }
+                });
+              }
+              
+              // and finally select the element itself
+              if( !selection.isSelected( element ) )
+              {
+                selectedElements.push( element );
+                if( -1 === activeElements.indexOf( element ) )
+                  activeElements.push( element );
+                
+                redraw = true;
+              }
+              
+              if( redraw )
+                view.invalidateContext();
+            },
+            /**
+            * Unselect a single element and leave other selections as is.
+            */
+            removeSelection: function( element ) {
+              var 
+                aEindex = activeElements.indexOf( element ),
+                sEindex = selectedElements.indexOf( element );
+                
+              if( -1 !== aEindex )
+                activeElements.splice( aEindex, 1 );
+              if( -1 !== sEindex )
+                selectedElements.splice( sEindex, 1 );
+              
+              if( -1 !== aEindex || -1 !== sEindex )
+                view.invalidateContext();
+            },
+            /**
+            * Mark all elements selected that are in the area defined by pos1 and
+            * pos2.
+            * When pos2 is a Number and not a Vec2D the circle around pos1 with
+            * radius "pos2" is checked.
+            * lastScreenPos
+            * and prevScreenPos.lastScreenPos
+            * and prevScreenPos, lastScreenPos
+            */
+            selectArea: function( pos1, pos2 ) {
+              console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
+              /*
+              var
+                minScreenPos  = prevScreenPos.copy().cmin( lastScreenPos ),
+                maxScreenPos  = prevScreenPos.copy().cmax( lastScreenPos ),
+                minPos        = view.screen2canvas( minScreenPos ),
+                maxPos        = view.screen2canvas( maxScreenPos ),
+                indices = view.area2id( minScreenPos, maxScreenPos, 1, elementList.length );
+              for( var i = 0; i < indices.length; i++ )
+              {
+                var thisElement = elementList[ indices[i] ][0];
+                
+                // Set() type of insert:
+                if( !thisElement.checkAreaBadSelection( minPos, maxPos ) &&
+                    selectedElements.indexOf( thisElement ) === -1 ) {
+                  selectedElements.push( thisElement );
+                }
+              }
+              */
+              getSelectionCandidatesInArea( pos1, pos2, selectedElements );
+              // and now make them appear on the forground
+              activeElements = selectedElements.slice(); // make copy
             }
-          } );
-          selectedElements.length = 0;
-          
-          if( redraw )
-            view.invalidateContext();
-        },
-        /**
-         * Add element to current selection.
-         */
-        selectElement = function( element ) {
-          console.log( 'implement me!');
-        },
-        /**
-         * Unselect a single element and leave other selections as is.
-         */
-        unselectElement = function( element ) {
-          var 
-            aEindex = activeElements.indexOf( element ),
-            sEindex = selectedElements.indexOf( element );
-            
-          if( -1 !== aEindex )
-            activeElements.splice( aEindex, 1 );
-          if( -1 !== sEindex )
-            selectedElements.splice( sEindex, 1 );
-          
-          if( -1 !== aEindex || -1 !== sEindex )
-            view.invalidateContext();
-        },
-        /**
-         * Mark all elements selected that are in the area defined by pos1 and
-         * pos2.
-         * When pos2 is a Number and not a Vec2D the circle around pos1 with
-         * radius "pos2" is checked.
-         * lastScreenPos
-         * and prevScreenPos.lastScreenPos
-         * and prevScreenPos, lastScreenPos
-         */
-        selectArea = function( pos1, pos2 ) {
-          console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
-          /*
-          var
-            minScreenPos  = prevScreenPos.copy().cmin( lastScreenPos ),
-            maxScreenPos  = prevScreenPos.copy().cmax( lastScreenPos ),
-            minPos        = view.screen2canvas( minScreenPos ),
-            maxPos        = view.screen2canvas( maxScreenPos ),
-            indices = view.area2id( minScreenPos, maxScreenPos, 1, elementList.length );
-          for( var i = 0; i < indices.length; i++ )
-          {
-            var thisElement = elementList[ indices[i] ][0];
-            
-            // Set() type of insert:
-            if( !thisElement.checkAreaBadSelection( minPos, maxPos ) &&
-                selectedElements.indexOf( thisElement ) === -1 ) {
-              selectedElements.push( thisElement );
-            }
-          }
-          */
-          getSelectionCandidatesInArea( pos1, pos2, selectedElements );
-          // and now make them appear on the forground
-          activeElements = selectedElements.slice(); // make copy
-        };
+          };
+        })();
         
+        // ****************************************************************** //
+        // ****************************************************************** //
+        // **                                                              ** //
+        // ** Drag handling                                                ** //
+        // **                                                              ** //
+        // ****************************************************************** //
+        // ****************************************************************** //
         var dragIndex = 0;
         var dragStart = function( mouseScreenPos, ctrlKey, shiftKey ) {
           lastScreenPos = mouseScreenPos.round(1);
@@ -446,7 +536,7 @@
  
           if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( view.screen2canvas(lastScreenPos ), elementList[ index ][1], 2 ) )
           {
-            selectionClear();
+            selection.clear();
             
             dragIndex = 0;
             return false; // no object found
@@ -463,10 +553,8 @@
           });
           blocks.push( activeElement );
           //console.log( 'da', activeElement.getDerivedActive() );
-          activeElements = activeElement.getDerivedActive();
-          activeElements.push( activeElement );
-          selectedElements = [ activeElement ];
-          //console.log( 'activeElement', activeElement, 'activeElements', activeElements, 'self.activeElements', self.activeElements, 'selectedElements', selectedElements );
+          selection.clear( true );
+          selection.doSelection( activeElement, true );
           
           dragIndex = index;
           view.invalidateContext();
@@ -585,7 +673,7 @@
           var keyMoveDistance = 10,
               moveAll = function( direction ) { // helper function
                 eventObject.preventDefault();
-                selectedElements.forEach( function( thisElement ) {
+                selection.forEach( function( thisElement ) {
                   thisElement.update( undefined, undefined, direction );
                 } );
                 self.invalidateForeground();
@@ -611,13 +699,13 @@
               
             case 46: // delete
               eventObject.preventDefault();
-              selectedElements.forEach( function( thisElement ) {
+              selection.forEach( function( thisElement ) {
                 blocks = blocks.filter( function( thisBlock ){
                   return thisBlock != thisElement;
                 } );
                 thisElement.delete();
               } );
-              selectionClear(); // elements were deleted -> remove them from the selection...
+              selection.clear(); // elements were deleted -> remove them from the selection...
               self.invalidateHandlers();
               break;
               
@@ -638,10 +726,7 @@
               break;
               
             case 70: // key: f - zoom to fit
-              if( selectedElements.length > 0 ) // fit to selection
-                self.zoomElements( selectedElements );
-              else                              // fit to all 
-                self.zoomElements( elementList.map( function(a){return a[0];} ) );
+              self.zoomElements( selection.getElements() ); // fit to selection
               break;
               
             default:
@@ -717,9 +802,9 @@
             if( eventObject.shiftKey )   // Shift = add to selection
             {
               if( validObject &&
-                  0 <= selectedElements.indexOf( elementList[ index ][0] ) ) // already selected?
+                  selection.isSelected( elementList[ index ][0] ) ) // already selected?
               { // yes -> toggle away
-                unselectElement( elementList[ index ][0] );
+                selection.removeSelection( elementList[ index ][0] );
               } else {
                 mouseState = mouseStateSelectDrag;
                 prevScreenPos = getMouseScreenPos( eventObject );
@@ -881,7 +966,7 @@
             case mouseStateSelectDrag:
               view.showSelectionArea( undefined ); // unshow selection rectangle
               lastScreenPos = getMouseScreenPos( eventObject );
-              selectArea( prevScreenPos, lastScreenPos );
+              selection.selectArea( prevScreenPos, lastScreenPos );
               break;
               
             case mouseStatePinch:
@@ -912,7 +997,7 @@
               
             case mouseStateSelectDrag:
               view.showSelectionArea( undefined ); // unshow selection rectangle
-              selectArea( prevScreenPos, lastScreenPos );
+              selection.selectArea( prevScreenPos, lastScreenPos );
               break;
               
             case mouseStatePinch:
