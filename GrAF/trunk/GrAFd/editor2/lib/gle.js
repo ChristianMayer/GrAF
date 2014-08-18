@@ -514,6 +514,30 @@
           };
         })();
         
+        /**
+         * Move selected elements
+         */
+        this.selectionMove = function( direction ) {
+          selection.forEach( function( thisElement ) {
+            thisElement.update( undefined, undefined, direction );
+          } );
+          self.invalidateForeground();
+        };
+        
+        /**
+         * Delete selected elements
+         */
+        this.selectionDelete = function() {
+          selection.forEach( function( thisElement ) {
+            blocks = blocks.filter( function( thisBlock ){
+              return thisBlock != thisElement;
+            } );
+            thisElement.delete();
+          } );
+          selection.clear(); // elements were deleted -> remove them from the selection...
+          self.invalidateHandlers();
+        };
+        
         // ****************************************************************** //
         // ****************************************************************** //
         // **                                                              ** //
@@ -656,86 +680,6 @@
           };
         })();
         
-        this.keyPress = function( eventObject ) {
-          // early exit to keep default
-          switch( eventObject.keyCode )
-          {
-            case 73:  // i
-              if( eventObject.shiftKey && eventObject.ctrlKey )
-                return;
-              break;
-              
-            case 116: // F5
-              return;
-          }
-          
-          eventObject.preventDefault();
-          var keyMoveDistance = 10,
-              moveAll = function( direction ) { // helper function
-                eventObject.preventDefault();
-                selection.forEach( function( thisElement ) {
-                  thisElement.update( undefined, undefined, direction );
-                } );
-                self.invalidateForeground();
-              };
-              
-          switch( eventObject.keyCode )
-          {
-            case 37: // arrow key: left
-              moveAll( new Vec2D( -keyMoveDistance, 0 ) );
-              break;
-              
-            case 38: // arrow key: up
-              moveAll( new Vec2D( 0, -keyMoveDistance ) );
-              break;
-              
-            case 39: // arrow key: right
-              moveAll( new Vec2D( keyMoveDistance, 0 ) );
-              break;
-              
-            case 40: // arrow key: down
-              moveAll( new Vec2D( 0, keyMoveDistance ) );
-              break;
-              
-            case 46: // delete
-              eventObject.preventDefault();
-              selection.forEach( function( thisElement ) {
-                blocks = blocks.filter( function( thisBlock ){
-                  return thisBlock != thisElement;
-                } );
-                thisElement.delete();
-              } );
-              selection.clear(); // elements were deleted -> remove them from the selection...
-              self.invalidateHandlers();
-              break;
-              
-            case 66: // key: b - zoom to 100%
-              self.zoomDefault();
-              break;
-              
-            case 71: // key: g - toggle grid
-              view.toggleGrid();
-              break;
-              
-            case 82: // key: r - zoom in
-              self.zoomIn();
-              break;
-              
-            case 86: // key: v - zoom out
-              self.zoomOut();
-              break;
-              
-            case 70: // key: f - zoom to fit
-              self.zoomElements( selection.getElements() ); // fit to selection
-              break;
-              
-            default:
-              console.log( 'key', eventObject, eventObject.keyCode );
-          }
-          
-          // updateStateInfos(); // FIXME should be done with each operation that changes state and not here...
-        };
-        
         var mouseStateNone       = 0, // implies no button pressed
             mouseStateDrag       = 1, // implies a pressed button and a element
             mouseStateSelectDrag = 2, // implies a pressed button to select elements
@@ -816,19 +760,6 @@
                              eventObject.shiftKey ) )
                 mouseState = mouseStateDrag;
             }
-            //&&&&6
-            /*
-            if( !eventObject.shiftKey &&            // Shift = add to selection
-                dragStart( getMouseScreenPos( eventObject ), 
-                           eventObject.ctrlKey, 
-                           eventObject.shiftKey ) 
-              )
-              mouseState = mouseStateDrag;
-            else {
-              mouseState = mouseStateSelectDrag;
-              prevScreenPos = getMouseScreenPos( eventObject );
-              self.startGesture( getMouseScreenPos( eventObject ), scale );
-            }*/
           }
           //view.showKlick( view.screen2canvas( prevScreenPos ) );
           
@@ -1026,16 +957,6 @@
         };
         
         /**
-         * Event handler for scrolling.
-         */
-        this.scroll = function( eventObject ) {
-          if( eventObject )
-            eventObject.preventDefault();
-          
-          view.scroll();
-        };
-        
-        /**
          * Event handler for any kind of resize, including browser zoom level.
          */
         this.resize = function( eventObject ) {
@@ -1059,6 +980,7 @@
         // Constructor
         $canvasContainer = passedCanvasContainer;
         view = new window._GLE.view( passedCanvasContainer, this );
+        var inputevent = new _GLE.inputevent( self );
         /*
         view.getForeground().on( 'mousedown',  this.mousedown ); 
         view.getForeground().on( 'touchstart', this.mousedown );
@@ -1072,7 +994,7 @@
           .on( 'mouseup',  this.mouseup )
           .on( 'touchend',  this.touchend )
           .on( 'touchcancel',  this.touchcancel ); 
-        $canvasContainer.on( 'scroll', self.scroll );
+        $canvasContainer.on( 'scroll', inputevent.scroll );
         $canvasContainer.on( 'wheel', function( e ){
           e.preventDefault(); 
           var left_right = ( undefined !== e.originalEvent.wheelDeltaX ? e.originalEvent.wheelDeltaX :
@@ -1114,7 +1036,7 @@
           
           return false;
         } );
-        $(document).on( 'keydown',  this.keyPress  ); 
+        $(document).on( 'keydown',  inputevent.keyPress  ); 
         $(window).on( 'resize',     this.resize    );
       };
       
