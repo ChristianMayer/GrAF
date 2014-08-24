@@ -181,15 +181,15 @@
       return thisGLE.checkHandlerBadSelection( mousePos, getOutPortPos( index - 5 - inPorts.length ) );
     };
     
-    this.prepareUpdate = function( handler, index, mousePos, ctrlKey, shiftKey )
+    this.prepareUpdate = function( index, handler, mousePos, ctrlKey, shiftKey )
     {
       console.log( 'Block prepareUpdate', index, handler, ctrlKey, mousePos.print(), '['+pos.print()+']' );
-      if( 0 === handler )
+      if( 0 === index )
       {
         if( ctrlKey )
         {
           console.log( 'Duplicate Block' );
-          index = thisGLE.addBlock()
+          handler = thisGLE.addBlock()
                   .setTopLeft( pos )
                   .setBottomRight( pos.copy().plus( size ) )
                   .setName( thisGLE.getNextName( name ) )
@@ -198,14 +198,14 @@
                   .getHandler();
           thisGLE.invalidateHandlers();
         }
-      } else if( handler < 5 )
+      } else if( index < 5 )
       {
-      } else if( handler < 5 + inPorts.length )
+      } else if( index < 5 + inPorts.length )
       {
-        var thisIndex = handler - 5;
+        var thisIndex = index - 5;
       } else {
-        var thisIndex = handler - 5 - inPorts.length,
-            coords    = this.getOutCoordinates( handler );
+        var thisIndex = index - 5 - inPorts.length,
+            coords    = this.getOutCoordinates( index );
         outPorts[ thisIndex ].connection = thisGLE
           .addConnection( { start: { block: this, portNumber: thisIndex }, name: name + '_Out#' + thisIndex } )
           //.insertWaypoint( getOutPortPos( thisIndex ).setQualifier( 'protected', true ) )
@@ -217,7 +217,7 @@
         //return outPorts[ thisIndex ].connection.waypoints[1].handler;
       }
       
-      return index;
+      return handler;
     };
     
     /**

@@ -102,86 +102,75 @@
         // **                                                              ** //
         // ****************************************************************** //
         // ****************************************************************** //
-        dragIndex = 0,
-        dragStart = function( mouseScreenPos, ctrlKey, shiftKey ) {
-          var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
-          lastScreenPos = mouseScreenPos.round(1);
-          prevScreenPos = lastScreenPos;
-          // ---------------
-          view.showMarker( view.screen2canvas( lastScreenPos ) );
-          // ---------------
-          
-          var index = view.position2id( lastScreenPos ),
-              activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
-              
-          $('#coords').text( lastScreenPos.print() + '<>' + view.screen2canvas(lastScreenPos).print() + ':' + index + ' (' + thisGLE.scale() + ') [' + ']' );
-
-          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( view.screen2canvas(lastScreenPos ), elementList[ index ][1], 2 ) )
-          {
-            selection.clear();
-            
-            dragIndex = 0;
-            return false; // no object found
-          }
-          
-          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
-          //console.log( 'down', index, newIndex, activeElement, elementList[ index ][1] );
-          elementList = thisGLE.fixmeGetElementList(); // FIXME TODO - nur hier um elementList zu aktuallisieren
-          index = newIndex;
-          activeElement = elementList[ index ][0]; // if index was changed...
-          
-          // move activeElement to the end of the array to draw it on the top
-          thisGLE.moveElementToTop( activeElement );
-          //console.log( 'da', activeElement.getDerivedActive() );
-          selection.clear( true );
-          selection.doSelection( activeElement, true );
-          
-          dragIndex = index;
-          view.invalidateContext();
-          return true;
-        },
-        
-        dragMove = function( mouseScreenPos, ctrlKey, shiftKey ) {
-          var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
-          var 
-            index         = dragIndex, //eventObject.data,
-            thisElem      = elementList[ index ],
-            //thisPos       = mouseCanvasPos.round(1),
-            thisPos       = view.screen2canvas(mouseScreenPos).round(1),
-            shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
-            //lowerIndex    = view.position2id( thisPos ),
-            lowerIndex    = view.position2id( mouseScreenPos ),
-            lowerElement  = elementList[lowerIndex];
-          
-          if( (!lowerElement) ||
-              (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2 ) ) )
-                  lowerElement = [];
+        drag = (function(){
+          //var dragIndex = 0; // FIXME delete
+          var dragHandler = []; // the handler that is currently draged around
+          return {
+            start: function( mouseScreenPos, ctrlKey, shiftKey ) {
+                lastScreenPos = mouseScreenPos.round(1);
+                prevScreenPos = lastScreenPos;
+                // ---------------
+                view.showMarker( view.screen2canvas( lastScreenPos ) );
+                // ---------------
                 
-          var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
-          ////console.log( index, newIndex );
-          // check if the handler might have been changed during the update
-          if( newIndex !== undefined && newIndex !== index )
-          {
-            dragIndex = newIndex;
-          }
-          
-          // necessary? Causes currently double redraws...
-          view.invalidateForeground(); // redraw to fix Id map
-          
-          prevScreenPos = view.canvas2screen( thisPos );
-        },
-              
-        dragEnd = function() {
-          var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
-          var
-            index         = dragIndex,
-            thisElem      = elementList[ index ];
-          (thisElem[0]).finishUpdate( thisElem[1] );
+                dragHandler = thisGLE.position2handler( lastScreenPos );
+                    
+                if( undefined === dragHandler[0] || dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) )
+                {
+                  selection.clear();
+                  
+                  dragHandler = [];
+                  return false; // no object found
+                }
+                
+                var newIndex = dragHandler[0].prepareUpdate( dragHandler[1], index, view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
+                var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO - nur hier um elementList zu aktuallisieren
+                if( newIndex !== undefined )
+                  dragHandler = elementList[ newIndex ];
+                
+                // move activeElement to the end of the array to draw it on the top
+                thisGLE.moveElementToTop( dragHandler[0] );
+                selection.clear( true );
+                selection.doSelection( dragHandler[0], true );
+                
+                view.invalidateContext();
+                return true;
+              },
         
-          dragIndex = 0;
-          thisGLE.updateContentSize(); // e.g. the boundary has to be updated
-          view.invalidateContext(); // redraw to fix Id map
-        },
+            move: function( mouseScreenPos, ctrlKey, shiftKey ) {
+                var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
+                var 
+                  thisPos       = view.screen2canvas(mouseScreenPos).round(1),
+                  shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
+                  lowerHandler  = thisGLE.position2handler( mouseScreenPos );
+                
+                if( (!lowerHandler) ||
+                    (lowerHandler.length && lowerHandler[0].checkBadSelection( thisPos, lowerHandler[1], 2 ) ) )
+                        lowerHandler = [];
+                      
+                var newIndex = (dragHandler[0]).update( dragHandler[1], thisPos, shortDeltaPos, lowerHandler, shiftKey );
+                // check if the handler might have been changed during the update
+                if( newIndex !== undefined && newIndex !== dragHandler[1] )
+                {
+                  dragHandler[1] = elementList[newIndex][1];
+                }
+                
+                // necessary? Causes currently double redraws...
+                view.invalidateForeground(); // redraw to fix Id map
+                
+                prevScreenPos = view.canvas2screen( thisPos );
+              },
+                    
+            end: function() {
+                (dragHandler[0]).finishUpdate( dragHandler[1] );
+              
+                dragHandler = [];
+                thisGLE.updateContentSize(); // e.g. the boundary has to be updated
+                view.invalidateContext(); // redraw to fix Id map
+              }
+          };
+        })(),
+ 
         /**
          * Alle the handlers and private variables for the pinch support
          * that allows the user to zoom and pan.
@@ -287,7 +276,7 @@
             break;
             
           case 70: // key: f - zoom to fit
-            thisGLE.zoomElements( selection.getElements() ); // fit to selection // FIXME and TODO - selection doesn't belont to this class anymore!
+            thisGLE.zoomElements( selection.getElements() ); // fit to selection
             break;
             
           default:
@@ -357,7 +346,7 @@
         } else {
           var
             thisScreenPos = getMouseScreenPos( eventObject ),
-            thisElement   = thisGLE.position2element( thisScreenPos );
+            thisElement   = thisGLE.position2handler( thisScreenPos )[0];
           if( eventObject.shiftKey )   // Shift = add to selection
           {
             if( undefined !== thisElement &&
@@ -370,7 +359,7 @@
               gesture.start( getMouseScreenPos( eventObject ), thisGLE.scale() );
             }
           } else {
-            if( dragStart( getMouseScreenPos( eventObject ), 
+            if( drag.start( getMouseScreenPos( eventObject ), 
                             eventObject.ctrlKey, 
                             eventObject.shiftKey ) )
               mouseState = mouseStateDrag;
@@ -391,8 +380,7 @@
             return true;
             
           case mouseStateDrag:
-            //dragMove( getMouseCanvasPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
-            dragMove( getMouseScreenPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+            drag.move( getMouseScreenPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
             break;
             
           case mouseStateSelectDrag:
@@ -402,7 +390,7 @@
               // gesture detection sucessfull...
               var 
                 gestureInfo = gesture.getInfo(),
-                dS = dragStart( gestureInfo.center, false, false ),
+                dS = drag.start( gestureInfo.center, false, false ),
                 eL = [];
               //getSelectionCandidatesInArea( gestureInfo.center, gestureInfo.radius, eL );
               //console.log( gestureInfo.center.print(), gestureInfo.radius, dS, eL );
@@ -436,7 +424,7 @@
         switch( mouseState )
         {
           case mouseStateDrag:
-            dragEnd();
+            drag.end();
             break;
             
           case mouseStateSelectDrag:
@@ -487,7 +475,7 @@
             if( isDoubleClick( eventObject.timeStamp ) )
               break;
             
-            if( dragStart( getTouchScreenPos( eventObject )[0] ) )
+            if( drag.start( getTouchScreenPos( eventObject )[0] ) )
               mouseState = mouseStateDrag;
             else {
               mouseState = mouseStateSelectDrag;
@@ -520,8 +508,7 @@
             return eventObject.target.id !== 'canvas_fg';
             
           case mouseStateDrag:
-            //dragMove( view.screen2canvas( getTouchScreenPos( eventObject )[0] ) );
-            dragMove( getTouchScreenPos( eventObject )[0] );
+            drag.move( getTouchScreenPos( eventObject )[0] );
             break;
             
           case mouseStateSelectDrag:
@@ -546,7 +533,7 @@
         switch( mouseState )
         {
           case mouseStateDrag:
-            dragEnd();
+            drag.end();
             break;
             
           case mouseStateSelectDrag:
@@ -571,7 +558,7 @@
        */
       this.touchcancel = function( eventObject ) {
         if( mouseState === mouseStateDrag )
-          dragEnd();
+          drag.end();
         
         thisGLE.updateStateInfos();
         
