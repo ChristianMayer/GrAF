@@ -33,18 +33,7 @@
       scaleTarget   = 1,   // zoomlevel to animate to
       $canvasContainer,    // jQ object containing the canvases and the scroll bars
       elementList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
-      clickTimestamp = 0,  // used to check for double click
       activeElements = [], // The active elements, i.e. the one on the Fg
- 
-      /**
-       * Get the distance between the fingers in screen pixels.
-       */
-      getTouchDistance = function( eventObject ) {
-        var touches = eventObject.originalEvent.touches,
-            dx      = touches[0].pageX - touches[1].pageX,
-            dy      = touches[0].pageY - touches[1].pageY;
-        return Math.sqrt( dx*dx + dy*dy );
-      },
  
       /**
        * The GLE constructor
@@ -55,35 +44,7 @@
           self = this, 
           blocks = [],  // array of all existent blocks
           view,
-          lastScreenPos,      // the beginning coordinates of a mouse drag
-          lastScale,    // the beginning scale during a mouse drag
-          prevScreenPos,      // the coordinates of the previous call to mousemove
           // private methods:
-          /**
-           * Return position of eventObject realtive to screen view port.
-           */
-          getMouseScreenPos = function( eventObject ) {
-            return view.getScreenCoordinate( eventObject.pageX||eventObject.originalEvent.pageX,
-                                             eventObject.pageY||eventObject.originalEvent.pageY );
-          },
-          /**
-           * Return mouse position relative to object space, i.e. canvas.
-           */
-          getMouseCanvasPos = function( eventObject ) {
-            return view.screen2canvas( getMouseScreenPos( eventObject ) );
-          },
-          //getMousePos = getMouseCanvasPos;
-          /**
-          * Get all touch coordinates out of the jQ.Event relative to the canvas.
-          * @return Array of Vec2D with one Vec2D per touch position
-          */
-          getTouchScreenPos = function( eventObject ) {
-            var touches = eventObject.originalEvent.touches;
-                
-            return Array.prototype.map.call( touches, function(touch){ 
-                return view.getScreenCoordinate( touch.pageX, touch.pageY );
-            } ).concat([new Vec2D(0,0)]);
-          },
           /**
            * Return array of two Vec2D that define the bounding box of the 
            * current content (i.e. blocks and connections.)
@@ -109,16 +70,17 @@
             
             return [ topLeft, bottomRight ];
           },
-          /**
-          * Update the state information that the user can see
-          */
-          updateStateInfos = (function(){
-            var $zoom = $('#zoom'); // cache DOM element
-            return function() {
-              $zoom.text( Math.round(scale * 100) + '% (scale: ' + scale + ' / scaleInternal: ' + 'n/a' + ')' );
-            }
-          })(),
           dummy = true;
+          
+        /**
+         * Update the state information that the user can see
+         */
+        this.updateStateInfos = (function(){
+          var $zoom = $('#zoom'); // cache DOM element
+          return function() {
+            $zoom.text( Math.round(scale * 100) + '% (scale: ' + scale + ' / scaleInternal: ' + 'n/a' + ')' );
+          }
+        })();
           
         /**
          * Get the user tuneable settings.
@@ -158,7 +120,7 @@
         this.draw = function( ctxFn, ctxId, scale ) {
           blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
             var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
-            var thisSelected = selection.isSelected( thisBlock );
+            var thisSelected = self.selection.isSelected( thisBlock );
             thisBlock.draw( ctxFn( thisActive ), ctxId, thisSelected, false, scale );
           } );
         };
@@ -168,7 +130,7 @@
          */
         this.drawActive = function( ctx, ctxId, scale ) {
           activeElements.forEach( function( thisActiveElement ) {
-            var thisSelected = selection.isSelected( thisActiveElement );
+            var thisSelected = self.selection.isSelected( thisActiveElement );
             thisActiveElement.draw( ctx, ctxId, thisSelected, true, scale );
           } );
           self.showGesture(scale);
@@ -311,7 +273,7 @@
               scale = scaleTarget;
               view.zoomView( scale, contentPos, screenPos, temporary );
               if( !temporary )
-                updateStateInfos();
+                self.updateStateInfos();
             } else {
               scale += (scale < scaleTarget) ? zoomStep : -zoomStep; 
               view.zoomView( scale, contentPos, screenPos, true, zoomAnimation );
@@ -367,6 +329,17 @@
           }
         };
         
+        /**
+         * Return the element at the given screen position.
+         * When it is empty (i.e. the background) undefined will be returned.
+         */
+        this.position2element = function( thisScreenPos ) {
+          var 
+            index       = view.position2id( thisScreenPos ),
+            validObject = (index > 0) && (index < elementList.length);
+          return validObject ? elementList[ index ][0] : undefined;
+        };
+        
         // ****************************************************************** //
         // ****************************************************************** //
         // **                                                              ** //
@@ -374,7 +347,7 @@
         // **                                                              ** //
         // ****************************************************************** //
         // ****************************************************************** //
-        var selection = (function(){
+        this.selection = (function(){
           // private variables:
           var selectedElements = []; // The user selected elements
           
@@ -450,7 +423,7 @@
               }
               
               // and finally select the element itself
-              if( !selection.isSelected( element ) )
+              if( !self.selection.isSelected( element ) )
               {
                 selectedElements.push( element );
                 if( -1 === activeElements.indexOf( element ) )
@@ -488,7 +461,7 @@
             * and prevScreenPos, lastScreenPos
             */
             selectArea: function( pos1, pos2 ) {
-              console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
+              //console.log( 'selecting ' + prevScreenPos.print() + ' -> ' + lastScreenPos.print() );
               /*
               var
                 minScreenPos  = prevScreenPos.copy().cmin( lastScreenPos ),
@@ -518,7 +491,7 @@
          * Move selected elements
          */
         this.selectionMove = function( direction ) {
-          selection.forEach( function( thisElement ) {
+          self.selection.forEach( function( thisElement ) {
             thisElement.update( undefined, undefined, direction );
           } );
           self.invalidateForeground();
@@ -528,102 +501,16 @@
          * Delete selected elements
          */
         this.selectionDelete = function() {
-          selection.forEach( function( thisElement ) {
+          self.selection.forEach( function( thisElement ) {
             blocks = blocks.filter( function( thisBlock ){
               return thisBlock != thisElement;
             } );
             thisElement.delete();
           } );
-          selection.clear(); // elements were deleted -> remove them from the selection...
+          self.selection.clear(); // elements were deleted -> remove them from the selection...
           self.invalidateHandlers();
         };
         
-        // ****************************************************************** //
-        // ****************************************************************** //
-        // **                                                              ** //
-        // ** Drag handling                                                ** //
-        // **                                                              ** //
-        // ****************************************************************** //
-        // ****************************************************************** //
-        var dragIndex = 0;
-        var dragStart = function( mouseScreenPos, ctrlKey, shiftKey ) {
-          lastScreenPos = mouseScreenPos.round(1);
-          prevScreenPos = lastScreenPos;
-          // ---------------
-          view.showMarker( view.screen2canvas( lastScreenPos ) );
-          // ---------------
-          
-          var index = view.position2id( lastScreenPos ),
-              activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
-              
-          $('#coords').text( lastScreenPos.print() + '<>' + view.screen2canvas(lastScreenPos).print() + ':' + index + ' (' + scale + ') [' + ']' );
- 
-          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( view.screen2canvas(lastScreenPos ), elementList[ index ][1], 2 ) )
-          {
-            selection.clear();
-            
-            dragIndex = 0;
-            return false; // no object found
-          }
-          
-          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
-          //console.log( 'down', index, newIndex, activeElement, elementList[ index ][1] );
-          index = newIndex;
-          activeElement = elementList[ index ][0]; // if index was changed...
-          
-          // move activeElement to the end of the array to draw it on the top
-          blocks = blocks.filter( function( thisBlock ){
-            return thisBlock != activeElement;
-          });
-          blocks.push( activeElement );
-          //console.log( 'da', activeElement.getDerivedActive() );
-          selection.clear( true );
-          selection.doSelection( activeElement, true );
-          
-          dragIndex = index;
-          view.invalidateContext();
-          return true;
-        };
-        
-        //var dragMove = function( mouseCanvasPos, ctrlKey, shiftKey ) {
-        var dragMove = function( mouseScreenPos, ctrlKey, shiftKey ) {
-          var index         = dragIndex, //eventObject.data,
-              thisElem      = elementList[ index ],
-              //thisPos       = mouseCanvasPos.round(1),
-              thisPos       = view.screen2canvas(mouseScreenPos).round(1),
-              shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
-              //lowerIndex    = view.position2id( thisPos ),
-              lowerIndex    = view.position2id( mouseScreenPos ),
-              lowerElement  = elementList[lowerIndex];
-          
-          if( (!lowerElement) ||
-              (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2 ) ) )
-            lowerElement = [];
-          
-          var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
-          ////console.log( index, newIndex );
-          // check if the handler might have been changed during the update
-          if( newIndex !== undefined && newIndex !== index )
-          {
-            dragIndex = newIndex;
-          }
-          
-          // necessary? Causes currently double redraws...
-          view.invalidateForeground(); // redraw to fix Id map
-          
-          prevScreenPos = view.canvas2screen( thisPos );
-        };
-        
-        var dragEnd = function() {
-          var index         = dragIndex,
-              thisElem      = elementList[ index ];
-          (thisElem[0]).finishUpdate( thisElem[1] );
-          
-          dragIndex = 0;
-          self.updateContentSize(); // e.g. the boundary has to be updated
-          view.invalidateContext(); // redraw to fix Id map
-        };
-
         /*
         this.blob = function() { 
           ctxBg.save();
@@ -650,329 +537,37 @@
         */
         
         /**
-         * Alle the handlers and private variables for the pinch support
-         * that allows the user to zoom and pan.
-         */
-        var pinch = (function() {
-          // The private variables that are hidden to the outside
-          var pinchLength, 
-              pinchStartScale,
-              contentPos, 
-              screenPos;
-          // The public methods, callable as "pinch.*()"
-          return {
-            start: function( eventObject ) {
-                pinchStartScale = scale;
-                pinchLength = getTouchDistance( eventObject );
-                var touches = getTouchScreenPos( eventObject );
-                contentPos = view.screen2canvas( touches[0].plus( touches[1] ).scale( 0.5 ) );// The middle between the fingers
-              },
-            move: function( eventObject ) {
-                var length  = getTouchDistance( eventObject ),
-                    ratio   = length / pinchLength,
-                    touches = getTouchScreenPos( eventObject );
-                screenPos   = touches[0].plus( touches[1] ).scale( 0.5 );    // The middle between the fingers
-                self.setZoom( pinchStartScale * ratio, contentPos, screenPos, true );
-              },
-            end: function() {
-                self.setZoom( scale, contentPos, screenPos, false ); // finalize temporary zoom
-              }
-          };
-        })();
-        
-        var mouseStateNone       = 0, // implies no button pressed
-            mouseStateDrag       = 1, // implies a pressed button and a element
-            mouseStateSelectDrag = 2, // implies a pressed button to select elements
-            mouseStatePinch      = 3, // implies two touches
-            mouseState = mouseStateNone;
-        function printMouseState() {
-          var ret = '[';
-          switch( mouseState )
-          {
-            case mouseStateNone:
-              ret += 0;
-              break;
-              
-            case mouseStateDrag:
-              ret += 1;
-              break;
-              
-            case mouseStatePinch:
-              ret += 2;
-              break;
-              
-            default:
-              ret += '?';
-          }
-          return ret + ']';
-        }
-        
-        /**
-         * Check for a double click.
-         * When true, reset zoom rend return true, otherwise false.
-         */
-        var isDoubleClick = function( timeStamp ) {
-          if( timeStamp - clickTimestamp < 200 )
-          {
-            mouseState = mouseStateNone;
-            self.zoomDefault();
-            return true;
-          }
-          clickTimestamp = timeStamp;
-          return false;
-        }
-        
-        /**
-         * Event handler for mousedown.
-         */
-        var contentCanvasPos = new Vec2D(0,0);
-        this.mousedown = function( eventObject ) {
-          // check for double click
-          if( isDoubleClick( eventObject.timeStamp ) )
-            return false;
-          
-          contentCanvasPos = getMouseCanvasPos( eventObject );
-          if( eventObject.ctrlKey )
-          {
-              mouseState = mouseStatePinch;
-              lastScreenPos = new Vec2D( eventObject.pageX, eventObject.pageY );
-              lastScale = scale;
-              prevScreenPos = getMouseScreenPos( eventObject ); // abuse it a bit...
-          } else {
-            var
-              thisScreenPos = getMouseScreenPos( eventObject ),
-              index         = view.position2id( thisScreenPos ),
-              validObject   = (index > 0) && (index < elementList.length);
-            if( eventObject.shiftKey )   // Shift = add to selection
-            {
-              if( validObject &&
-                  selection.isSelected( elementList[ index ][0] ) ) // already selected?
-              { // yes -> toggle away
-                selection.removeSelection( elementList[ index ][0] );
-              } else {
-                mouseState = mouseStateSelectDrag;
-                prevScreenPos = getMouseScreenPos( eventObject );
-                self.startGesture( getMouseScreenPos( eventObject ), scale );
-              }
-            } else {
-              if( dragStart( getMouseScreenPos( eventObject ), 
-                             eventObject.ctrlKey, 
-                             eventObject.shiftKey ) )
-                mouseState = mouseStateDrag;
-            }
-          }
-          //view.showKlick( view.screen2canvas( prevScreenPos ) );
-          
-          return false; // stopp propagation as well as bubbling
-        };
-        
-        /**
-         * Event handler for touchstart.
-         */
-        this.touchstart = function( eventObject ) {
-          // set the default:
-          mouseState = mouseStateNone;
-          
-          switch( eventObject.originalEvent.touches.length )
-          {
-            case 0:
-              mouseState = mouseStateNone;
-              break;
-              
-            case 1:
-              // check for double click
-              if( isDoubleClick( eventObject.timeStamp ) )
-                break;
-              
-              if( dragStart( getTouchScreenPos( eventObject )[0] ) )
-                mouseState = mouseStateDrag;
-              else {
-                mouseState = mouseStateSelectDrag;
-                prevScreenPos = getTouchScreenPos( eventObject )[0];
-                self.startGesture( prevScreenPos, scale );
-              }
-              break;
-              
-            case 2:
-              mouseState = mouseStatePinch;
-              pinch.start( eventObject );
-              break;
-          }
-          $('#coords').text( 'touchstart' + printMouseState() + eventObject.originalEvent.touches.length);
-          //getTouchPos( eventObject );
-          return false; // stopp propagation as well as bubbling
-        };
-        
-        /**
-         * Event handler for mousemove.
-         */
-        this.mousemove = function( eventObject ) {
-          switch( mouseState )
-          {
-            case mouseStateNone:
-              return true;
-              
-            case mouseStateDrag:
-              //dragMove( getMouseCanvasPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
-              dragMove( getMouseScreenPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
-              break;
-              
-            case mouseStateSelectDrag:
-              view.showSelectionArea( view.screen2canvas( prevScreenPos ), 
-                                      view.screen2canvas( getMouseScreenPos( eventObject ) ) );
-              if( gesture.update( getMouseScreenPos( eventObject ) ) ) {
-                // gesture detection sucessfull...
-                var 
-                  gestureInfo = gesture.getInfo(),
-                  dS = dragStart( gestureInfo.center, false, false ),
-                  eL = [];
-                getSelectionCandidatesInArea( gestureInfo.center, gestureInfo.radius, eL );
-                console.log( gestureInfo.center.print(), gestureInfo.radius, dS, eL );
-                //mouseState = mouseStateDrag;
-              }
-              break;
-              
-            case mouseStatePinch:
-              var length   = lastScreenPos.copy().minus( new Vec2D( eventObject.pageX, eventObject.pageY ) ),
-                  newScale = Math.abs( length.x + length.y ) / 200 + 1; // will allways be bigger than 0
-              if( (length.x + length.y) > 0 )
-                newScale = 1/newScale;
-              
-              if( eventObject.shiftKey ) { // only move
-                var deltaPos = (new Vec2D( eventObject.pageX, eventObject.pageY ) ).minus( lastScreenPos );
-                self.setZoom( lastScale, contentCanvasPos, deltaPos.plus(prevScreenPos), true ); // zoom with temporary = true
-                break;
-              }
-              
-              self.setZoom( newScale * lastScale, contentCanvasPos, prevScreenPos, true ); // zoom with temporary = true
-              break;
-          }
-          
-          return false; // stopp propagation as well as bubbling
-        };
-        
-        /**
-         * Event handler for touchmove.
-         */
-        this.touchmove = function( eventObject ) {
-          switch( mouseState )
-          {
-            case mouseStateNone:
-              // FIXME: this allows (on purpose!) the scrolling of the main
-              // screen ==> might need to be removed in the final editor!
-              
-              // keep event propagating and bubbling
-              return eventObject.target.id !== 'canvas_fg';
-              
-            case mouseStateDrag:
-              //dragMove( view.screen2canvas( getTouchScreenPos( eventObject )[0] ) );
-              dragMove( getTouchScreenPos( eventObject )[0] );
-              break;
-              
-            case mouseStateSelectDrag:
-              lastScreenPos = getTouchScreenPos( eventObject )[0]; // store as TouchUp doesn't have corrdinates anymore
-              view.showSelectionArea( view.screen2canvas( prevScreenPos ),
-                                      view.screen2canvas( lastScreenPos ) );
-              self.continueGesture( getTouchScreenPos( eventObject )[0] ); // FIXME TEMP
-              break;
-              
-            case mouseStatePinch:
-              pinch.move( eventObject );
-              break;
-          }
-          
-          return false; // stopp propagation as well as bubbling
-        };
-        
-        /**
-         * Event handler for mouseup.
-         */
-        this.mouseup = function( eventObject ) {
-          switch( mouseState )
-          {
-            case mouseStateDrag:
-              dragEnd();
-              break;
-              
-            case mouseStateSelectDrag:
-              view.showSelectionArea( undefined ); // unshow selection rectangle
-              lastScreenPos = getMouseScreenPos( eventObject );
-              selection.selectArea( prevScreenPos, lastScreenPos );
-              break;
-              
-            case mouseStatePinch:
-              if( eventObject.shiftKey ) { // only move
-                var deltaPos = (new Vec2D( eventObject.pageX, eventObject.pageY ) ).minus( lastScreenPos );
-                self.setZoom( lastScale, contentCanvasPos, deltaPos.plus(prevScreenPos), false );
-              } else
-                self.setZoom( scale, contentCanvasPos, prevScreenPos, false );
-              break;
-          }
-          
-          mouseState = mouseStateNone;
-          
-          updateStateInfos();
-          
-          return false; // stopp propagation as well as bubbling
-        };
-        
-        /**
-         * Event handler for touchend.
-         */
-        this.touchend = function( eventObject ) {
-          switch( mouseState )
-          {
-            case mouseStateDrag:
-              dragEnd();
-              break;
-              
-            case mouseStateSelectDrag:
-              view.showSelectionArea( undefined ); // unshow selection rectangle
-              selection.selectArea( prevScreenPos, lastScreenPos );
-              break;
-              
-            case mouseStatePinch:
-              pinch.end();
-              break;
-          }
-          
-          updateStateInfos();
-          
-          // finger has left => do a new cycle, mouseState will be set there
-          return self.touchstart( eventObject );
-        };
-        
-        /**
-         * Event handler for the touchcancel.
-         * Set state to none as after a cancel the iPad needs a restart anyway.
-         */
-        this.touchcancel = function( eventObject ) {
-          if( mouseState === mouseStateDrag )
-            dragEnd();
-          
-          updateStateInfos();
-          
-          mouseState = mouseStateNone;
-          return false; // stopp propagation as well as bubbling
-        };
-        
-        /**
          * Event handler for any kind of resize, including browser zoom level.
          */
         this.resize = function( eventObject ) {
           console.log( 'resize', eventObject ); // FIXME DEBUG
           view.resizeView();
           
-          updateStateInfos();
+          self.updateStateInfos();
         };
         
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         // Big temporary hack
+        /*
         var gesture = new _GLE.gesture( self );
         this.startGesture = gesture.start;
         this.continueGesture = gesture.update;
-        this.showGesture = function(scale){ gesture.show( view, scale ); }
+        */
+        this.showGesture = function(scale){ 
+          if( inputevent )
+            inputevent.showGesture( scale );
+          else
+            console.log( 'FIXME - implement gesture.show' );  // FIXME TODO
+        };
+        this.scale = function(){ return scale; };
+        this.fixmeGetElementList = function(){ return elementList; };
+        this.moveElementToTop = function( thisElement ) {
+          blocks = blocks.filter( function( thisBlock ){
+            return thisBlock != thisElement;
+          });
+          blocks.push( thisElement );
+        };
         // End: Big temporary hack
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -986,14 +581,14 @@
         view.getForeground().on( 'touchstart', this.mousedown );
         */
         view.getForeground()
-          .on( 'mousedown',  this.mousedown )
-          .on( 'touchstart',  this.touchstart );
+          .on( 'mousedown',   inputevent.mousedown  )
+          .on( 'touchstart',  inputevent.touchstart );
         $(document)  
-          .on( 'mousemove',  this.mousemove )
-          .on( 'touchmove',  this.touchmove )
-          .on( 'mouseup',  this.mouseup )
-          .on( 'touchend',  this.touchend )
-          .on( 'touchcancel',  this.touchcancel ); 
+          .on( 'mousemove',   inputevent.mousemove   )
+          .on( 'touchmove',   inputevent.touchmove   )
+          .on( 'mouseup',     inputevent.mouseup     )
+          .on( 'touchend',    inputevent.touchend    )
+          .on( 'touchcancel', inputevent.touchcancel ); 
         $canvasContainer.on( 'scroll', inputevent.scroll );
         $canvasContainer.on( 'wheel', function( e ){
           e.preventDefault(); 
@@ -1019,7 +614,7 @@
               self.zoomIn( mousePos );
             }
             
-            updateStateInfos();
+            self.updateStateInfos();
             return false;
           }
           

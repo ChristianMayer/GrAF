@@ -23,20 +23,213 @@
 (function( window, undefined ) {
   "use strict";
   
-  // private variables:
+  // module private variables:
   var 
-    confirmedGesR, 
-
     /**
-      * The Inputevent constructor
-      */
+     * The Inputevent constructor
+     */
     Inputevent = function( thisGLE ) {
+      ////////////////////////////////////////////////////////////////////////
       // private:
       var 
         self = this,
-        view = thisGLE.view();
+        view = thisGLE.view(),
+        gesture = new _GLE.gesture( thisGLE ),
+        selection = thisGLE.selection,
+        lastScreenPos,      // the beginning coordinates of a mouse drag
+        lastScale,          // the beginning scale during a mouse drag
+        prevScreenPos,      // the coordinates of the previous call to mousemove
+        contentCanvasPos = new Vec2D(0,0),
+        // enumeration of the mouse (and touch) states
+        mouseStateNone       = 0, // implies no button pressed
+        mouseStateDrag       = 1, // implies a pressed button and a element
+        mouseStateSelectDrag = 2, // implies a pressed button to select elements
+        mouseStatePinch      = 3, // implies two touches
+        mouseState = mouseStateNone,
+        clickTimestamp = 0,  // used to check for double click
+        /**
+         * Check for a double click.
+         * When true, reset zoom rend return true, otherwise false.
+         */
+        isDoubleClick = function( timeStamp ) {
+          if( timeStamp - clickTimestamp < 200 )
+          {
+            mouseState = mouseStateNone;
+            thisGLE.zoomDefault();
+            return true;
+          }
+          clickTimestamp = timeStamp;
+          return false;
+        },
+        /**
+          * Return position of eventObject realtive to screen view port.
+          */
+        getMouseScreenPos = function( eventObject ) {
+          return view.getScreenCoordinate( eventObject.pageX||eventObject.originalEvent.pageX,
+                                            eventObject.pageY||eventObject.originalEvent.pageY );
+        },
+        /**
+          * Return mouse position relative to object space, i.e. canvas.
+          */
+        getMouseCanvasPos = function( eventObject ) {
+          return view.screen2canvas( getMouseScreenPos( eventObject ) );
+        },
+        //getMousePos = getMouseCanvasPos;
+        /**
+        * Get all touch coordinates out of the jQ.Event relative to the canvas.
+        * @return Array of Vec2D with one Vec2D per touch position
+        */
+        getTouchScreenPos = function( eventObject ) {
+          var touches = eventObject.originalEvent.touches;
+                
+          return Array.prototype.map.call( touches, function(touch){ 
+              return view.getScreenCoordinate( touch.pageX, touch.pageY );
+          } ).concat([new Vec2D(0,0)]);
+        },
+        /**
+         * Get the distance between the fingers in screen pixels.
+         */
+        getTouchDistance = function( eventObject ) {
+          var touches = eventObject.originalEvent.touches,
+              dx      = touches[0].pageX - touches[1].pageX,
+              dy      = touches[0].pageY - touches[1].pageY;
+          return Math.sqrt( dx*dx + dy*dy );
+        },
+        // ****************************************************************** //
+        // ****************************************************************** //
+        // **                                                              ** //
+        // ** Drag handling                                                ** //
+        // **                                                              ** //
+        // ****************************************************************** //
+        // ****************************************************************** //
+        dragIndex = 0,
+        dragStart = function( mouseScreenPos, ctrlKey, shiftKey ) {
+          var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
+          lastScreenPos = mouseScreenPos.round(1);
+          prevScreenPos = lastScreenPos;
+          // ---------------
+          view.showMarker( view.screen2canvas( lastScreenPos ) );
+          // ---------------
           
+          var index = view.position2id( lastScreenPos ),
+              activeElement = index < elementList.length ? elementList[ index ][0] : undefined;
+              
+          $('#coords').text( lastScreenPos.print() + '<>' + view.screen2canvas(lastScreenPos).print() + ':' + index + ' (' + thisGLE.scale() + ') [' + ']' );
+
+          if( 0 === index || undefined === activeElement || activeElement.checkBadSelection( view.screen2canvas(lastScreenPos ), elementList[ index ][1], 2 ) )
+          {
+            selection.clear();
+            
+            dragIndex = 0;
+            return false; // no object found
+          }
+          
+          var newIndex = activeElement.prepareUpdate( elementList[ index ][1], index, view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
+          //console.log( 'down', index, newIndex, activeElement, elementList[ index ][1] );
+          elementList = thisGLE.fixmeGetElementList(); // FIXME TODO - nur hier um elementList zu aktuallisieren
+          index = newIndex;
+          activeElement = elementList[ index ][0]; // if index was changed...
+          
+          // move activeElement to the end of the array to draw it on the top
+          thisGLE.moveElementToTop( activeElement );
+          //console.log( 'da', activeElement.getDerivedActive() );
+          selection.clear( true );
+          selection.doSelection( activeElement, true );
+          
+          dragIndex = index;
+          view.invalidateContext();
+          return true;
+        },
+        
+        dragMove = function( mouseScreenPos, ctrlKey, shiftKey ) {
+          var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
+          var 
+            index         = dragIndex, //eventObject.data,
+            thisElem      = elementList[ index ],
+            //thisPos       = mouseCanvasPos.round(1),
+            thisPos       = view.screen2canvas(mouseScreenPos).round(1),
+            shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
+            //lowerIndex    = view.position2id( thisPos ),
+            lowerIndex    = view.position2id( mouseScreenPos ),
+            lowerElement  = elementList[lowerIndex];
+          
+          if( (!lowerElement) ||
+              (lowerElement.length && lowerElement[0].checkBadSelection( thisPos, lowerElement[1], 2 ) ) )
+                  lowerElement = [];
+                
+          var newIndex = (thisElem[0]).update( thisElem[1], thisPos, shortDeltaPos, lowerElement, shiftKey );
+          ////console.log( index, newIndex );
+          // check if the handler might have been changed during the update
+          if( newIndex !== undefined && newIndex !== index )
+          {
+            dragIndex = newIndex;
+          }
+          
+          // necessary? Causes currently double redraws...
+          view.invalidateForeground(); // redraw to fix Id map
+          
+          prevScreenPos = view.canvas2screen( thisPos );
+        },
+              
+        dragEnd = function() {
+          var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
+          var
+            index         = dragIndex,
+            thisElem      = elementList[ index ];
+          (thisElem[0]).finishUpdate( thisElem[1] );
+        
+          dragIndex = 0;
+          thisGLE.updateContentSize(); // e.g. the boundary has to be updated
+          view.invalidateContext(); // redraw to fix Id map
+        },
+        /**
+         * Alle the handlers and private variables for the pinch support
+         * that allows the user to zoom and pan.
+         */
+        pinch = (function() {
+          // The private variables that are hidden to the outside
+          var pinchLength, 
+              pinchStartScale,
+              contentPos, 
+              screenPos;
+          // The public methods, callable as "pinch.*()"
+          return {
+            start: function( eventObject ) {
+                pinchStartScale = thisGLE.scale();
+                pinchLength = getTouchDistance( eventObject );
+                var touches = getTouchScreenPos( eventObject );
+                contentPos = view.screen2canvas( touches[0].plus( touches[1] ).scale( 0.5 ) );// The middle between the fingers
+              },
+            move: function( eventObject ) {
+                var length  = getTouchDistance( eventObject ),
+                    ratio   = length / pinchLength,
+                    touches = getTouchScreenPos( eventObject );
+                screenPos   = touches[0].plus( touches[1] ).scale( 0.5 );    // The middle between the fingers
+                thisGLE.setZoom( pinchStartScale * ratio, contentPos, screenPos, true );
+              },
+            end: function() {
+                thisGLE.setZoom( thisGLE.scale(), contentPos, screenPos, false ); // finalize temporary zoom
+              }
+          };
+        })(),
+        //////////////////////////////////////////////////////////////////////////////////////// 
+        dummy;  // may be removed anytime - just to ease ',' and ';' handling during development
+        ////////////////////////////////////////////////////////////////////////////////////////
+      
+      ////////////////////////////////////////////////////////////////////////
       // public:
+        
+      // ****************************************************************** //
+      // ****************************************************************** //
+      // **                                                              ** //
+      // ** Key handling                                                 ** //
+      // **                                                              ** //
+      // ****************************************************************** //
+      // ****************************************************************** //
+        
+      /**
+       * Event handler for key pressing.
+       */
       this.keyPress = function( eventObject ) {
         // early exit to keep default
         switch( eventObject.keyCode )
@@ -73,19 +266,8 @@
             thisGLE.selectionMove( new Vec2D( 0, keyMoveDistance ) );
             break;
             
-          case 46: // delete
+          case 46: // key: delete
             thisGLE.selectionDelete();
-            /*
-            eventObject.preventDefault();
-            selection.forEach( function( thisElement ) {
-              blocks = blocks.filter( function( thisBlock ){
-                return thisBlock != thisElement;
-              } );
-              thisElement.delete();
-            } );
-            selection.clear(); // elements were deleted -> remove them from the selection...
-            self.invalidateHandlers();
-            */
             break;
             
           case 66: // key: b - zoom to 100%
@@ -113,9 +295,43 @@
         }
       };
         
+      // ****************************************************************** //
+      // ****************************************************************** //
+      // **                                                              ** //
+      // ** Mouse handling                                               ** //
+      // **                                                              ** //
+      // ****************************************************************** //
+      // ****************************************************************** //
+      
       /**
-        * Event handler for scrolling.
-        */
+       * Debug function: return a string that represents the current mouse
+       * state.
+       */
+      this.printMouseState = function() {
+        var ret = '[';
+        switch( mouseState )
+        {
+          case mouseStateNone:
+            ret += 0;
+            break;
+            
+          case mouseStateDrag:
+            ret += 1;
+            break;
+            
+          case mouseStatePinch:
+            ret += 2;
+            break;
+            
+          default:
+            ret += '?';
+        }
+        return ret + ']';
+      };
+      
+      /**
+       * Event handler for scrolling.
+       */
       this.scroll = function( eventObject ) {
         if( eventObject )
           eventObject.preventDefault();
@@ -123,9 +339,250 @@
         view.scroll();
       };
     
+      /**
+       * Event handler for mousedown.
+       */
+      this.mousedown = function( eventObject ) {
+        // check for double click
+        if( isDoubleClick( eventObject.timeStamp ) )
+          return false;
+        
+        contentCanvasPos = getMouseCanvasPos( eventObject );
+        if( eventObject.ctrlKey )
+        {
+            mouseState = mouseStatePinch;
+            lastScreenPos = new Vec2D( eventObject.pageX, eventObject.pageY );
+            lastScale = thisGLE.scale();
+            prevScreenPos = getMouseScreenPos( eventObject ); // abuse it a bit...
+        } else {
+          var
+            thisScreenPos = getMouseScreenPos( eventObject ),
+            thisElement   = thisGLE.position2element( thisScreenPos );
+          if( eventObject.shiftKey )   // Shift = add to selection
+          {
+            if( undefined !== thisElement &&
+                selection.isSelected( thisElement ) ) // already selected?
+            { // yes -> toggle away
+              selection.removeSelection( thisElement );
+            } else {
+              mouseState = mouseStateSelectDrag;
+              prevScreenPos = getMouseScreenPos( eventObject );
+              gesture.start( getMouseScreenPos( eventObject ), thisGLE.scale() );
+            }
+          } else {
+            if( dragStart( getMouseScreenPos( eventObject ), 
+                            eventObject.ctrlKey, 
+                            eventObject.shiftKey ) )
+              mouseState = mouseStateDrag;
+          }
+        }
+        //view.showKlick( view.screen2canvas( prevScreenPos ) );
+        
+        return false; // stopp propagation as well as bubbling
+      };
+
+      /**
+       * Event handler for mousemove.
+       */
+      this.mousemove = function( eventObject ) {
+        switch( mouseState )
+        {
+          case mouseStateNone:
+            return true;
+            
+          case mouseStateDrag:
+            //dragMove( getMouseCanvasPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+            dragMove( getMouseScreenPos( eventObject ), eventObject.ctrlKey, eventObject.shiftKey );
+            break;
+            
+          case mouseStateSelectDrag:
+            view.showSelectionArea( view.screen2canvas( prevScreenPos ), 
+                                    view.screen2canvas( getMouseScreenPos( eventObject ) ) );
+            if( gesture.update( getMouseScreenPos( eventObject ) ) ) {
+              // gesture detection sucessfull...
+              var 
+                gestureInfo = gesture.getInfo(),
+                dS = dragStart( gestureInfo.center, false, false ),
+                eL = [];
+              //getSelectionCandidatesInArea( gestureInfo.center, gestureInfo.radius, eL );
+              //console.log( gestureInfo.center.print(), gestureInfo.radius, dS, eL );
+              //mouseState = mouseStateDrag;
+            }
+            break;
+            
+          case mouseStatePinch:
+            var length   = lastScreenPos.copy().minus( new Vec2D( eventObject.pageX, eventObject.pageY ) ),
+                newScale = Math.abs( length.x + length.y ) / 200 + 1; // will allways be bigger than 0
+            if( (length.x + length.y) > 0 )
+              newScale = 1/newScale;
+            
+            if( eventObject.shiftKey ) { // only move
+              var deltaPos = (new Vec2D( eventObject.pageX, eventObject.pageY ) ).minus( lastScreenPos );
+              thisGLE.setZoom( lastScale, contentCanvasPos, deltaPos.plus(prevScreenPos), true ); // zoom with temporary = true
+              break;
+            }
+            
+            thisGLE.setZoom( newScale * lastScale, contentCanvasPos, prevScreenPos, true ); // zoom with temporary = true
+            break;
+        }
+        
+        return false; // stopp propagation as well as bubbling
+      };
       
+      /**
+       * Event handler for mouseup.
+       */
+      this.mouseup = function( eventObject ) {
+        switch( mouseState )
+        {
+          case mouseStateDrag:
+            dragEnd();
+            break;
+            
+          case mouseStateSelectDrag:
+            view.showSelectionArea( undefined ); // unshow selection rectangle
+            lastScreenPos = getMouseScreenPos( eventObject );
+            selection.selectArea( prevScreenPos, lastScreenPos );
+            break;
+            
+          case mouseStatePinch:
+            if( eventObject.shiftKey ) { // only move
+              var deltaPos = (new Vec2D( eventObject.pageX, eventObject.pageY ) ).minus( lastScreenPos );
+              thisGLE.setZoom( lastScale, contentCanvasPos, deltaPos.plus(prevScreenPos), false );
+            } else
+              thisGLE.setZoom( thisGLE.scale, contentCanvasPos, prevScreenPos, false );
+            break;
+        }
+        
+        mouseState = mouseStateNone;
+        
+        thisGLE.updateStateInfos();
+        
+        return false; // stopp propagation as well as bubbling
+      };
+      
+      // ****************************************************************** //
+      // ****************************************************************** //
+      // **                                                              ** //
+      // ** Touch handling                                               ** //
+      // **                                                              ** //
+      // ****************************************************************** //
+      // ****************************************************************** //
+      
+      /**
+       * Event handler for touchstart.
+       */
+      this.touchstart = function( eventObject ) {
+        // set the default:
+        mouseState = mouseStateNone;
+        
+        switch( eventObject.originalEvent.touches.length )
+        {
+          case 0:
+            mouseState = mouseStateNone;
+            break;
+            
+          case 1:
+            // check for double click
+            if( isDoubleClick( eventObject.timeStamp ) )
+              break;
+            
+            if( dragStart( getTouchScreenPos( eventObject )[0] ) )
+              mouseState = mouseStateDrag;
+            else {
+              mouseState = mouseStateSelectDrag;
+              prevScreenPos = getTouchScreenPos( eventObject )[0];
+              gesture.start( prevScreenPos, thisGLE.scale() );
+            }
+            break;
+            
+          case 2:
+            mouseState = mouseStatePinch;
+            pinch.start( eventObject );
+            break;
+        }
+        $('#coords').text( 'touchstart' + self.printMouseState() + eventObject.originalEvent.touches.length);
+        //getTouchPos( eventObject );
+        return false; // stopp propagation as well as bubbling
+      };
+      
+      /**
+       * Event handler for touchmove.
+       */
+      this.touchmove = function( eventObject ) {
+        switch( mouseState )
+        {
+          case mouseStateNone:
+            // FIXME: this allows (on purpose!) the scrolling of the main
+            // screen ==> might need to be removed in the final editor!
+            
+            // keep event propagating and bubbling
+            return eventObject.target.id !== 'canvas_fg';
+            
+          case mouseStateDrag:
+            //dragMove( view.screen2canvas( getTouchScreenPos( eventObject )[0] ) );
+            dragMove( getTouchScreenPos( eventObject )[0] );
+            break;
+            
+          case mouseStateSelectDrag:
+            lastScreenPos = getTouchScreenPos( eventObject )[0]; // store as TouchUp doesn't have corrdinates anymore
+            view.showSelectionArea( view.screen2canvas( prevScreenPos ),
+                                    view.screen2canvas( lastScreenPos ) );
+            gesture.update( getTouchScreenPos( eventObject )[0] ); // FIXME TEMP
+            break;
+            
+          case mouseStatePinch:
+            pinch.move( eventObject );
+            break;
+        }
+        
+        return false; // stopp propagation as well as bubbling
+      };
+      
+      /**
+       * Event handler for touchend.
+       */
+      this.touchend = function( eventObject ) {
+        switch( mouseState )
+        {
+          case mouseStateDrag:
+            dragEnd();
+            break;
+            
+          case mouseStateSelectDrag:
+            view.showSelectionArea( undefined ); // unshow selection rectangle
+            selection.selectArea( prevScreenPos, lastScreenPos );
+            break;
+            
+          case mouseStatePinch:
+            pinch.end();
+            break;
+        }
+        
+        thisGLE.updateStateInfos();
+        
+        // finger has left => do a new cycle, mouseState will be set there
+        return self.touchstart( eventObject );
+      };
+      
+      /**
+       * Event handler for the touchcancel.
+       * Set state to none as after a cancel the iPad needs a restart anyway.
+       */
+      this.touchcancel = function( eventObject ) {
+        if( mouseState === mouseStateDrag )
+          dragEnd();
+        
+        thisGLE.updateStateInfos();
+        
+        mouseState = mouseStateNone;
+        return false; // stopp propagation as well as bubbling
+      };
+  
+      //////////////////// TODO - only for temporary debugging //////////////// 
+      this.showGesture = function(scale){ gesture.show( view, scale ); };
     };
-      
+    
   // fill the prototype public methods of Gesture:
   Inputevent.prototype.toString = function() { return '[object Inputevent]'; };
       
