@@ -477,7 +477,7 @@
     /**
       * Update the position of the index.
       */
-    this.update = function( index, newPos, shortDeltaPos, lowerElement, shiftKey )
+    this.update = function( index, newPos, shortDeltaPos, lowerHandler, shiftKey )
     {
       //console.log( 'Connection Update:', this, index, newPos, shortDeltaPos);
       //console.log( 'Connection Update:', /*this,*/ index, self.waypoints.length, newPos.print(), shortDeltaPos.print(), this.candidates.appendEnd);
@@ -497,34 +497,34 @@
             
         if( this.candidates.appendEnd )
         {
-          if( lowerElement.length && lowerElement[0].getInCoordinates )
+          if( lowerHandler.length && lowerHandler[0].getInCoordinates )
           {
-            var res = lowerElement[0].getInCoordinates(lowerElement[1]);
+            var res = lowerHandler[0].getInCoordinates(lowerHandler[1]);
             if( res )
             {
               thisPos = res[0];
               endPos  = res[1];
-              this.end = { block: lowerElement[0], portNumber: res[2] };
+              this.end = { block: lowerHandler[0], portNumber: res[2] };
             }
           } else {
             this.end = undefined;
           }
         } else {
-          if( lowerElement.length && lowerElement[0].getOutCoordinates )
+          if( lowerHandler.length && lowerHandler[0].getOutCoordinates )
           {
-            var res = lowerElement[0].getOutCoordinates(lowerElement[1]);
+            var res = lowerHandler[0].getOutCoordinates(lowerHandler[1]);
             if( res )
             {
               thisPos = res[1];
               endPos  = res[0];
-              this.start = { block: lowerElement[0], portNumber: res[2] };
+              this.start = { block: lowerHandler[0], portNumber: res[2] };
             }
           } else {
             this.start = undefined;
           }
         }
         
-        //console.log( 'move candidates', self.candidates.direction, thisPos, endPos, lowerElement );
+        //console.log( 'move candidates', self.candidates.direction, thisPos, endPos, lowerHandler );
         self.getCandidate( thisPos, endPos, shiftKey );
         return;
       }

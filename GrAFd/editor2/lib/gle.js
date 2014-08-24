@@ -32,7 +32,7 @@
       scaleID       = 0,   // running number to make sure that no multiple animations are running
       scaleTarget   = 1,   // zoomlevel to animate to
       $canvasContainer,    // jQ object containing the canvases and the scroll bars
-      elementList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
+      handlerList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
       activeElements = [], // The active elements, i.e. the one on the Fg
  
       /**
@@ -53,7 +53,7 @@
            */
           getBoundingBox = function( elements ) {
             if( undefined === elements )
-              elements = elementList.map( function(a){return a[0];} );
+              elements = handlerList.map( function(a){return a[0];} );
             
             var firstElement = elements.shift();
             if( undefined === firstElement )  // when all elements are passed the fist is undefined as it is a placeholder for the background
@@ -155,23 +155,23 @@
         
         /**
          * Register a handler.
-         * @param handler Object
+         * @param element Object
          * @param data    Object
          * @return ID
          */
-        this.registerHandler = function( handler, data ) {
-          elementList.push( [ handler, data ] );
-          return (elementList.length - 1) | 0;
+        this.registerHandler = function( element, data ) {
+          handlerList.push( [ element, data ] );
+          return (handlerList.length - 1) | 0;
         };
         this.unregisterHandler = function( id ) {
-          //console.log( 'unregisterHandler', id, elementList );
+          //console.log( 'unregisterHandler', id, handlerList );
         };
         /**
          * Mark all handlers invalid and force a reregistration.
          */
         this.invalidateHandlers = function()
         {
-          elementList = [[]]; // empty list first
+          handlerList = [[]]; // empty list first
           blocks.forEach( function( thisBlock, b ) {
             thisBlock.reregisterHandlers();
           } );
@@ -316,10 +316,10 @@
           }
           pos1screen = view.screen2canvas( minScreenPos ),
           pos2screen = view.screen2canvas( maxScreenPos );
-          indices = view.area2id( minScreenPos, maxScreenPos, 1, elementList.length );
+          indices = view.area2id( minScreenPos, maxScreenPos, 1, handlerList.length );
           for( var i = 0; i < indices.length; i++ )
           {
-            var thisElement = elementList[ indices[i] ][0];
+            var thisElement = handlerList[ indices[i] ][0];
             
             // Set() type of insert:
             if( !thisElement.checkAreaBadSelection( pos1screen, pos2screen ) &&
@@ -330,14 +330,14 @@
         };
         
         /**
-         * Return the element at the given screen position.
+         * Return the handler at the given screen position.
          * When it is empty (i.e. the background) undefined will be returned.
          */
-        this.position2element = function( thisScreenPos ) {
+        this.position2handler = function( thisScreenPos ) {
           var 
             index       = view.position2id( thisScreenPos ),
-            validObject = (index > 0) && (index < elementList.length);
-          return validObject ? elementList[ index ][0] : undefined;
+            validObject = (index > 0) && (index < handlerList.length);
+          return validObject ? handlerList[ index ] : [];
         };
         
         // ****************************************************************** //
@@ -468,10 +468,10 @@
                 maxScreenPos  = prevScreenPos.copy().cmax( lastScreenPos ),
                 minPos        = view.screen2canvas( minScreenPos ),
                 maxPos        = view.screen2canvas( maxScreenPos ),
-                indices = view.area2id( minScreenPos, maxScreenPos, 1, elementList.length );
+                indices = view.area2id( minScreenPos, maxScreenPos, 1, handlerList.length );
               for( var i = 0; i < indices.length; i++ )
               {
-                var thisElement = elementList[ indices[i] ][0];
+                var thisElement = handlerList[ indices[i] ][0];
                 
                 // Set() type of insert:
                 if( !thisElement.checkAreaBadSelection( minPos, maxPos ) &&
@@ -515,7 +515,7 @@
         this.blob = function() { 
           ctxBg.save();
           ctxBg.setTransform( 1, 0, 0, 1, 0.5, 0.5 );
-          ctxBg.drawImage( idBuffer, 0, 0 ); console.log(elementList);
+          ctxBg.drawImage( idBuffer, 0, 0 ); console.log(handlerList);
           ctxBg.restore();
           var msg = { source: new Vec2D(10,10), target: new Vec2D(400,400), blocked: [] };
           blocks.forEach( function( thisBlock ) {
@@ -561,7 +561,7 @@
             console.log( 'FIXME - implement gesture.show' );  // FIXME TODO
         };
         this.scale = function(){ return scale; };
-        this.fixmeGetElementList = function(){ return elementList; };
+        this.fixmeGetElementList = function(){ return handlerList; };
         this.moveElementToTop = function( thisElement ) {
           blocks = blocks.filter( function( thisBlock ){
             return thisBlock != thisElement;
