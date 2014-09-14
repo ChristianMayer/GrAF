@@ -154,14 +154,25 @@
         };
         
         /**
+         * Handler object definition.
+         */
+        this.Handler = function( id, element, data ) {
+          this.id = id;
+          this[0] = element;
+          this[1] = data;
+        };
+        /**
          * Register a handler.
          * @param element Object
          * @param data    Object
          * @return ID
          */
         this.registerHandler = function( element, data ) {
-          handlerList.push( [ element, data ] );
-          return (handlerList.length - 1) | 0;
+          //handlerList.push( [ element, data ] );
+          //return (handlerList.length - 1) | 0;
+          var newHandler = new self.Handler( handlerList.length, element, data );
+          handlerList.push( newHandler );
+          return newHandler;
         };
         this.unregisterHandler = function( id ) {
           //console.log( 'unregisterHandler', id, handlerList );
@@ -337,7 +348,8 @@
           var 
             index       = view.position2id( thisScreenPos ),
             validObject = (index > 0) && (index < handlerList.length);
-          return validObject ? handlerList[ index ] : [];
+            //console.log( 'p2h', index, validObject );
+          return validObject ? handlerList[ index ] : undefined;//[];
         };
         
         // ****************************************************************** //
@@ -494,7 +506,7 @@
           self.selection.forEach( function( thisElement ) {
             thisElement.update( undefined, undefined, direction );
           } );
-          self.invalidateForeground();
+          self.invalidateContext(); // context to force index redraw
         };
         
         /**

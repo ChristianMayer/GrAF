@@ -375,7 +375,7 @@
         m    = (5 * scale)|0; // the port marker (half-)size
       
       // draw shape to index map
-      //if( !isDrawFg )
+      if( !isDrawFg )
       {
         view.prepareHandlerDrawing( handlers[ 0 ] );
         index && index.fillRect( p.x, p.y, s.x, s.y );
