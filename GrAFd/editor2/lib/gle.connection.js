@@ -143,9 +143,9 @@
       context.beginPath();
       index && index.beginPath();
       var oldIndexPos,
-          waypoints = this.candidates.appendEnd 
-                      ? this.waypoints.concat( this.candidates.waypoints )
-                      : this.candidates.waypoints.slice().reverse().concat( this.waypoints ),
+          waypoints = self.candidates.appendEnd 
+                      ? self.waypoints.concat( self.candidates.waypoints )
+                      : self.candidates.waypoints.slice().reverse().concat( self.waypoints ),
           wpHalfsize = (thisGLE.settings.drawSizeHandle * scale)|0,
           wpSize     = 2 * wpHalfsize + 1;
       
@@ -180,7 +180,8 @@
           index.stroke();
       */
         }
-        view.prepareHandlerDrawing( thisPoint.lineHandler );
+        if( thisPoint.lineHandler )
+          view.prepareHandlerDrawing( thisPoint.lineHandler );
       });
       index && index.stroke();
       context.stroke();
@@ -206,7 +207,7 @@
       context.restore();
       
       // draw waypoints to index map
-      index && this.waypoints.forEach( function drawWaypointHandler_PROFILENAME(thisPoint, i ){
+      !isDrawFg && index && self.waypoints.forEach( function drawWaypointHandler_PROFILENAME(thisPoint, i ){
         var tP = thisPoint.copy().scale( scale ).round(1);
         view.drawHandler( tP, thisPoint.handler, focus );
       } );
@@ -300,7 +301,8 @@
       this.candidates.waypoints = [ startPos ];
       this.candidates.direction = direction;
       this.candidates.appendEnd = appendEnd;
-      this.getCandidate( endPos, endPos );
+      if( endPos )
+        this.getCandidate( endPos, endPos );
       return this.GLE.registerHandler( this, this.waypoints.length );
     };
     
@@ -497,7 +499,8 @@
             
         if( this.candidates.appendEnd )
         {
-          if( lowerHandler.length && lowerHandler[0].getInCoordinates )
+          //console.log('appendEnd' /*,lowerHandler.length && lowerHandler[0].getInCoordinates, /*lowerHandler.length*/,lowerHandler, !!lowerHandler );
+          if( lowerHandler && lowerHandler[0].getInCoordinates )
           {
             var res = lowerHandler[0].getInCoordinates(lowerHandler[1]);
             if( res )
@@ -510,7 +513,7 @@
             this.end = undefined;
           }
         } else {
-          if( lowerHandler.length && lowerHandler[0].getOutCoordinates )
+          if( lowerHandler && lowerHandler[0].getOutCoordinates )
           {
             var res = lowerHandler[0].getOutCoordinates(lowerHandler[1]);
             if( res )

@@ -114,8 +114,8 @@
                 // ---------------
                 
                 dragHandler = thisGLE.position2handler( lastScreenPos );
-                    
-                if( undefined === dragHandler[0] || dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) )
+                    console.log( 'drag', dragHandler );
+                if( undefined === dragHandler || dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) )
                 {
                   selection.clear();
                   
@@ -123,12 +123,15 @@
                   return false; // no object found
                 }
                 
+                var index = undefined;
                 var newIndex = dragHandler[0].prepareUpdate( dragHandler[1], index, view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
                 var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO - nur hier um elementList zu aktuallisieren
                 if( newIndex !== undefined )
-                  dragHandler = elementList[ newIndex ];
+                  //dragHandler = elementList[ newIndex ];
+                  dragHandler = newIndex;
                 
                 // move activeElement to the end of the array to draw it on the top
+                console.log( dragHandler, newIndex );
                 thisGLE.moveElementToTop( dragHandler[0] );
                 selection.clear( true );
                 selection.doSelection( dragHandler[0], true );
@@ -143,16 +146,19 @@
                   thisPos       = view.screen2canvas(mouseScreenPos).round(1),
                   shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
                   lowerHandler  = thisGLE.position2handler( mouseScreenPos );
-                
+                  
                 if( (!lowerHandler) ||
                     (lowerHandler.length && lowerHandler[0].checkBadSelection( thisPos, lowerHandler[1], 2 ) ) )
-                        lowerHandler = [];
+                        lowerHandler = undefined;//[];
                       
                 var newIndex = (dragHandler[0]).update( dragHandler[1], thisPos, shortDeltaPos, lowerHandler, shiftKey );
                 // check if the handler might have been changed during the update
+                //console.log( 'drag move', dragHandler, newIndex );
                 if( newIndex !== undefined && newIndex !== dragHandler[1] )
                 {
-                  dragHandler[1] = elementList[newIndex][1];
+                  //dragHandler[1] = elementList[newIndex][1];
+                  //dragHandler = elementList[newIndex];
+                  dragHandler = newIndex;
                 }
                 
                 // necessary? Causes currently double redraws...
@@ -346,7 +352,8 @@
         } else {
           var
             thisScreenPos = getMouseScreenPos( eventObject ),
-            thisElement   = thisGLE.position2handler( thisScreenPos )[0];
+            thisHandler   = thisGLE.position2handler( thisScreenPos ),
+            thisElement   = thisHandler ? thisHandler[0] : undefined;
           if( eventObject.shiftKey )   // Shift = add to selection
           {
             if( undefined !== thisElement &&

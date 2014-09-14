@@ -40,6 +40,7 @@
         cancelAnimationFrame  = window.cancelAnimationFrame || window.mozCancelAnimationFrame ||
                                 window.webkitCancelAnimationFrame || window.msCancelAnimationFrame,
         cssTransform          = 'transform', // to be overwritten by the browser test
+        $canvasContainerOffset = $canvasContainer.offset(),
         viewOffset    = new Vec2D(0,0), // offset of the viewport, i.e. bascially the scroll of the drawingPlane
         screenSize    = new Vec2D(0,0), // size that is visible
         drawSize      = new Vec2D(0,0), // size of the draw area
@@ -122,6 +123,7 @@
         position2id = function( thisScreenPos ) {
           makeIdDataValid();
           var idxPos = (4*(Math.round(thisScreenPos.x*scaleInternal) + drawSize.x * Math.round(thisScreenPos.y*scaleInternal)))|0;
+          //console.log( idxPos, idData[ idxPos ], idData[ idxPos+1 ], idData[ idxPos+2 ] );
           return ( (idData[ idxPos ] << 16) + (idData[ ++idxPos ] << 8) + idData[ ++idxPos ] )|0;
         },
         /**
@@ -275,8 +277,8 @@
      * Return Vec2D in screen coordinated for given page coordinates
      */
     this.getScreenCoordinate = function( pageX, pageY ) {
-      var offset = $canvasContainer.offset();
-      return new Vec2D( pageX - offset.left, pageY - offset.top );
+      return new Vec2D( pageX - $canvasContainerOffset.left, 
+                        pageY - $canvasContainerOffset.top );
     };
     
     /**
@@ -295,8 +297,8 @@
     /**
       * Setup index buffer to allow objects to draw themselfes.
       */
-    this.prepareHandlerDrawing = function( id ) {
-      ctxId.fillStyle = ctxId.strokeStyle = id2color( id | 0 );
+    this.prepareHandlerDrawing = function( handler ) {
+      ctxId.fillStyle = ctxId.strokeStyle = id2color( handler.id | 0 );
       ctxId.lineWidth = thisGLE.settings.toleranceLine;
     };
     
@@ -305,7 +307,7 @@
       * is true the handler will be visible and at the foreground as well.
       * @param pos Vec2D
       */
-    this.drawHandler = function( pos, id, active ) {
+    this.drawHandler = function( pos, handler, active ) {
       var thisScale  = scale * scaleInternal,
           halfSizeFg = (thisGLE.settings.drawSizeHandleActive * thisScale)|0,
           fullSizeFg = 1 + 2 * halfSizeFg,
@@ -319,7 +321,7 @@
       }
       
       ctxId.lineWidth = 1;
-      ctxId.fillStyle = id2color( id | 0 );
+      ctxId.fillStyle = id2color( handler.id | 0 );
       ctxId.fillRect( pos.x - halfSizeId, pos.y - halfSizeId, fullSizeId, fullSizeId );
       ctxId.strokeRect( pos.x - halfSizeId, pos.y - halfSizeId, fullSizeId, fullSizeId );
     }
@@ -592,6 +594,7 @@
      */
     this.resizeView = function() {
       console.log( 'running "resizeView()"');
+      $canvasContainerOffset = $canvasContainer.offset();
       screenSize        = new Vec2D( $canvasContainer[0].clientWidth, $canvasContainer[0].clientHeight );
       var
         devicePixelRatio  = window.devicePixelRatio || 1,
