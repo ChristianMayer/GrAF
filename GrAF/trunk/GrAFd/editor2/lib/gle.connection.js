@@ -20,7 +20,7 @@
  */
  
 // create a local context:
-(function( window, undefined ) {
+define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   "use strict";
   
   // Constructor
@@ -671,12 +671,5 @@
     return this;
   };
   
-  // create namespace if necessary
-  if( undefined === window._GLE )
-    window._GLE = {};
-  
-  if( undefined !== window._GLE.Connection )
-    throw 'Error: "Connection" already in "_GLE" namespace!';
-  
-  window._GLE.Connection = Connection;
-})( window );
+  return Connection;
+});

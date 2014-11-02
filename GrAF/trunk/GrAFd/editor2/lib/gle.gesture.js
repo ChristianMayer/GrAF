@@ -33,7 +33,7 @@
 // it. Not as perfect - but memory efficient and good enough.
 
 // create a local context:
-(function( window, undefined ) {
+define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   "use strict";
   
   // private variables:
@@ -244,13 +244,6 @@
       
   // fill the prototype public methods of Gesture:
   Gesture.prototype.toString = function() { return '[object Gesture]'; };
-      
-    // create namespace if necessary
-  if( undefined === window._GLE )
-    window._GLE = {};
-  
-  if( undefined !== window._GLE.gesture )
-    throw 'Error: "gesture" already in "_GLE" namespace!';
-  
-  window._GLE.gesture = Gesture;
-})( window );
+    
+  return Gesture;  
+});

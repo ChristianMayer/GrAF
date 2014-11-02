@@ -20,7 +20,7 @@
  */
  
 // create a local context:
-(function( window, undefined ) {
+define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   "use strict";
   
   // Constructor
@@ -462,12 +462,5 @@
     return '[object GLE:block]';
   };
   
-  // create namespace if necessary
-  if( undefined === window._GLE )
-    window._GLE = {};
-  
-  if( undefined !== window._GLE.block )
-    throw 'Error: "block" already in "_GLE" namespace!';
-  
-  window._GLE.block = block;
-})( window );
+  return block;
+});

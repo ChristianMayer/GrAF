@@ -20,7 +20,7 @@
  */
 
 // create a local context:
-(function( window, undefined ) {
+define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) {
   "use strict";
   
   // module private variables:
@@ -34,7 +34,7 @@
       var 
         self = this,
         view = thisGLE.view(),
-        gesture = new _GLE.gesture( thisGLE ),
+        gesture = new Gesture( thisGLE ),
         selection = thisGLE.selection,
         lastScreenPos,      // the beginning coordinates of a mouse drag
         lastScale,          // the beginning scale during a mouse drag
@@ -580,12 +580,5 @@
   // fill the prototype public methods of Gesture:
   Inputevent.prototype.toString = function() { return '[object Inputevent]'; };
       
-    // create namespace if necessary
-  if( undefined === window._GLE )
-    window._GLE = {};
-  
-  if( undefined !== window._GLE.inputevent )
-    throw 'Error: "inputevent" already in "_GLE" namespace!';
-  
-  window._GLE.inputevent = Inputevent;
-})( window );
+  return Inputevent;
+});
