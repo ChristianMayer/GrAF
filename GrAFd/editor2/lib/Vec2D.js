@@ -29,7 +29,7 @@
  * If the source mustn't be changed, use the copy() method.
  */ 
 // create a local context:
-(function( window, undefined ) {
+define( function( undefined ) {
   "use strict";
 
   var Vec2D = function( optionalX, optionalY ) {
@@ -205,13 +205,10 @@
     return this;
   };
   
-  if( undefined !== window.Vec2D )
-  {
-    throw 'Error: Object named "Vec2D" already exists!';
-  } else {
-    window.Vec2D = Vec2D;
-  }
+  return Vec2D;
+});
   
+define( function(){
   //////////////////////////////////////////////////////////////////////////////
   // Line                                                                     //
   //////////////////////////////////////////////////////////////////////////////
@@ -287,10 +284,5 @@
     */
   }
 
-  if( undefined !== window.Line )
-  {
-    throw 'Error: Object named "Line" already exists!';
-  } else {
-    window.Line = Line;
-  }
-})( typeof window === 'undefined' ? self : window );
+  return Line;
+});

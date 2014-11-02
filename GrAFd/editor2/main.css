@@ -1,0 +1,135 @@
+    body {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      -khtml-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+    }
+    
+    .scrollbox {
+      overflow: scroll;
+    }
+    
+    #drawingplane {
+      overflow:hidden;
+      background:#ddd url('data:image/gif;base64,R0lGODlhFAAUAIABAP///wAAACH5BAEKAAEALAAAAAAUABQAAAIojI+gy+jBInhJLnrsxVBP7n1YyHVaSYKhh7Lq+VotPLo1TaW3HEtlAQA7')
+    }
+    
+/*
+    #klick {
+      width:10px;height:10px;border:1px solid red;position:absolute;
+    }
+    #klack {
+      width:12px;height:12px;border:1px solid green;position:absolute;
+    }
+    
+    .button {
+      border: 1px solid black;
+      padding: 1px;
+      font-size: 12px;
+    }
+    
+    #props {
+      border:1px solid black;
+    }
+    #topinfo, #props table {
+      font-family: arial;
+      font-size: 9px;
+      border-collapse:collapse;
+    }
+    #props th {
+      color: black;
+      background-color: #aaa;
+    }
+    #props .propRow0 {
+      background-color: #eee;
+      border: none;
+    }
+    #props .propRow1 {
+      background-color: #ddd;
+      border: none;
+    }
+    #props th, #props td {
+      border: 1px solid #666;
+      padding: 2px;
+    }
+    */
+    
+/* +++++++++++ */
+body, html { 
+  width:100%; 
+  height:100%; 
+  margin:0; 
+  padding:0; 
+  overflow:hidden; 
+  font-family: sans-serif;
+  font-size: 14px;
+}
+
+#menu {
+  border-bottom: 1px solid black;
+  height: 25px;
+  box-shadow: 0px 5px 10px rgba(0,0,0,.2);
+}
+
+.sf-menu a {
+  padding: 0.25em 0.75em;
+}
+
+#main {
+  overflow: hidden;
+  position: absolute;
+  width: 100%;
+  top: 26px;
+  bottom: 50px;
+}
+
+#canvascontainer {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+#nav {
+  border-right: 1px solid black;
+  box-shadow: 5px 0px 10px rgba(0,0,0,.2);
+  position: absolute;
+  width: 200px;
+  height: 100%;
+  float: left;
+  z-index: 200;
+  background-color: white;
+}
+
+#lib {
+  border-left: 1px solid black;
+  box-shadow: -5px 0px 10px rgba(0,0,0,.2);
+  position: absolute;
+  width: 200px;
+  height: 100%;
+  right: 0px;
+  float: right;
+  z-index: 200;
+  background-color: white;
+}
+
+#foot {
+  border-top: 1px solid black;
+  padding: 2px;
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 50px;
+  box-sizing: border-box;
+  font-family: monospace;
+  
+  -webkit-touch-callout: text;
+  -webkit-user-select: text;
+  -khtml-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;  
+}

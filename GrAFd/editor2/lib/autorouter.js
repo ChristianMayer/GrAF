@@ -25,6 +25,10 @@
  * Also look at http://cc.ee.ntu.edu.tw/~ywchang/Courses/PD/EDA_routing.pdf
  */
 
+importScripts( '../dependencies/require-2.1.15.js' );
+
+require( ['Vec2D'], function( Vec2D ){
+  
 "use strict";
 
 var lineStep = 10,
@@ -40,8 +44,6 @@ if( undefined === console.log )
 var makeTrueArray = function( obj ) {
   return Array.prototype.slice.call( obj );
 };
-
-importScripts( 'Vec2D.js' );
 
 /**
  * Get the value of a pixel
@@ -120,3 +122,5 @@ onmessage = function( event ) {
  // console.log( data );
   //postMessage("Hi " + oEvent.data);
 };
+
+});

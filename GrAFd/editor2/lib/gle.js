@@ -20,7 +20,10 @@
  */
 
 // create a local context:
-(function( window, undefined ) {
+define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
+         'lib/gle.gesture', 'lib/gle.inputevent', 'lib/gle.view' ], 
+  function( Vec2D,    Settings,           Block,           Connection,
+          Gesture,          Inputevent,           View ) {
   "use strict";
   
   // private variables:
@@ -85,7 +88,7 @@
         /**
          * Get the user tuneable settings.
          */
-        this.settings = new window._GLE.settings();
+        this.settings = new Settings();
         
         /**
          * Make view visible to the outside. - FIXME DEBUG
@@ -98,7 +101,7 @@
          * Create and register a new block.
          */
         this.addBlock = function() {
-          var thisBlock = new _GLE.block( self );
+          var thisBlock = new Block( self );
           blocks.push( thisBlock );
           view.invalidateContext();
           return thisBlock;
@@ -108,7 +111,7 @@
          * Create and register a new connection.
          */
         this.addConnection = function( parameters ) {
-          var thisConnection = new _GLE.Connection( self, parameters );
+          var thisConnection = new Connection( self, parameters );
           blocks.push( thisConnection );
           view.invalidateContext();
           return thisConnection;
@@ -586,8 +589,8 @@
         
         // Constructor
         $canvasContainer = passedCanvasContainer;
-        view = new window._GLE.view( passedCanvasContainer, this );
-        var inputevent = new _GLE.inputevent( self );
+        view = new View( passedCanvasContainer, this );
+        var inputevent = new Inputevent( self );
         /*
         view.getForeground().on( 'mousedown',  this.mousedown ); 
         view.getForeground().on( 'touchstart', this.mousedown );
@@ -647,6 +650,7 @@
         $(window).on( 'resize',     this.resize    );
       };
       
+  /*
   // fill the prototype public methods of GLE:
   GLE.prototype.toString = function() { return '[object GLE]'; };
       
@@ -659,4 +663,6 @@
       window.GLE = new GLE( $('#canvascontainer') );
     });
   }
-})( window );
+  */
+  return new GLE( $('#canvascontainer') );
+});

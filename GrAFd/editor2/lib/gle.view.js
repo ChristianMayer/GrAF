@@ -22,7 +22,7 @@
  */
  
 // create a local context:
-(function( window, undefined ) {
+define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   "use strict";
   
   // Constructor
@@ -718,17 +718,9 @@
     self.resizeView(); // sets also 'width' and 'height'
   };
   
-  
   view.prototype.toString = function(){
     return '[object GLE:block]';
   };
   
-  // create namespace if necessary
-  if( undefined === window._GLE )
-    window._GLE = {};
-  
-  if( undefined !== window._GLE.view )
-    throw 'Error: "view" already in "_GLE" namespace!';
-  
-  window._GLE.view = view;
-})( window );
+  return view;
+});
