@@ -93,7 +93,7 @@ body, html {
   bottom: 0;
 }
 
-#nav {
+#nav_area {
   border-right: 1px solid black;
   box-shadow: 5px 0px 10px rgba(0,0,0,.2);
   position: absolute;
@@ -104,7 +104,47 @@ body, html {
   background-color: white;
 }
 
-#lib {
+#nav {
+  height: 100%;
+  position: absolute;
+  right: 6px;
+  left: 0px;
+}
+
+#nav_handle {
+  float: right;
+  right: 0;
+}
+
+.vhandle {
+  height: 100%;
+  width: 6px;
+  position: absolute;
+  /*top: 50%;
+  bottom: 50%;*/
+  background-image: url("media/vertical_handle.png");
+  background-position-x: 2px;
+  background-repeat: repeat-y;
+  top: 0;
+  cursor:ew-resize;
+}
+
+.vhandle:hover {
+  background-color: #ccc;
+}
+
+#nav_handle > img {
+  border: 1px solid black;
+  padding: 1px;
+  box-shadow: 2px 2px 4px rgba(0,0,0,.2);
+}
+
+#lib_handle {
+  float: left;
+  left: 0;
+}
+
+#lib_area {
   border-left: 1px solid black;
   box-shadow: -5px 0px 10px rgba(0,0,0,.2);
   position: absolute;
@@ -114,6 +154,13 @@ body, html {
   float: right;
   z-index: 200;
   background-color: white;
+}
+
+#lib {
+  height: 100%;
+  position: absolute;
+  left: 6px;
+  right: 0px;
 }
 
 #foot {

@@ -53,11 +53,12 @@ require.config({
     'jquery':      'dependencies/jquery-2.1.1',
     'jquery-i18n': 'dependencies/jquery.i18n',
     'jquery-ui':   'dependencies/jquery-ui-1.11.2.custom/jquery-ui',
-    'jstree':      'dependencies/jstree-3.0.8/dist/jstree.min',
+    'jstree':      'dependencies/jstree-3.0.8/dist/jstree',
     'superfish':   'dependencies/superfish-master/src/js/superfish'
   },
   'shim': {
     'jquery-i18n': ['jquery'],
+    //'jstree':      ['jquery'], // needed?!?
     'superfish':   ['jquery']
   },
   locale: window.urlParameter['lang'] ? window.urlParameter['lang'][0] : ''
@@ -69,7 +70,7 @@ require.config({
 //
 
 require([ 'i18n!nls/strings', 'jquery', 'lib/gle', 'lib/Vec2D', 'jquery-i18n','jquery-ui', 'jstree', 
-          'superfish','i18n!nls/strings'],
+          'superfish'],
 function( i18nStrings,        $, GLE,Vec2D,a1,a2,a3,a4,a5,a6,a7,a8 ) {
   "use strict";
 console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
@@ -126,7 +127,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     }
     
     // and insert is as a new node to the nav tree
-    $('#nav').jstree().create_node( '#', {
+    $('#navtree').jstree(true).create_node( '#', {
       'text': name,
       'type': 'file',
       'children': mapSub2Tree( content )
@@ -173,7 +174,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
 
   function setupNav()
   {
-    $('#nav')
+    $('#navtree')
       .on('changed.jstree', onNavTreeChanged )
       .jstree({
         'core': {
@@ -209,14 +210,22 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   }
 
   $(document).ready( function(){
+    function toggleNavArea(){
+      $('#nav_area').toggle('slide');
+    }
+    function toggleLibArea(){
+      $('#lib_area').toggle('slide',{ direction: "right" });
+    }
+    $('#nav_handle').click( toggleNavArea );
+    $('#lib_handle').click( toggleLibArea );
     var
       nop = function(){},
       col = function(a,b,c){console.log(this,a,b,c);},
       menubar = [
         ['File', col],
         ['Edit', col, {disable:true}],
-        ['Struktur', function(){$('#nav').toggle('slide')}, ],
-        ['Bibliothek', function(){$('#lib').toggle('slide',{ direction: "right" })}, ],
+        ['Struktur', toggleNavArea ],
+        ['Bibliothek', toggleLibArea ],
         ['bla',  [
           ['blub', [
             ['File', nop],
