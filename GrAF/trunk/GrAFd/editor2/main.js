@@ -150,6 +150,16 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       b.setInPorts(  block.inPorts.map(  function(p){ return p.name; } ) );
       b.setOutPorts( block.outPorts.map( function(p){ return p.name; } ) );
     }
+    system.signals && system.signals.forEach( function(con){
+      var
+        param = {
+          start: { block: GLE.getBlockByName(con[0]), portNumber: con[1] },
+          end:   { block: GLE.getBlockByName(con[2]), portNumber: con[3] },
+          waypoints: con[4].waypoints || []
+        };
+      GLE.addConnection( param );
+    });
+    GLE.invalidateHandlers();
   }
   
   /////////////////////////////////////////////////////////////////////
@@ -371,7 +381,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       //console.log('got lib');
       addLib( '', data );
     }).error( function(a,b,c,d){
-      console.error( 'Libaray load error:', a,b,c,d, this );
+      console.error( 'Libaray load error: "' + b + '": "' + c.message + '"' );
     });
     $.getJSON( 'demo_logic1.js', function(data) {
       //console.log('got file 1');
