@@ -102,6 +102,12 @@ body, html {
   float: left;
   z-index: 200;
   background-color: white;
+  -webkit-transform: translate3d( 0, 0, 0 );
+  transform: translate3d( 0, 0, 0 );
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
 }
 
 /*
@@ -162,6 +168,12 @@ body, html {
   float: right;
   z-index: 200;
   background-color: white;
+  -webkit-transform: translate3d( 0, 0, 0 );
+  transform: translate3d( 0, 0, 0 );
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  -webkit-perspective: 1000;
+  perspective: 1000;
 }
 
 #lib {
