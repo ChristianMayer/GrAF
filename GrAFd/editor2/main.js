@@ -332,9 +332,27 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   }
 
   $(document).ready( function(){
-    function toggleNavArea(){
-      $('#nav_area').toggle('slide');
-    }
+    var 
+      toggleNavArea = (function(){
+        var isOpen = true;
+        return function() {
+          if( isOpen )
+            $('#nav_area').animate( { left: 6-200 } );
+          else
+            $('#nav_area').animate( { left: 0     } );
+          isOpen = !isOpen;
+        };
+      })(),
+      toggleLibArea = (function(){
+        var isOpen = true;
+        return function() {
+          if( isOpen )
+            $('#lib_area').animate( { right: 6-200 } );
+          else
+            $('#lib_area').animate( { right: 0     } );
+          isOpen = !isOpen;
+        };
+      })();
     function toggleLibArea(){
       $('#lib_area').toggle('slide',{ direction: "right" });
     }
