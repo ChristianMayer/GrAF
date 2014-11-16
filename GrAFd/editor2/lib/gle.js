@@ -98,6 +98,19 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
         //this.blocks = blocks; // FIXME only for transision
         
         /**
+         * Delete everything - clears the full drawing plane.
+         */
+        this.deleteEverything = function() {
+          blocks.forEach( function(block){
+            block.delete();
+          });
+          blocks = [];
+          
+          self.selection.clear();
+          view.invalidateContext();
+        }
+        
+        /**
          * Create and register a new block.
          */
         this.addBlock = function() {
