@@ -610,6 +610,27 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     }
     
     // constructor
+    if( parameters.start )
+    {
+      parameters.start.block.setOutConnection( this, parameters.start.portNumber );
+      var pos = parameters.start.block.getOutCoordinates( parameters.start.portNumber, true );
+      this.waypoints.push( pos[0] );
+      this.waypoints.push( pos[1] );
+    }
+    if( parameters.waypoints && parameters.waypoints.length > 0 )
+    {
+      parameters.waypoints.forEach( function(w){ 
+        self.waypoints.push( new Vec2D( w[0], w[1] ) ); 
+      });
+    }
+    if( parameters.end )
+    {
+      parameters.end.block.setInConnection( this, parameters.end.portNumber );
+      var pos = parameters.end.block.getInCoordinates( parameters.end.portNumber, true );
+      this.waypoints.push( pos[0] );
+      this.waypoints.push( pos[1] );
+    }
+    this.GLE.invalidateHandlers();
     
     //######################################################################
     //######################################################################

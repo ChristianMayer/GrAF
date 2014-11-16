@@ -120,18 +120,20 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       thisGLE.invalidateContext();
       return this;
     };
-    this.getInCoordinates = function( handler ) {
-      if( (5 <= handler) && (handler < 5 + inPorts.length) )
+    this.getInCoordinates = function( handler, isPortNumber ) {
+      if( (isPortNumber && handler < inPorts.length) ||
+        (!isPortNumber && (5 <= handler) && (handler < 5 + inPorts.length) ) )
       {
-        var portNumber = handler - 5,
+        var portNumber = isPortNumber ? handler : handler - 5,
             endPos = getInPortPos( portNumber );
         return [ endPos.copy().minus( new Vec2D( 20, 0 ) ), endPos, portNumber ];
       }
     }
-    this.getOutCoordinates = function( handler ) {
-      if( handler >= 5 + inPorts.length )
+    this.getOutCoordinates = function( handler, isPortNumber ) {
+      if( (isPortNumber && handler < outPorts.length) ||
+        (!isPortNumber && handler >= 5 + inPorts.length) )
       {
-        var portNumber = handler - 5 - inPorts.length,
+        var portNumber = isPortNumber ? handler : handler - 5 - inPorts.length,
             startPos = getOutPortPos( portNumber );
         return [ startPos, startPos.copy().plus( new Vec2D( 10, 0 ) ), portNumber ];
       }

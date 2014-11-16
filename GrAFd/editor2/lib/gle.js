@@ -121,6 +121,15 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
         }
         
         /**
+         * Lookup a block by its name.
+         */
+        this.getBlockByName = function( name ) {
+          for( var i = 0, len = blocks.length; i < len; i++ )
+            if( blocks[i].getName() === name )
+              return blocks[i];
+        }
+        
+        /**
          * Create and register a new connection.
          */
         this.addConnection = function( parameters ) {
