@@ -104,11 +104,19 @@ body, html {
   background-color: white;
 }
 
+/*
 #nav {
   height: 100%;
   position: absolute;
   right: 6px;
   left: 0px;
+}
+*/
+
+#navtree {
+  overflow-x: scroll;
+  height: 100%;
+  margin-right: 6px;
 }
 
 #nav_handle {
@@ -161,6 +169,11 @@ body, html {
   position: absolute;
   left: 6px;
   right: 0px;
+}
+
+.libBlock {
+  height: 50px;
+  border: solid blue 1px;
 }
 
 #foot {

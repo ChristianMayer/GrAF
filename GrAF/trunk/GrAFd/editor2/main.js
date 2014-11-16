@@ -77,6 +77,10 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   // load relevant language ressource
   $.i18n.load( i18nStrings );
 
+  var
+    libraray  = {}, // hash containing all open libaraies
+    openFiles = {}; // hash containing all open content
+    
   /////////////////////////////////////////////////////////////////////
   //
   //  Event handling
@@ -84,56 +88,167 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   function onNavTreeChanged( e, data ) {
     var
       name    = data.node.text,
-      parents = data.node.parents.map(function(node){return data.instance.get_node(node).text;});
+      parents = data.node.parents.map(function(node){return data.instance.get_node(node).text;}),
+      file    = name;
       
     parents.pop(); // drop the root node '#' that is now undefined
     parents.reverse();
-      
+    if( parents.length > 0 )
+      file = parents[0];
+    
     window.document.title = 'GLE - ' +  parents.join('/') + (parents.length?'/':'') + name;
+    
+    var system = openFiles[file];
+    if( parents.length > 0 )
+    {
+      for( var i = 1; i < parents.length; i++ )
+      {
+        var systemName = parents[i];
+        system = system.blocks[ systemName ];
+      }
+      system = system.blocks[ name ];
+    }
+    
+    editorSwitchContent( system );
   }
 
+  /////////////////////////////////////////////////////////////////////
+  //
+  //  Functions to interface the editor
+  //
+  
+  /**
+   * Clear the current drawing plane and show system.
+   */
+  function editorSwitchContent( system )
+  {
+    GLE.deleteEverything();
+    
+    for( var blockName in system.blocks )
+    {
+      var
+        blockSrc = system.blocks[ blockName ],
+        lib      = getFromLib( blockSrc.type ),
+        block    = $.extend( {inPorts:[],outPorts:[]}, lib, blockSrc ),
+        b        = GLE.addBlock();
+        
+      b.setName( blockName );
+      b.setTopLeft( new Vec2D( block.x, block.y ) );
+      b.setSize( new Vec2D( block.width, block.height ) );
+      
+      // special case: get port info out of subsystem itself
+      if( 'subsystem' === block.type )
+      {
+        for( var subblock in block.blocks )
+        {
+          if( 'sourceLib/in' === block.blocks[subblock].type )
+            block.inPorts.push( {name: subblock} );
+          else if( 'sinkLib/out' === block.blocks[subblock].type )
+            block.outPorts.push( {name: subblock} );
+        }
+      }
+      b.setInPorts(  block.inPorts.map(  function(p){ return p.name; } ) );
+      b.setOutPorts( block.outPorts.map( function(p){ return p.name; } ) );
+    }
+  }
+  
   /////////////////////////////////////////////////////////////////////
   //
   //  Functions to handle updates of the content:
   //
   
   /**
-   * Add a new file to the navigation area.
+   * Add the content of a newly loaded file.
    */
-  function navAddFile( name, content )
+  function addFile( name, content )
   {
     // recursive function to map subsystems to jstree format:
     function mapSub2Tree( subsystems )
     {
       var retval = [];
-      for( var i = 0, len = subsystems.length; i < len; i++ )
+      for( var block in subsystems.blocks )
       {
-        var element = subsystems[i];
-        
-        if( typeof element === 'string' ) {
+        if( 'subsystem' === subsystems.blocks[block].type )
+        {
           retval.push( { 
-            'text': element,
-            'type': 'subsystem'
-          } );
-        } else {
-          retval.push( { 
-            'text': element.text,
+            'text': block,
             'type': 'subsystem',
-            'children': mapSub2Tree( element.children )
+            'children': mapSub2Tree( subsystems.blocks[block] )
           } );
         }
       }
       return retval;
     }
     
-    // and insert is as a new node to the nav tree
-    $('#navtree').jstree(true).create_node( '#', {
-      'text': name,
-      'type': 'file',
-      'children': mapSub2Tree( content )
-    });
-  }
+    // logic:
+    var 
+      $navtree  = $('#navtree').jstree(true),
+      doReplace = openFiles.hasOwnProperty( name ),
+      navtreeContent = {
+          'text': name,
+          'type': 'file',
+          'children': mapSub2Tree( content )
+        };
+    
+    
+    // take care of the navtree
+    if( doReplace )
+    {
+      var id = openFiles[ name ]._id;
+      $navtree.delete_node( $navtree.get_node( id ).children );
+      mapSub2Tree( content ).forEach( function(node){ $navtree.create_node( id, node ); } );
+      openFiles[ name ] = content;
+      openFiles[ name ]._id = id; // keep _id property
+    } else {
+      var id = $navtree.create_node( '#', navtreeContent );
+      openFiles[ name ] = content;
+      openFiles[ name ]._id = id;
+    }
 
+    $navtree.deselect_all( true );
+    $navtree.select_node( openFiles[ name ]._id, false ); // false === create selection event
+//    editorSwitchContent( openFiles[ name ] );
+  }
+  
+  /**
+   * Add a new libraray to the available libraries.
+   * Note: when the name is empty it is the system libraray, otherwise its a
+   * custom one.
+   */
+  function addLib( name, content )
+  {
+    console.log( 'addLib', name, content );
+    var $lib = $('#lib');
+    for( var libName in content )
+    {
+      var blocks = [];
+      for( var block in content[libName] )
+        blocks += '<div class="libBlock">' + block + '</div>';
+      
+      $lib.append( '<h3>'+libName+'</h3><div>'+blocks+'</div>' );
+      
+      libraray[ libName ] = content[ libName ];
+    }
+    $lib.accordion( "refresh" );
+    $('.libBlock').draggable( { helper: "clone" } );
+  }
+  
+  /**
+   * Little helper function to get a library entry based on block type
+   */
+  function getFromLib( type )
+  {
+    var 
+      path = type.split('/');
+      
+    if( libraray[ path[0] ] && libraray[ path[0] ][ path[1] ] )
+      return libraray[ path[0] ][ path[1] ];
+    
+    if( 'subsystem' !== type )
+      console.error( 'Library does not contain a block of type "' + type + '"!' );
+    return {};
+  }
+  
   /////////////////////////////////////////////////////////////////////
   //
   //  Helper functions to set up each relevant part of the page:
@@ -198,10 +313,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
 
   function setupLib()
   {
-    $('#lib')
-      // dummy data for demo:
-      .append( '<h3>aaa</h3><div>bbb</div><h3>111</h3><div>222</div>' )
-      .accordion();
+    $('#lib').accordion( { heightStyle: "fill" } );
   }
 
   function setupFoot()
@@ -255,8 +367,28 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     setupFoot();
     
     // dummy data for demo
-    navAddFile( 'datei', [ 'sub1', 'sub2', {'text':'sub3','children':['subsub1','subsub2']} ] );
-    navAddFile( 'datei2', [ 'sub1', 'sub2', {'text':'sub3','children':['subsub1','subsub2']} ] );
+    $.getJSON( 'testLib.json', function(data) {
+      //console.log('got lib');
+      addLib( '', data );
+    }).error( function(a,b,c,d){
+      console.error( 'Libaray load error:', a,b,c,d, this );
+    });
+    $.getJSON( 'demo_logic1.js', function(data) {
+      //console.log('got file 1');
+      addFile( 'demo_logic1.js', data );
+    });
+    //setTimeout( function(){
+    $.getJSON( 'demo_logic1.js', function(data) {
+      //console.log('got file 1 copy');
+      addFile( 'demo_logic1.js copy', data );
+    });
+    //}, 1000 );
+    setTimeout( function(){
+    $.getJSON( 'demo_logic2.js', function(data) {
+      //console.log('got file 2');
+      addFile( 'demo_logic1.js', data );
+    });
+    }, 3000 );
     
     /////////////
     var b1 = GLE.addBlock(); 

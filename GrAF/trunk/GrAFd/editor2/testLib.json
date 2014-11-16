@@ -1,0 +1,274 @@
+{
+  "sourceLib": {
+    "source1": {
+      "width": 100,
+      "height": 50,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [],
+      "outPorts": [
+        { 
+          "name": "out1",
+          "type": "event"
+        }
+      ],
+      "parameters":{}
+    },
+    "source2": {
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 1.0],
+      "background": [1.0, 1.0, 0.5],
+      "inPorts": [],
+      "outPorts": [
+        { 
+          "name": "out1",
+          "type": "event"
+        },
+        { 
+          "name": "out2",
+          "type": "event"
+        }
+      ],
+      "parameters":{}
+    }
+  },
+  "sinkLib": {
+    "display": {
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+        { 
+          "name": "in",
+          "type": "event"
+        }
+      ],
+      "outPorts": [],
+      "parameters":{}
+    },
+    "scope": {
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+        { 
+          "name": "in",
+          "type": "event"
+        }
+      ],
+      "outPorts": [],
+      "parameters":{}
+    },
+    "sink1": {
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+        { 
+          "name": "in",
+          "type": "event"
+        }
+      ],
+      "outPorts": [],
+      "parameters":{}
+    },
+    "sink2": {
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+      { 
+        "name": "in",
+        "type": "event"
+      },
+      { 
+        "name": "in",
+        "type": "event"
+      },
+      { 
+        "name": "in",
+        "type": "event"
+      },
+      { 
+        "name": "in",
+        "type": "event"
+      }
+      ],
+      "outPorts": [],
+      "parameters":{}
+    }
+  },
+  "mathLib": {
+    "gain": {
+      "width": 75,
+      "height": 75,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "mask": [
+      { "type": "move", "x": 0.999, "y": 0.5   },
+      { "type": "line", "x": 0    , "y": 0.999 },
+      { "type": "line", "x": 0    , "y": 0     },
+      { "type": "close" },
+      { "type": "new", "fill": "none" },
+      { "type": "text", "x": 0.4, "y": 0.55, "text": "$gain", "styling":["middle"] }
+      ],
+      "maskOptions": {
+        "showLabel": false
+      },
+      "inPorts": [
+        { 
+          "name": "in",
+          "type": "event"
+        }
+      ],
+      "outPorts": [
+        { 
+          "name": "out",
+          "type": "event"
+        }
+      ],
+      "parameters": [
+        { 
+          "name": "gain",
+          "type": "float",
+          "default": 1.0
+        }
+      ]
+    },
+    "memory": {
+      "width": 75,
+      "height": 75,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+        { 
+          "name": "in",
+          "type": "event"
+        }
+      ],
+      "outPorts": [
+        { 
+          "name": "out",
+          "type": "event"
+        }
+      ],
+      "parameters": [
+        { 
+          "name": "init",
+          "type": "float",
+          "default": 0.0
+        }
+      ]
+    },
+    "sum": {
+      "width": 50,
+      "height": 50,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "mask": [
+      { "type": "move", "x": 0    , "y": 0.495  }, 
+      { "type": "arc" , "x": 0    , "y": 0.01   , 
+        "rx": 0.5, "ry": 0.5, "xRotate":0, "large":true, "clockwise": true,
+        "relative": true
+      },
+      { "type": "close" }
+      ],
+      "maskOptions": {
+        "showLabel": true,
+        "inPortPos": "function( nr, block, options, parameter ){ }",
+        "postParameterUpdate": "function( context, parameter ){ }"
+      },
+      "inPorts": [
+      { 
+        "name": "+",
+        "type": "event"
+      },
+      { 
+        "name": "+",
+        "type": "event"
+      }
+      ],
+      "outPorts": [
+      { 
+        "name": "out",
+        "type": "event"
+      }
+      ],
+      "parameters": [
+      { 
+        "name": "inputs",
+        "type": "string",
+        "default": "|++"
+      }
+      ]
+    },
+    "integral": {
+      "width": 75,
+      "height": 75,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "mask": [
+      { "type": "move", "x": 0    , "y": 0     },
+      { "type": "line", "x": 0    , "y": 0.999 },
+      { "type": "line", "x": 0.999, "y": 0.999 },
+      { "type": "line", "x": 0.999, "y": 0     },
+      { "type": "close" },
+      { "type": "new", "fill": "none" },
+      { "type": "move", "x": 0.55 , "y": 0.1   }, 
+      { "type": "arc" , "x": 0.50  , "y": 0.1    , 
+        "rx": 0.025, "ry": 0.025, "xRotate":0, "large":true, "clockwise": false,
+        "relative": false
+      },
+      { "type": "line", "x": 0.5  , "y": 0.9   },
+      { "type": "arc" , "x": 0.45 , "y": 0.9    , 
+        "rx": 0.025, "ry": 0.025, "xRotate":0, "large":true, "clockwise": true,
+        "relative": false
+      },
+      { "type": "text", "x": 0.6, "y": 0.5, "text": "d" },
+      { "type": "text", "x": 0.6, "y": 0.5, "text": "\u2002t", "styling":["italic"] }
+      ],
+      "maskOptions": {
+        "showLabel": false
+      },
+      "inPorts": [
+      { 
+        "name": "in",
+        "type": "event"
+      }
+      ],
+      "outPorts": [
+      { 
+        "name": "out",
+        "type": "event"
+      }
+      ],
+      "parameters": [
+      ]
+    }
+  }
+}

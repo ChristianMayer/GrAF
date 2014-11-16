@@ -25,7 +25,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   
   // Constructor
   var Connection = function( thisGLE, parameters ){
-    console.log( 'new Connection', parameters );
+    //console.log( 'new Connection', parameters );
     if( !( this instanceof Connection ) )
       throw 'Error, use "new" operator for Connection!';
     
@@ -102,7 +102,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
           topLeftPos.cmin( self.waypoints[i] );
           bottomRightPos.cmax( self.waypoints[i] );
         }
-        console.log( 'update bounding box [' + self.name + ']:', bottomRightPos.print() );
+        //console.log( 'update bounding box [' + self.name + ']:', bottomRightPos.print() );
       };
         
     this.name      = parameters.name;

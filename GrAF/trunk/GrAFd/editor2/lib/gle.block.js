@@ -115,6 +115,11 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     this.getSize = function() {
       return size.copy();
     };
+    this.setSize = function( coord_rel ) {
+      size = coord_rel.copy();
+      thisGLE.invalidateContext();
+      return this;
+    };
     this.getInCoordinates = function( handler ) {
       if( (5 <= handler) && (handler < 5 + inPorts.length) )
       {
