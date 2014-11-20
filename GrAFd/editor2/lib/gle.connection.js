@@ -23,6 +23,9 @@
 define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   "use strict";
   
+  // local globals
+  var worker = (typeof Worker !== 'undefined') ? new Worker("lib/autorouter.js") : undefined;
+  
   // Constructor
   var Connection = function( thisGLE, parameters ){
     //console.log( 'new Connection', parameters );
@@ -34,7 +37,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     
     // private:
     var self     = this,
-        worker   = (typeof Worker !== 'undefined') ? new Worker("lib/autorouter.js") : undefined,
+        //worker   = (typeof Worker !== 'undefined') ? new Worker("lib/autorouter.js") : undefined,
         topLeftPos,     // bounding box
         bottomRightPos, // bounding box
         /**
