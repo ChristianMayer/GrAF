@@ -168,6 +168,29 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   //
   
   /**
+   * Insert a block dropped from the libaray
+   */
+  function dropBlock( event, ui ) 
+  {
+    //console.log(this,event,ui);
+    console.log( ui.draggable.data('type'), ui.position, ui.offset );
+
+    var
+    type     = ui.draggable.data('type'),
+    lib      = getFromLib( type ),
+    block    = lib, //$.extend( {inPorts:[],outPorts:[]}, lib ),//, blockSrc ),
+    b        = GLE.addBlock();
+
+    block.x = ui.offset.left;
+    block.y = ui.offset.top;
+    b.setName( type.split('/').pop() );
+    b.setTopLeft( new Vec2D( block.x, block.y ) );
+    b.setSize( new Vec2D( block.width, block.height ) );
+    b.setInPorts(  block.inPorts.map(  function(p){ return p.name; } ) );
+    b.setOutPorts( block.outPorts.map( function(p){ return p.name; } ) );
+  }
+  
+  /**
    * Add the content of a newly loaded file.
    */
   function addFile( name, content )
@@ -233,7 +256,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     {
       var blocks = [];
       for( var block in content[libName] )
-        blocks += '<div class="libBlock">' + block + '</div>';
+        blocks += '<div class="libBlock" data-type="' + libName + '/' + block + '">' + block + '</div>';
       
       $lib.append( '<h3>'+libName+'</h3><div>'+blocks+'</div>' );
       
@@ -353,9 +376,6 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
           isOpen = !isOpen;
         };
       })();
-    function toggleLibArea(){
-      $('#lib_area').toggle('slide',{ direction: "right" });
-    }
     $('#nav_handle').click( toggleNavArea );
     $('#lib_handle').click( toggleLibArea );
     var
@@ -394,6 +414,12 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     setupLib();
     setupFoot();
     
+    // setup droppable on main area
+    $('#canvascontainer').droppable({ 
+      accept: '.libBlock', 
+      drop: dropBlock
+    });
+    
     // dummy data for demo
     $.getJSON( 'testLib.json', function(data) {
       //console.log('got lib');
@@ -419,6 +445,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     }, 3000 );
     
     /////////////
+    /*
     var b1 = GLE.addBlock(); 
 b1.setName( 'b1 viel Text üypIµ| viel Text b1' );
 b1.setInPorts( ['in1', 'in2'] );
@@ -466,5 +493,6 @@ c6.insertWaypoint( new Vec2D( 350/2, 320/2 ) );
 c6.insertWaypoint( new Vec2D( 420/2, 250/2 ) );
 
 GLE.updateContentSize();
+  */
   });
 });
