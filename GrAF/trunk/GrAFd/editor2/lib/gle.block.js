@@ -36,6 +36,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         minHeight = 5,
         color    = '#000000',          // how to display
         fill     = '#ffffff',
+        mask     = undefined,
         name     = '',
         fontSize,     // undefined --> use global
         fontFamiliy,  // undefined --> use global
@@ -140,6 +141,10 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     }
     this.getHandler = function() {
       return handlers[0];
+    };
+    this.setMask = function( newMask )
+    {
+      mask = newMask;
     };
     
     /**
@@ -398,8 +403,53 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       context.colorStyle = color;
       context.fillStyle  = fill;
       context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
-      context.fillRect( p.x, p.y, s.x, s.y );
-      context.strokeRect( p.x, p.y, s.x, s.y );
+      if( mask !== undefined )
+      {
+        context.beginPath();
+        mask.forEach( function( gE ){
+          var 
+            x = p.x + gE.x * s.x, 
+            y = p.y + gE.y * s.y;
+          switch( gE.type ) {
+            case 'arc':
+              // todo: make scaling / radius independend of x and y
+              context.arc( x, y, gE.r * s.x, gE.sAngle, gE.eAngle, gE.counterclockwise );
+              break;
+              
+            case 'close':
+              context.closePath(); 
+              context.stroke(); 
+              break;
+              
+            case 'line':
+              context.lineTo( x, y );
+              break;
+              
+            case 'move':
+              context.moveTo( x, y );
+              break;
+              
+            case 'new':
+              context.beginPath();
+              break;
+              
+            case 'text':
+              if( gE.styling )
+                context.font = gE.styling;
+              context.fillStyle = color;
+              context.fillText( gE.text, x, y );
+              context.fillStyle = fill;
+              break;
+              
+            default:
+              console.log( 'mask with unknown gE:', gE );
+          };
+        });
+        context.stroke(); 
+      } else {
+        context.fillRect( p.x, p.y, s.x, s.y );
+        context.strokeRect( p.x, p.y, s.x, s.y );
+      }
       
       context.fillStyle = '#000000';
       context.textAlign = 'center';
