@@ -149,6 +149,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       }
       b.setInPorts(  block.inPorts.map(  function(p){ return p.name; } ) );
       b.setOutPorts( block.outPorts.map( function(p){ return p.name; } ) );
+      b.setMask( block.mask );
     }
     system.signals && system.signals.forEach( function(con){
       var
@@ -188,6 +189,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     b.setSize( new Vec2D( block.width, block.height ) );
     b.setInPorts(  block.inPorts.map(  function(p){ return p.name; } ) );
     b.setOutPorts( block.outPorts.map( function(p){ return p.name; } ) );
+    b.setMask( block.mask );
   }
   
   /**
