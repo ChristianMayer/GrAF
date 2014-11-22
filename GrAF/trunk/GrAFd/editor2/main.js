@@ -392,20 +392,28 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
         var isOpen = true;
         return function() {
           if( isOpen )
-            $('#nav_area').animate( { left: 6-200 } );
-          else
-            $('#nav_area').animate( { left: 0     } );
+          {
+            $('#canvascontainer').css( 'left', '6px');
+            $('#nav_area').animate( { left: 6-200 });
+          } else {
+            $('#nav_area').animate( { left: 0     }, 400, 'swing', function(){ $('#canvascontainer').css( 'left', '200px') });
+          }
           isOpen = !isOpen;
+          GLE.resize();
         };
       })(),
       toggleLibArea = (function(){
         var isOpen = true;
         return function() {
           if( isOpen )
+          {
+            $('#canvascontainer').css( 'right', '6px');
             $('#lib_area').animate( { right: 6-200 } );
-          else
-            $('#lib_area').animate( { right: 0     } );
+          } else {
+            $('#lib_area').animate( { right: 0     }, 400, 'swing', function(){ $('#canvascontainer').css( 'right', '200px') });
+          }
           isOpen = !isOpen;
+          GLE.resize();
         };
       })();
     $('#nav_handle').click( toggleNavArea );
@@ -449,7 +457,13 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     // setup droppable on main area
     $('#canvascontainer').droppable({ 
       accept: '.libBlock', 
-      drop: dropBlock
+      drop: dropBlock,
+      over: function(){
+        $('body').css('cursor','copy');
+      },
+      out: function(){
+        $('body').css('cursor','no-drop');
+      }
     });
     
     // dummy data for demo

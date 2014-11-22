@@ -631,47 +631,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           .on( 'touchend',    inputevent.touchend    )
           .on( 'touchcancel', inputevent.touchcancel ); 
         $canvasContainer.on( 'scroll', inputevent.scroll );
-        $canvasContainer.on( 'wheel', function( e ){
-          e.preventDefault(); 
-          var left_right = ( undefined !== e.originalEvent.wheelDeltaX ? e.originalEvent.wheelDeltaX :
-                           ( undefined !== e.originalEvent.deltaX      ? e.originalEvent.deltaX      : 0 )),
-              up_down    = ( undefined !== e.originalEvent.wheelDeltaY ? -e.originalEvent.wheelDeltaY :
-                           ( undefined !== e.originalEvent.deltaY      ? e.originalEvent.deltaY      : 0 )),
-              mousePos   = getMouseScreenPos(e);
-          /*    
-          console.log('sroll', e, left_right, up_down, 
-                    mousePos ,  
-          (e.shiftKey ? 's' : '') +
-          (e.ctrlKey ? 'c' : '')  +
-          (e.altKey ? 'a' : '' ));
-          */
-          if( e.shiftKey || e.ctrlKey ) // should be only ctrlKey, but Chrome doesn't support that yet
-          {
-            if( up_down < 0 || left_right < 0 )
-            {
-              self.zoomOut( mousePos );
-            } else if( up_down > 0 || left_right > 0 )
-            {
-              self.zoomIn( mousePos );
-            }
-            
-            self.updateStateInfos();
-            return false;
-          }
-          
-          if( left_right < 0 )
-            $canvasContainer.scrollLeft( $canvasContainer.scrollLeft() - 50 );
-          else if( left_right > 0 )
-            $canvasContainer.scrollLeft( $canvasContainer.scrollLeft() + 50 );
-          
-          if( up_down < 0 )
-            $canvasContainer.scrollTop( $canvasContainer.scrollTop() - 50 );
-          else if( up_down > 0 )
-            $canvasContainer.scrollTop( $canvasContainer.scrollTop() + 50 );
-          self.resize();
-          
-          return false;
-        } );
+        $canvasContainer.on( 'wheel',  inputevent.wheel  );
         $(document).on( 'keydown',  inputevent.keyPress  ); 
         $(window).on( 'resize',     this.resize    );
       };
