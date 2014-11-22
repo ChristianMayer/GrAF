@@ -335,6 +335,45 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
       };
     
       /**
+       * Event handler for mouse wheel.
+       */
+      this.wheel = function( e ){
+          e.preventDefault(); 
+          var left_right = ( undefined !== e.originalEvent.wheelDeltaX ? e.originalEvent.wheelDeltaX :
+                           ( undefined !== e.originalEvent.deltaX      ? e.originalEvent.deltaX      : 0 )),
+              up_down    = ( undefined !== e.originalEvent.wheelDeltaY ? -e.originalEvent.wheelDeltaY :
+                           ( undefined !== e.originalEvent.deltaY      ? e.originalEvent.deltaY      : 0 )),
+              delta      = new Vec2D( Math.sign( left_right ) * 50, Math.sign( up_down ) * 50 ),
+              mousePos   = getMouseScreenPos(e);
+          /*    
+          console.log('sroll', e, left_right, up_down, 
+                    mousePos ,  
+          (e.shiftKey ? 's' : '') +
+          (e.ctrlKey ? 'c' : '')  +
+          (e.altKey ? 'a' : '' ));
+          */
+          if( e.shiftKey || e.ctrlKey ) // should be only ctrlKey, but Chrome doesn't support that yet
+          {
+            if( up_down < 0 || left_right < 0 )
+            {
+              thisGLE.zoomOut( mousePos );
+            } else if( up_down > 0 || left_right > 0 )
+            {
+              thisGLE.zoomIn( mousePos );
+            }
+            
+            thisGLE.updateStateInfos();
+            return false;
+          }
+          
+          view.scrollDelta( delta );
+          
+          thisGLE.resize();
+          
+          return false;
+        }
+        
+      /**
        * Event handler for mousedown.
        */
       this.mousedown = function( eventObject ) {

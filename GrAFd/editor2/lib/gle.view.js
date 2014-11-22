@@ -670,6 +670,18 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       }
     };
     
+    /**
+     * Scroll by external request.
+     */
+    this.scrollDelta = function( delta )
+    {
+      if( delta.x !== 0 )
+        $canvasContainer.scrollLeft( $canvasContainer.scrollLeft() + delta.x );
+      
+      if( delta.y !== 0 )
+        $canvasContainer.scrollTop( $canvasContainer.scrollTop() + delta.y );
+    }
+    
     ///////////////////////////////////////////////////////////////////////////
     // constructor
     //$canvasContainer.append( '<canvas id="canvas_fg" style="position:absolute;z-index:100;"/><canvas id="canvas_bg"/>' );
