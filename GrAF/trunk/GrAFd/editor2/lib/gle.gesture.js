@@ -14,9 +14,6 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
- * 
- * @module Gesture
- * @title  GrAF logic engine: graphical logic editor
  */
 
 // Use an algorthim to do a least square fit as described in the paper
@@ -66,8 +63,11 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     confirmedGesR, 
 
     /**
-      * The Gesture constructor
-      */
+     * The Gesture constructor
+     * @module Gesture
+     * @title  GrAF logic engine: graphical logic editor
+     * @constructor
+     */
     Gesture = function( thisGLE ) {
       // private:
       var 

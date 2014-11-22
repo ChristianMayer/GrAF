@@ -254,18 +254,48 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   {
     console.log( 'addLib', name, content );
     var $lib = $('#lib');
+    
     for( var libName in content )
     {
       var blocks = [];
       for( var block in content[libName] )
-        blocks += '<div class="libBlock" data-type="' + libName + '/' + block + '">' + block + '</div>';
+        blocks += '<div class="libBlock" data-type="' + libName + '/' + block + '"><canvas class="libBlockCanvas" width="100" height="100" />' + block + '</div>';
+        //blocks += '<div><canvas class="libBlock" data-type="' + libName + '/' + block + '"/>' + block + '</div>';
       
-      $lib.append( '<h3>'+libName+'</h3><div>'+blocks+'</div>' );
+      var x = $lib.append( '<h3>'+libName+'</h3><div>'+blocks+'</div>' );
       
       libraray[ libName ] = content[ libName ];
     }
     $lib.accordion( "refresh" );
-    $('.libBlock').draggable( { helper: "clone" } );
+    $lib.find( '.libBlock' ).each( function(){
+      var 
+        $this = $(this),
+        type  = $this.data('type'),
+        ctx = $this.find('canvas')[0].getContext('2d');
+      //console.log( this, this.dataset.type, type, ctx);
+      ctx.beginPath(); // FIXME TODO - draw the real block here...
+      ctx.moveTo( 0  , 0   );
+      ctx.lineTo( 100, 0   );
+      ctx.lineTo( 0  , 100 );
+      ctx.lineTo( 100, 100 );
+      ctx.lineTo( 100, 0   );
+      ctx.moveTo( 0  , 100 );
+      ctx.lineTo( 0  , 0   );
+      ctx.lineTo( 100, 100 );
+      ctx.stroke(); 
+    });
+    
+    $('.libBlock').draggable( {
+      cursor: "no-drop", //"copy",
+      helper: function(){
+        var 
+          cnvSrc = $(this).find('canvas')[0],
+          newDOM = $('<canvas class="libBlockCanvas" width="100" height="100" />'),
+          ctx    = newDOM[0].getContext('2d');
+        ctx.drawImage( cnvSrc, 0, 0 );
+        return newDOM;
+      }
+    });
   }
   
   /**

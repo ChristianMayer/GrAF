@@ -184,8 +184,12 @@ body, html {
 }
 
 .libBlock {
-  height: 50px;
   border: solid blue 1px;
+}
+
+.libBlock > .libBlockCanvas {
+  height: 100px;
+  width: 100px;
 }
 
 #foot {

@@ -14,9 +14,6 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
- * 
- * @module Settings
- * @title  GrAF logic engine: graphical logic editor
  */
 
 // create a local context:
@@ -55,6 +52,9 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
 
     /**
      * The Settings constructor
+     * @module Settings
+     * @title  GrAF logic engine: graphical logic editor
+     * @constructor
      */
     Settings = function() {
       // private:

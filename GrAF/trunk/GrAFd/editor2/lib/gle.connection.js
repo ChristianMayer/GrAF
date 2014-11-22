@@ -14,9 +14,6 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
- * 
- * @module GLE.Connection
- * @title  GrAF logic engine: graphical logic editor
  */
  
 // create a local context:
@@ -27,6 +24,11 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   var worker = (typeof Worker !== 'undefined') ? new Worker("lib/autorouter.js") : undefined;
   
   // Constructor
+  /**
+   * @module GLE.Connection
+   * @title  GrAF logic engine: graphical logic editor
+   * @constructor
+   */
   var Connection = function( thisGLE, parameters ){
     //console.log( 'new Connection', parameters );
     if( !( this instanceof Connection ) )
