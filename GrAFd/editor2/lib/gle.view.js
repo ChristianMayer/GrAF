@@ -15,9 +15,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
  * 
- * @module GLE.view
- * @title  GrAF logic engine: graphical logic editor
- * 
  * This file contains the "view" of the editor / data.
  */
  
@@ -25,7 +22,12 @@
 define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   "use strict";
   
-  // Constructor
+  /**
+   * View constructor.
+   * @module GLE.view
+   * @title  GrAF logic engine: graphical logic editor
+   * @constructor
+   */
   var view = function( $canvasContainer, thisGLE ){
     if( !( this instanceof view ) )
       throw 'Error, use "new" operator for View!';

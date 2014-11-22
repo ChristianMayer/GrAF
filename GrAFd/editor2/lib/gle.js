@@ -14,18 +14,22 @@
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
- * 
+ */
+
+/**
  * @module GLE
  * @title  GrAF logic engine: graphical logic editor
  */
-
-// create a local context:
 define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
          'lib/gle.gesture', 'lib/gle.inputevent', 'lib/gle.view' ], 
   function( Vec2D,    Settings,           Block,           Connection,
           Gesture,          Inputevent,           View ) {
   "use strict";
   
+  /**
+   * GrAF logic engine: graphical logic editor.
+   * @exports GLE
+   */
   // private variables:
   var mousemove = 'mousemove', // will be redefined on a touch device
       mouseup   = 'mouseup',

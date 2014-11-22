@@ -15,7 +15,6 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA
  * 
- * @module Vec2D
  * @title  GrAF logic engine: graphical logic editor
  */
 
@@ -27,11 +26,19 @@
  * 
  * Exceptions are marked explicitly.
  * If the source mustn't be changed, use the copy() method.
+ * @module Vec2D
  */ 
-// create a local context:
 define( function( undefined ) {
   "use strict";
 
+  /**
+   * The Vec2D class.
+   * @constructor
+   * @exports Vec2D
+   * @class Vec2D
+   * @global
+   * @alias module:Vec2D
+   */
   var Vec2D = function( optionalX, optionalY ) {
     if( !( this instanceof Vec2D ) )
       throw 'Error, use "new" operator for Vec2D!';
@@ -57,9 +64,19 @@ define( function( undefined ) {
     return toPrint.x + '/' + toPrint.y;
   };
   
+  /**
+   * Create a copy of the current Vec2D object.
+   * @returns {Vec2D} The copy, a new object.
+   */
   Vec2D.prototype.copy = function() {
     return new Vec2D( this.x, this.y );
   };
+  
+  /**
+   * Replace the values by those from a different Vec2D.
+   * @param {Vec2D} other
+   * @returns {Vec2D} this Vec2D
+   */
   Vec2D.prototype.replace = function( other ) {
     this.x = +other.x;
     this.y = +other.y;
@@ -100,6 +117,8 @@ define( function( undefined ) {
   };
   /**
    * Scalar product.
+   * @param {Vec2D} other The other {@link Vec2D}.
+   * @returns {Number} The scalar product between this and other
    */
   Vec2D.prototype.sprod = function( other ) {
     return this.x * +other.x + this.y * +other.y;
