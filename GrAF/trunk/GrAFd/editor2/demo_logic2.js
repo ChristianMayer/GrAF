@@ -39,7 +39,7 @@
     },
     "Subsystem5": {
       "type": "subsystem",
-      "x": 550, "y": 150, "width": 100, "height": 100,
+      "x": 600, "y": 100, "width": 100, "height": 100,
       "blocks": {
         "Sum1": {
           "type": "mathLib/sum",

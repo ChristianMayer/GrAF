@@ -69,15 +69,16 @@ require.config({
 //  Main:
 //
 
-require([ 'i18n!nls/strings', 'jquery', 'lib/gle', 'lib/Vec2D', 'jquery-i18n','jquery-ui', 'jstree', 
+require([ 'i18n!nls/strings', 'jquery', 'lib/gle', 'lib/Vec2D', 'lib/gle.block','jquery-i18n','jquery-ui', 'jstree', 
           'superfish'],
-function( i18nStrings,        $, GLE,Vec2D,a1,a2,a3,a4,a5,a6,a7,a8 ) {
+function( i18nStrings,        $, GLE,Vec2D,Block,a1,a2,a3,a4,a5,a6,a7,a8 ) {
   "use strict";
 console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   // load relevant language ressource
   $.i18n.load( i18nStrings );
 
   var
+    self = this,
     libraray  = {}, // hash containing all open libaraies
     openFiles = {}; // hash containing all open content
     
@@ -177,13 +178,15 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     console.log( ui.draggable.data('type'), ui.position, ui.offset );
 
     var
-    type     = ui.draggable.data('type'),
-    lib      = getFromLib( type ),
-    block    = lib, //$.extend( {inPorts:[],outPorts:[]}, lib ),//, blockSrc ),
-    b        = GLE.addBlock();
+      pos      = GLE.absolute2content( new Vec2D( ui.offset.left, ui.offset.top ) ),
+      type     = ui.draggable.data('type'),
+      lib      = getFromLib( type ),
+      block    = lib, //$.extend( {inPorts:[],outPorts:[]}, lib ),//, blockSrc ),
+      b        = GLE.addBlock();
 
-    block.x = ui.offset.left;
-    block.y = ui.offset.top;
+      //console.log( 'pos:', pos.print(), event, ui, $(ui.helper[0]).offset(), ui.offset.left, ui.offset.top    );
+    block.x = pos.x; //ui.offset.left;
+    block.y = pos.y; //ui.offset.top;
     b.setName( type.split('/').pop() );
     b.setTopLeft( new Vec2D( block.x, block.y ) );
     b.setSize( new Vec2D( block.width, block.height ) );
@@ -267,26 +270,25 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       libraray[ libName ] = content[ libName ];
     }
     $lib.accordion( "refresh" );
+    console.log( libraray, name );
     $lib.find( '.libBlock' ).each( function(){
       var 
         $this = $(this),
         type  = $this.data('type'),
-        ctx = $this.find('canvas')[0].getContext('2d');
-      //console.log( this, this.dataset.type, type, ctx);
-      ctx.beginPath(); // FIXME TODO - draw the real block here...
-      ctx.moveTo( 0  , 0   );
-      ctx.lineTo( 100, 0   );
-      ctx.lineTo( 0  , 100 );
-      ctx.lineTo( 100, 100 );
-      ctx.lineTo( 100, 0   );
-      ctx.moveTo( 0  , 100 );
-      ctx.lineTo( 0  , 0   );
-      ctx.lineTo( 100, 100 );
-      ctx.stroke(); 
+        ctx = $this.find('canvas')[0].getContext('2d'),
+        block = getFromLib( type ),
+        b = new Block( GLE );
+        
+      b.setName( type.split('/').pop() );
+      b.setSize( new Vec2D( block.width, block.height ) );
+      b.setInPorts(  block.inPorts.map(  function(p){ return p.name; } ) );
+      b.setOutPorts( block.outPorts.map( function(p){ return p.name; } ) );
+      b.setMask( block.mask );
+      b.draw( ctx, undefined, undefined, true, 1 );
     });
     
     $('.libBlock').draggable( {
-      cursor: "no-drop", //"copy",
+      cursor: "no-drop",
       helper: function(){
         var 
           cnvSrc = $(this).find('canvas')[0],
@@ -394,12 +396,15 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
           if( isOpen )
           {
             $('#canvascontainer').css( 'left', '6px');
+            GLE.resize();
             $('#nav_area').animate( { left: 6-200 });
           } else {
-            $('#nav_area').animate( { left: 0     }, 400, 'swing', function(){ $('#canvascontainer').css( 'left', '200px') });
+            $('#nav_area').animate( { left: 0     }, 400, 'swing', function(){
+              $('#canvascontainer').css( 'left', '200px');
+              GLE.resize();
+            });
           }
           isOpen = !isOpen;
-          GLE.resize();
         };
       })(),
       toggleLibArea = (function(){
@@ -408,12 +413,15 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
           if( isOpen )
           {
             $('#canvascontainer').css( 'right', '6px');
+            GLE.resize();
             $('#lib_area').animate( { right: 6-200 } );
           } else {
-            $('#lib_area').animate( { right: 0     }, 400, 'swing', function(){ $('#canvascontainer').css( 'right', '200px') });
+            $('#lib_area').animate( { right: 0     }, 400, 'swing', function(){ 
+              $('#canvascontainer').css( 'right', '200px');
+              GLE.resize();
+            });
           }
           isOpen = !isOpen;
-          GLE.resize();
         };
       })();
     $('#nav_handle').click( toggleNavArea );
@@ -470,25 +478,26 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
     $.getJSON( 'testLib.json', function(data) {
       //console.log('got lib');
       addLib( '', data );
+      $.getJSON( 'demo_logic1.js', function(data) {
+        //console.log('got file 1');
+        addFile( 'demo_logic1.js', data );
+      });
+      //setTimeout( function(){
+      $.getJSON( 'demo_logic1.js', function(data) {
+        //console.log('got file 1 copy');
+        addFile( 'demo_logic1.js copy', data );
+      });
+      //}, 1000 );
+      setTimeout( function(){
+      $.getJSON( 'demo_logic2.js', function(data) {
+        //console.log('got file 2');
+        addFile( 'demo_logic1.js', data );
+      });
+      }, 0 );
+      //}, 3000 );
     }).error( function(a,b,c,d){
       console.error( 'Libaray load error: "' + b + '": "' + c.message + '"' );
     });
-    $.getJSON( 'demo_logic1.js', function(data) {
-      //console.log('got file 1');
-      addFile( 'demo_logic1.js', data );
-    });
-    //setTimeout( function(){
-    $.getJSON( 'demo_logic1.js', function(data) {
-      //console.log('got file 1 copy');
-      addFile( 'demo_logic1.js copy', data );
-    });
-    //}, 1000 );
-    setTimeout( function(){
-    $.getJSON( 'demo_logic2.js', function(data) {
-      //console.log('got file 2');
-      addFile( 'demo_logic1.js', data );
-    });
-    }, 3000 );
     
     /////////////
     /*

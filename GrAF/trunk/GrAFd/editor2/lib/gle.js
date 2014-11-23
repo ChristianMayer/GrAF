@@ -372,6 +372,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
         /**
          * Return the handler at the given screen position.
          * When it is empty (i.e. the background) undefined will be returned.
+         * @param {Vec2D} thisScreenPos
          */
         this.position2handler = function( thisScreenPos ) {
           var 
@@ -379,6 +380,39 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
             validObject = (index > 0) && (index < handlerList.length);
             //console.log( 'p2h', index, validObject );
           return validObject ? handlerList[ index ] : undefined;//[];
+        };
+        
+        /**
+         * Return screen position from absolute position (i.e. relative to the
+         * document).
+         * @param {Vec2D} absoulutePos
+         * @returns {Vec2D} Position in screen coordinates
+         */
+        this.absolute2screen = function( absoulutePos ) {
+          var
+            canvasOffset  = $canvasContainer.offset(),
+            screenPos = absoulutePos.copy().minus( new Vec2D( canvasOffset.left, canvasOffset.top ) );
+            
+          return screenPos;
+        }
+        
+        /**
+         * Return content position from screen position.
+         * @param {Vec2D} thisScreenPos
+         * @returns {Vec2D} Position in content coordinates
+         */
+        this.screen2content = function( thisScreenPos ) {
+          return view.screen2canvas(thisScreenPos);
+        };
+        
+        /**
+         * Return content position from absolute position (i.e. relative to the
+         * document).
+         * @param {Vec2D} absoulutePos
+         * @returns {Vec2D} Position in content coordinates
+         */
+        this.absolute2content = function( absoulutePos ) {
+          return this.screen2content( this.absolute2screen( absoulutePos ) );
         };
         
         // ****************************************************************** //
