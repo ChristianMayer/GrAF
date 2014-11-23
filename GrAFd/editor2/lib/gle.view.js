@@ -574,7 +574,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     };
     
     /**
-     * Handle a resized view, e.g. also due to a zoom event.
+     * Handle a resized view, also due to a zoom event.
      * There are different sizes that have to be handled. The basic setup is
      * that there's an <div> ($drawingPl) that has the size that every element
      * could fit on it. It might only be partly visible as the $canvasContainer
@@ -596,7 +596,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
      */
     this.resizeView = function() {
       console.log( 'running "resizeView()"');
-      $canvasContainerOffset = $canvasContainer.offset();
       screenSize        = new Vec2D( $canvasContainer[0].clientWidth, $canvasContainer[0].clientHeight );
       var
         devicePixelRatio  = window.devicePixelRatio || 1,
@@ -606,9 +605,11 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
                             ctxFg.oBackingStorePixelRatio      ||
                             ctxFg.backingStorePixelRatio       || 1,
         scaleInternalNew  = devicePixelRatio / backingStoreRatio,
-        // available screenspace that is visible
-        // space of the canvas on the screen before browser zoom
-        clientSize        = screenSize.copy().plus( viewOffset ).cmax( contentSize.copy().scale(scale) ).cmin( thisGLE.settings.maxCanvasSize.copy().scale(1/scaleInternal) ).floor(),
+        containerOffset   = $canvasContainer.offset(),
+        scrollDelta       = new Vec2D( 
+                              containerOffset.left - $canvasContainerOffset.left,
+                              containerOffset.top  - $canvasContainerOffset.top
+                            ),
         isFgViewResized   = false,
         isViewResized     = false;
         
@@ -630,6 +631,13 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         idBuffer.height = $canvasFg[0].height;
         idBuffer.style.width  = $canvasFg[0].style.width;  // for debug FIXME
         idBuffer.style.height = $canvasFg[0].style.height; // for debug FIXME
+      }
+        
+      // figure out if the container was moved, i.e. it's offset was changed
+      if( scrollDelta.x !== 0 || scrollDelta.y !== 0 )
+      {
+        self.scrollDelta( scrollDelta );
+        $canvasContainerOffset = containerOffset;
       }
       
       fixBackgroundSize();
