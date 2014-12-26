@@ -1,5 +1,21 @@
 {
   "sourceLib": {
+    "in": {
+      "width": 60,
+      "height": 28,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [],
+      "outPorts": [
+        { 
+          "name": "in",
+          "type": "event"
+        }
+      ],
+      "parameters":{}
+    },
     "source1": {
       "width": 100,
       "height": 50,
@@ -48,6 +64,22 @@
       "inPorts": [
         { 
           "name": "in",
+          "type": "event"
+        }
+      ],
+      "outPorts": [],
+      "parameters":{}
+    },
+    "out": {
+      "width": 60,
+      "height": 28,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 0.0],
+      "background": [1.0, 1.0, 1.0],
+      "inPorts": [
+        { 
+          "name": "out",
           "type": "event"
         }
       ],
