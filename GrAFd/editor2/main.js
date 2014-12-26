@@ -79,6 +79,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
 
   var
     self = this,
+    currentSystem,  // the currently displayed system
     libraray  = {}, // hash containing all open libaraies
     openFiles = {}; // hash containing all open content
     
@@ -136,6 +137,10 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       b.setName( blockName );
       b.setTopLeft( new Vec2D( block.x, block.y ) );
       b.setSize( new Vec2D( block.width, block.height ) );
+      if( block.rotation )
+        b.setRotation( block.rotation );
+      if( block.flip )
+        b.setFlip( block.flip );
       
       // special case: get port info out of subsystem itself
       if( 'subsystem' === block.type )
@@ -153,15 +158,24 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       b.setMask( block.mask );
     }
     system.signals && system.signals.forEach( function(con){
+      /*
       var
         param = {
-          start: { block: GLE.getBlockByName(con[0]), portNumber: con[1] },
-          end:   { block: GLE.getBlockByName(con[2]), portNumber: con[3] },
-          waypoints: con[4].waypoints || []
+          waypoints: con.waypoints || []
         };
-      GLE.addConnection( param );
+      
+      if( undefined !== con.source )
+        param.start = { block: GLE.getBlockByName(con.source), portNumber: con.sourcePort };
+      
+      if( undefined !== con.target )
+        param.end   = { block: GLE.getBlockByName(con.target), portNumber: con.targetPort };
+      */
+      
+      //GLE.addConnection( param );
+      GLE.addConnection( con );
     });
     GLE.invalidateHandlers();
+    currentSystem = system;
   }
   
   /////////////////////////////////////////////////////////////////////
@@ -474,6 +488,30 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       }
     });
     
+    // setup global event handlers
+    $('#main').on( 'blockInteraction', function( event, element ){
+      var
+        elementName = element.getName(),
+        thisBlock = currentSystem.blocks[ elementName ];
+        
+      if( thisBlock && 'subsystem' === thisBlock.type )
+      {
+        var navtree = $('#navtree').jstree( true );
+        var curNode = navtree.get_node( navtree.get_selected() );
+        
+        // do a linear search - unless I find a smarter way :(
+        curNode.children.some( function( childNode ){
+          if( navtree.get_node( childNode ).text === elementName )
+          {
+            navtree.deselect_all( true );
+            navtree.select_node( childNode );
+            return true;
+          }
+          return false;
+        });
+      }
+    });
+    
     // dummy data for demo
     $.getJSON( 'testLib.json', function(data) {
       //console.log('got lib');
@@ -486,6 +524,10 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       $.getJSON( 'demo_logic1.js', function(data) {
         //console.log('got file 1 copy');
         addFile( 'demo_logic1.js copy', data );
+      });
+      $.getJSON( 'demo_logic_connections.js', function(data) {
+        //console.log('got file 1 copy');
+        addFile( 'demo_logic_connections', data );
       });
       //}, 1000 );
       setTimeout( function(){

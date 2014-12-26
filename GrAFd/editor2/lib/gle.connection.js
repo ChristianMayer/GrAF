@@ -23,8 +23,219 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   // local globals
   var worker = (typeof Worker !== 'undefined') ? new Worker("lib/autorouter.js") : undefined;
   
-  // Constructor
   /**
+   * Private class: a Branch holds waypoints and branches
+   */
+  function Branch( GLE, signal, connection ) {
+    // constructor
+    console.log( 'Branch', signal );
+    if( undefined === signal ) {
+      console.log( 'undefined signal?!? ###########################' );
+      debugger;
+      return;
+    }
+    //////////
+    
+    // local helper function to recursively translate branch structure, e.g. to
+    // convert to Vec2D
+    function translateSignal( signalElement ){
+      if( Array.isArray( signalElement ) )
+        return new Vec2D( signalElement[0], signalElement[1] );
+      
+      var branch = {};
+      if( signalElement.target ) {
+        branch.target = {
+          block: GLE.getBlockByName( signalElement.target ),
+          port:  signalElement.targetPort
+        };
+        branch.target.block.setInConnection( connection, branch.target.port );
+        branch.isConnected = undefined !== signal.source; // connection set only when source is also set
+        branch.isEndpoint  = true;
+      } else {
+        branch.isConnected = false;
+        branch.isEndpoint  = false;
+      }
+      
+      if( signalElement.waypoints )
+        branch.waypoints = signalElement.waypoints.map( translateSignal );
+      
+      if( !branch.isConnected && branch.waypoints && 
+          branch.waypoints.some(function(wp){return wp.isConnected;}) )
+        branch.isConnected = true;
+      
+      branch.isEndpoint = true;
+      if( branch.waypoints &&
+          branch.waypoints.some(function(wp){return !(wp instanceof Vec2D);}) )
+        branch.isEndpoint = false;
+      
+      return branch;
+    }
+
+    // local variables
+    var translatedSignal = translateSignal( signal );
+    
+    // object elements:
+    if( signal.source )
+    {
+      this.source = { 
+        block: GLE.getBlockByName( signal.source ),
+        port:  signal.sourcePort 
+      };
+      this.source.block.setOutConnection( connection, signal.sourcePort );
+    } else {
+      this.source = {};
+    }
+    this.target      = translatedSignal.target;
+    this.waypoints   = translatedSignal.waypoints || [];
+    this.isEndpoint  = translatedSignal.isEndpoint;
+    this.isConnected = translatedSignal.isConnected;
+    
+    this.topLeft     = undefined;
+    this.bottomRight = undefined;
+  }
+  Branch.prototype = {
+    updateBoundingBox: function() {
+      var self = this;
+      this.topLeft = undefined;
+        
+      // helper function: return bounding box of a branch
+      function branchBB( branch ) {
+        branch.forEach( function( element ) {
+          if( element instanceof Vec2D )
+          {
+            if( undefined === self.topLeft )
+            {
+              self.topLeft     = element.copy();
+              self.bottomRight = element.copy();
+            } else {
+              self.topLeft.cmin( element );
+              self.bottomRight.cmax( element );
+            }
+          } else {
+            if( undefined !== element.waypoints )
+              branchBB( element.waypoints );
+          }
+        } );
+      }
+      
+      branchBB( this.waypoints );
+    },
+    getListToDraw: function() {
+      //console.log( 'getListToDraw', this );
+      var
+        returnList = { connected: [], connectedHead: [], unconnected: [], unconnectedHead: [], branching: [] },
+        recursiveBranchFetch = function( thisBranch, thisPoints ) {
+          var 
+            //lastPoint;  // ???-> = thisPoints[ thisPoints.length - 1 ];
+            pointList = thisPoints,//[],
+            lastPoint = thisPoints[ thisPoints.length - 1 ];
+            
+          //returnList.push( thisPoints ); // insert here to keep order, JS reference handling will fill thisPoints later
+          //console.log( 'recursiveBranchFetch thisBranch:', thisBranch, 'thisPoints:', thisPoints );
+          
+          thisBranch.waypoints && thisBranch.waypoints.forEach( function( thisEntry ){
+            //console.log( 'recursiveBranchFetch - waypoints thisEntry:', thisEntry );
+            if( thisEntry instanceof Vec2D )
+            {
+              //thisPoints.push( thisEntry.copy() );
+              pointList.push( thisEntry.copy() );
+              lastPoint = thisEntry;
+            } else {
+              var branchPoints = [];
+              if( lastPoint )
+              {
+                branchPoints.push( lastPoint.copy() );
+                returnList.branching.push( branchPoints[0] );
+              }
+              
+              if( undefined !== thisEntry.waypoints || true)
+              {
+                recursiveBranchFetch( thisEntry, branchPoints );//[ lastPoint.copy() ] );
+              }
+            }
+          });
+              
+          if( thisBranch.target && thisBranch.target.block )
+          {
+            var p = thisBranch.target.block.getInCoordinates( thisBranch.target.port, true );
+            pointList.push( p[0] );
+            pointList.push( p[1] );
+          }
+          
+          if( thisBranch.isEndpoint )
+          {
+            /////////
+            //if( branchPoints.length < 2 )
+            if( pointList.length < 2 )
+              debugger;
+            /////////
+            var
+              lastBPoint = pointList[ pointList.length - 1 ],
+              prevPoint = pointList[ pointList.length - 2 ],
+              direction = lastBPoint.copy().minus( prevPoint ).toLength( 1.0 ),
+              normal    = direction.getNormal(),
+              headSize  = 5 * 1;//thisGLE.settings.drawSizeBlock;// * scale;
+              
+            if( thisBranch.isConnected )
+            {
+              returnList.connectedHead.push([
+                lastBPoint.copy().minus( direction.copy().scale(2).minus(normal).scale(headSize) ),
+                lastBPoint.copy(),
+                lastBPoint.copy().minus( direction.copy().scale(2).plus(normal).scale(headSize) )
+              ]);
+            } else {
+              returnList.unconnectedHead.push([
+              lastBPoint.copy().minus( direction.copy().scale(1).minus(normal).scale(headSize) ),
+                lastBPoint.copy(),
+                lastBPoint.copy().minus( direction.copy().scale(1).plus(normal).scale(headSize) )
+              ]);
+            }
+          } // endif(isEndpoint)
+
+          if( thisBranch.isConnected )
+            returnList.connected.push( pointList );
+          else
+            returnList.unconnected.push( pointList );
+        },
+        start = ( undefined !== this.source.block ) ?
+          this.source.block.getOutCoordinates( this.source.port, true ).splice( 0, 2 ) :
+          [];
+      
+      recursiveBranchFetch( this, start );
+      //// FIXME: temp debug:
+      /*
+      console.log( 'getListToDraw', this.waypoints, returnList );
+      returnList.connected.forEach( function(a){
+        var t='connected: ';
+        a.forEach(function(b){
+          t += b.print() + ';';
+        });
+        console.log(t);
+      });
+      returnList.unconnected.forEach( function(a){
+        var t='unconnected: ';
+        a.forEach(function(b){
+          t += b.print() + ';';
+        });
+        console.log(t);
+      });
+      */
+      ////
+      return returnList;
+    }
+  };
+  
+  /**
+   * A Connection is a link between blocks that shows how the signals are 
+   * flowing. The position is defined as:
+   * - source / start block and port
+   * - waypoints
+   * - destination / end block
+   * The waypoints is an array consisting of points and branches. Each branch
+   * will again consist out of waypoints and a destination.
+   * The source and the destination is not part of the waypoints, it is derived
+   * from the linkes object (when it exists)
+   * 
    * @module GLE.Connection
    * @title  GrAF logic engine: graphical logic editor
    * @constructor
@@ -100,20 +311,16 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
           return newIndex;
         },
       updateBoundingBox = function() {
-        topLeftPos = self.waypoints[self.waypoints.length - 1].copy();
-        bottomRightPos = topLeftPos.copy();
-        for( var i = self.waypoints.length - 2; i >= 0; i-- )
-        {
-          topLeftPos.cmin( self.waypoints[i] );
-          bottomRightPos.cmax( self.waypoints[i] );
-        }
-        //console.log( 'update bounding box [' + self.name + ']:', bottomRightPos.print() );
+        self.branch.updateBoundingBox();
+        topLeftPos = self.branch.topLeft;
+        bottomRightPos = self.branch.bottomRight;
       };
         
     this.name      = parameters.name;
     this.start     = parameters.start; // object where the connection begins
     this.end       = parameters.end;   // object where the connection ends
     this.waypoints = [];
+    this.branch    = undefined;//new Branch( thisGLE );
     this.candidates = { waypoints: [], direction: 5 };
     this.GLE       = thisGLE;
     
@@ -136,25 +343,61 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
      * @param index context.
      */
     this.draw = function( context, index, focus, isDrawFg, scale ) {
-      var view = thisGLE.view();
+      //var
+      //  lineWidth = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
+      //console.log( self.branch.getListToDraw() );
+      //self.branch.draw( context, index, focus, isDrawFg, scale, lineWidth );
+      //return;
+      ////////////////////////////////////////77
+      var 
+        view = thisGLE.view(),
+        listToDraw =  self.branch.getListToDraw(),
+        noStart = undefined === this.start,
+        noEnd   = undefined === this.end;
       //console.log( 'draw conn', this, context, index, active );
       
-      //#//thisGLE.prepareHandlerDrawing( this.handler );
+      //thisGLE.prepareHandlerDrawing( this.handler );
+      //console.log( listToDraw );
       
-      // draw block itself
+      // draw lines themself
       context.save(); // make sure to leave the context alone
       context.fillStyle = '#000000';
+      /*
+      if( noStart || noEnd )
+      {
+        context.setLineDash( [5] );
+        context.strokeStyle = '#ff0000';
+      }
+      */
       context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
-      context.beginPath();
+      //context.beginPath();
+      //console.log( 'beginPath' );
       index && index.beginPath();
       var oldIndexPos,
           waypoints = self.candidates.appendEnd 
                       ? self.waypoints.concat( self.candidates.waypoints )
                       : self.candidates.waypoints.slice().reverse().concat( self.waypoints ),
           wpHalfsize = (thisGLE.settings.drawSizeHandle * scale)|0,
-          wpSize     = 2 * wpHalfsize + 1;
+          wpSize     = 2 * wpHalfsize + 1,
+          lastPoint  = new Vec2D( 0, 0 ),
+          dummy;//arrows     = [[new Vec2D(300,300), new Vec2D(350,300), false]]; // array of all the arrow heads to draw
       
-      waypoints.forEach( function drawWaypoint_PROFILENAME(thisPoint, i ){
+      /*
+      // helper function to (recursively) draw the waypoints
+      function drawWaypoints( wp, isFirst ) {
+        wp.forEach( function drawWaypoint_PROFILENAME(thisPoint, i ){
+        console.log(thisPoint, thisPoint instanceof Vec2D );
+        if( !(thisPoint instanceof Vec2D) )
+        {
+          console.log( 'draw branch', thisPoint );
+          var currentPoint = lastPoint.copy();
+          if( undefined !== thisPoint.waypoints )
+            drawWaypoints( thisPoint.waypoints, false );
+          console.log( 'move', currentPoint.x, currentPoint.y );
+          context.moveTo( currentPoint.x, currentPoint.y );
+          return; // TODO FIXME: implement branches
+        }
+        
         var tP = thisPoint.copy().scale( scale ).round(1);
         if( thisPoint.protected )
           context.fillStyle = '#FF0000';
@@ -165,54 +408,137 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
           context.fillRect( tP.x-wpHalfsize, tP.y-wpHalfsize, wpSize, wpSize );
         
         //console.log(thisPoint, i );
-        if( 0 == i )
+        if( isFirst && 0 == i )
         {
           context.moveTo( tP.x, tP.y );
+          console.log( 'move', tP.x, tP.y );
           index && index.moveTo( tP.x, tP.y );
           //##//oldIndexPos = thisPoint;
         } else {
           context.lineTo( tP.x, tP.y );
-          /**/
+          console.log( 'line', tP.x, tP.y );
           index && index.lineTo( tP.x, tP.y );
           index && index.stroke();
           index && index.beginPath();
           index && index.moveTo( tP.x, tP.y );
-      /**//*
-        thisGLE.prepareHandlerDrawing( oldIndexPos.lineHandler );
-          index.beginPath();
-          index.moveTo( oldIndexPos.x, oldIndexPos.y );
-          index.lineTo( thisPoint.x, thisPoint.y );
-          index.stroke();
-      */
         }
         if( thisPoint.lineHandler )
           view.prepareHandlerDrawing( thisPoint.lineHandler );
+        
+        lastPoint = tP;
       });
-      index && index.stroke();
-      context.stroke();
       
-      // draw arrow head
-      context.beginPath();
       if( waypoints.length > 1 )
       {
-        var lastPoint = waypoints[ waypoints.length - 1 ].copy(),
-            prevPoint = waypoints[ waypoints.length - 2 ],
+        console.log( waypoints );
+        (waypoints[ waypoints.length - 1 ] instanceof Vec2D) &&
+        (waypoints[ waypoints.length - 2 ] instanceof Vec2D) &&
+        arrows.push( [
+          waypoints[ waypoints.length - 1 ].copy(),
+          waypoints[ waypoints.length - 2 ],
+          true // isConnected
+        ] );
+      }
+      }
+      drawWaypoints( waypoints );*/
+      //var branchStartList = [];
+      var connectedArrowHeads   = [];
+      var unconnectedArrowHeads = [];
+      function drawList( singleBranch, number, array, isConnected ){
+        //console.log( 'drawList', singleBranch, number, array, isConnected );
+        //if( true || singleBranch.length > 1 )
+        //{
+          var
+            //lastPoint = singleBranch[ singleBranch.length - 1 ].copy(),
+            //prevPoint = singleBranch[ singleBranch.length - 2 ],
+            tP = singleBranch.shift().copy().scale( scale ).round(1);
+            
+          context.moveTo( tP.x, tP.y );
+          //branchStartList.push( tP );
+          singleBranch.forEach( function( P ){
+            tP = P.copy().scale( scale ).round(1);
+            context.lineTo( tP.x, tP.y );
+          });
+        //}
+      };
+      function drawArrowHead( points )
+      {
+        context.moveTo( points[0].x * scale, points[0].y * scale );
+        context.lineTo( points[1].x * scale, points[1].y * scale );
+        context.lineTo( points[2].x * scale, points[2].y * scale );
+      };
+      
+      // draw the signal arrows (optimized for minimal context state changes):
+      // 1: unconnected strokes
+      context.strokeStyle = '#ff0000';
+      context.setLineDash( [5] );
+      context.beginPath();
+      listToDraw.unconnected.forEach( function(b,n,a){ drawList(b,n,a,false) } );
+      context.stroke();
+      // 2: unconnected stroke arrow heads
+      context.setLineDash( [] );
+      context.beginPath();
+      //unconnectedArrowHeads.forEach( drawArrowHead );
+      listToDraw.unconnectedHead.forEach( drawArrowHead );
+      context.stroke();
+      // 3: connected strokes
+      context.strokeStyle = '#000000';
+      context.beginPath();
+      listToDraw.connected.forEach( function(b,n,a){ drawList(b,n,a,true) } );
+      context.stroke();
+      // 4: connected stoke arrow heads
+      context.beginPath();
+      //connectedArrowHeads.forEach(  drawArrowHead );
+      listToDraw.connectedHead.forEach( drawArrowHead );
+      // 5: branch points
+      //branchStartList.forEach( function(point){
+      listToDraw.branching.forEach( function(point){
+        context.rect( (point.x-1)*scale, (point.y-1)*scale, 3*scale, 3*scale );
+      });
+      context.fill();
+      
+      index && index.stroke();
+      //console.log( 'stroke' );
+      //context.stroke();
+      /*
+      console.log( arrows );
+      // draw arrow head
+      arrows.forEach( function(a){
+        context.beginPath();
+        var lastPoint = a[0],
+            prevPoint = a[1], //waypoints[ waypoints.length - 2 ],
             direction = lastPoint.copy().minus( prevPoint ).toLength( 1.0 ),
             normal    = direction.getNormal(),
             headSize  = 5 * thisGLE.settings.drawSizeBlock * scale;
         lastPoint.scale( scale ).round(1);
-        context.moveTo( lastPoint.x, lastPoint.y );
-        context.lineTo( lastPoint.x - headSize * ( 3 * direction.x + normal.x ),
-                        lastPoint.y - headSize * ( 3 * direction.y + normal.y ) );
-        context.lineTo( lastPoint.x - headSize * ( 3 * direction.x - normal.x ),
-                        lastPoint.y - headSize * ( 3 * direction.y - normal.y ) );
-        context.lineTo( lastPoint.x, lastPoint.y );
-      }
-      context.fill();
+        if( a[2] ) // draw a connected array
+        {
+          context.moveTo( lastPoint.x, lastPoint.y );
+          context.lineTo( lastPoint.x - headSize * ( 2 * direction.x + normal.x ),
+                          lastPoint.y - headSize * ( 2 * direction.y + normal.y ) );
+          context.lineTo( lastPoint.x - headSize * ( 2 * direction.x - normal.x ),
+                          lastPoint.y - headSize * ( 2 * direction.y - normal.y ) );
+          context.lineTo( lastPoint.x, lastPoint.y );
+          context.fill();
+        } else { // draw not connected array
+          context.moveTo( lastPoint.x - headSize * ( 1 * direction.x + normal.x ),
+                          lastPoint.y - headSize * ( 1 * direction.y + normal.y ) );
+          context.lineTo( lastPoint.x, lastPoint.y );
+          context.lineTo( lastPoint.x - headSize * ( 1 * direction.x - normal.x ),
+                          lastPoint.y - headSize * ( 1 * direction.y - normal.y ) );
+          context.stroke();
+        }
+      });
+      */
       context.restore();
       
       // draw waypoints to index map
       !isDrawFg && index && self.waypoints.forEach( function drawWaypointHandler_PROFILENAME(thisPoint, i ){
+        if( !(thisPoint instanceof Vec2D) )
+        {
+          //console.log( 'drwa branch!', thisPoint);
+          return; // TODO FIXME: implement branches
+        }
         var tP = thisPoint.copy().scale( scale ).round(1);
         view.drawHandler( tP, thisPoint.handler, focus );
       } );
@@ -614,20 +940,57 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       this.name = '### Deleted Connection! ###'; // Help debuging the GC
     }
     
+    /**
+     * Helper function for the constructor
+     */
+    function parseWaypointsBranch( branch )
+    {
+      var retval = [];
+      branch.forEach( function(w){ 
+        if( Array.isArray( w ) )
+        { 
+          // a waypoint
+          retval.push( new Vec2D( w[0], w[1] ) ); 
+        } else {
+          // a branch
+          var branch = {};
+          if( w.waypoints && w.waypoints.length > 0 )
+            branch.waypoints = parseWaypointsBranch( w.waypoints )
+          retval.push( branch );
+        }
+      });
+      return retval;
+    }
+    
     // constructor
+    /*
     if( parameters.start )
     {
       parameters.start.block.setOutConnection( this, parameters.start.portNumber );
       var pos = parameters.start.block.getOutCoordinates( parameters.start.portNumber, true );
       this.waypoints.push( pos[0] );
       this.waypoints.push( pos[1] );
-    }
-    if( parameters.waypoints && parameters.waypoints.length > 0 )
+    }*/
+    
+      console.log( parameters );
+    if( true || parameters.waypoints && parameters.waypoints.length > 0 )
     {
+      //self.waypoints = self.waypoints.concat( parseWaypointsBranch( parameters.waypoints ) );
+      self.branch = new Branch( thisGLE, parameters, this );
+      self.waypoints = self.branch.waypoints;
+      /*
       parameters.waypoints.forEach( function(w){ 
-        self.waypoints.push( new Vec2D( w[0], w[1] ) ); 
-      });
+        if( Array.isArray( w ) )
+        { 
+          // a waypoint
+          self.waypoints.push( new Vec2D( w[0], w[1] ) ); 
+        } else {
+          // a branch
+          return; // TODO FIXME
+        }
+      });*/
     }
+    /*
     if( parameters.end )
     {
       parameters.end.block.setInConnection( this, parameters.end.portNumber );
@@ -635,7 +998,10 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       this.waypoints.push( pos[0] );
       this.waypoints.push( pos[1] );
     }
+    */
     this.GLE.invalidateHandlers();
+    //self.branch = new Branch( self.waypoints );
+    console.log( self.waypoints );
     
     //######################################################################
     //######################################################################
@@ -668,7 +1034,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
    */
   Connection.prototype.reregisterHandlers = function(){
     var self = this;
-    //#//this.handler = this.GLE.registerHandler( this, -1 ), // the connection itself
+    this.handler = this.GLE.registerHandler( this, -1 ), // the connection itself
     this.waypoints.forEach( function( thisWaypoint, i ){
       thisWaypoint.handler     = self.GLE.registerHandler( self,  i );
       thisWaypoint.lineHandler = self.GLE.registerHandler( self, -i-1 );
@@ -693,6 +1059,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     if( undefined === index )
       index = this.waypoints.length;
     this.waypoints.splice( index, 0, pos );
+    this.branch = new Branch( thisGLE, this.waypoints, this );
     this.GLE.invalidateHandlers();
     return this;
   };

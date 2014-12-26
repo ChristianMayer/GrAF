@@ -49,13 +49,11 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
         clickTimestamp = 0,  // used to check for double click
         /**
          * Check for a double click.
-         * When true, reset zoom rend return true, otherwise false.
          */
         isDoubleClick = function( timeStamp ) {
           if( timeStamp - clickTimestamp < 200 )
           {
             mouseState = mouseStateNone;
-            thisGLE.zoomDefault();
             return true;
           }
           clickTimestamp = timeStamp;
@@ -379,7 +377,18 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
       this.mousedown = function( eventObject ) {
         // check for double click
         if( isDoubleClick( eventObject.timeStamp ) )
+        {
+          thisScreenPos = getMouseScreenPos( eventObject ),
+          thisHandler   = thisGLE.position2handler( thisScreenPos ),
+          thisElement   = thisHandler ? thisHandler[0] : undefined;
+          if( undefined !== thisElement &&
+              selection.isSelected( thisElement ) ) // already selected?
+          {
+            thisGLE.elementInteraction( thisElement );
+          } else
+            thisGLE.zoomDefault();
           return false;
+        }
         
         contentCanvasPos = getMouseCanvasPos( eventObject );
         if( eventObject.ctrlKey )

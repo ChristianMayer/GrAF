@@ -143,16 +143,22 @@ define( function( undefined ) {
    * Component wise minimum.
    */
   Vec2D.prototype.cmin = function( other ) {
-    this.x = this.x < other.x ? this.x : other.x;
-    this.y = this.y < other.y ? this.y : other.y;
+    if( other instanceof Vec2D )
+    {
+      this.x = this.x < other.x ? this.x : other.x;
+      this.y = this.y < other.y ? this.y : other.y;
+    }
     return this;
   };
   /**
    * Component wise maximum
    */
   Vec2D.prototype.cmax = function( other ) {
-    this.x = this.x > other.x ? this.x : other.x;
-    this.y = this.y > other.y ? this.y : other.y;
+    if( other instanceof Vec2D )
+    {
+      this.x = this.x > other.x ? this.x : other.x;
+      this.y = this.y > other.y ? this.y : other.y;
+    }
     return this;
   };
   

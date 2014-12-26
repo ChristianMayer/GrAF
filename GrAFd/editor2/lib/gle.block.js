@@ -18,7 +18,7 @@
 
  
 // create a local context:
-define( ['lib/Vec2D'], function( Vec2D, undefined ) {
+define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
   "use strict";
   
   /**
@@ -36,6 +36,9 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         size     = new Vec2D( 100, 100 ),
         minWidth = 5,
         minHeight = 5,
+        matrix   = new Mat2D(),  // transformation matrix of unpositioned block
+        rotation = 0,
+        flip     = false,
         color    = '#000000',          // how to display
         fill     = '#ffffff',
         mask     = undefined,
@@ -46,13 +49,21 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         inPorts  = [], 
         outPorts = [],
         handlers = [],
+        updateTransformationMatrix = function(){
+          var center = size.copy().scale( 0.5 );
+          matrix = (new Mat2D()).translate(center).scale(flip?-1:1,1).rotate(rotation*Math.PI/180).translate(center.scale(-1));
+          console.log( 'uTM', name, rotation, flip, matrix.print());
+        },
         getInPortPos = function( index ){
           var centerY = (size.y * (index+0.5) / inPorts.length) | 0;
-          return pos.copy().plus( new Vec2D( 0     , centerY ) );
+          return pos.copy().plus( matrix.mul( new Vec2D( 0     , centerY ) ) );
+          //return matrix.mul( pos.copy().plus( new Vec2D( 0     , centerY ) ) );
         },
         getOutPortPos = function( index ){
           var centerY = (size.y * (index+0.5) / outPorts.length) | 0;
-          return pos.copy().plus( new Vec2D( size.x, centerY ) );
+          console.log( 'getOutPortPos', name, pos.copy().plus( new Vec2D( size.x, centerY ) ), matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) ), pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) ) );
+          return pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) );
+          //return matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) );
         };
     
     this.setName = function( newName ) {
@@ -94,7 +105,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     this.setOutConnection = function( theConnection, portNumber )
     {
       if( 0 > portNumber || outPorts.length <= portNumber )
-        throw 'portNumber ' + portNumber + ' is out of range!';
+        throw 'portNumber ' + portNumber + ' is out of range for block "' + this.name + '"!';
       
       outPorts[ portNumber ].connection = theConnection;
       return this;
@@ -120,6 +131,19 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     };
     this.setSize = function( coord_rel ) {
       size = coord_rel.copy();
+      updateTransformationMatrix();
+      thisGLE.invalidateContext();
+      return this;
+    };
+    this.setRotation = function( newAngle ) {
+      rotation = newAngle;
+      updateTransformationMatrix();
+      thisGLE.invalidateContext();
+      return this;
+    };
+    this.setFlip = function( newFlip ) {
+      flip = newFlip;
+      updateTransformationMatrix();
       thisGLE.invalidateContext();
       return this;
     };
@@ -128,8 +152,9 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         (!isPortNumber && (5 <= handler) && (handler < 5 + inPorts.length) ) )
       {
         var portNumber = isPortNumber ? handler : handler - 5,
-            endPos = getInPortPos( portNumber );
-        return [ endPos.copy().minus( new Vec2D( 20, 0 ) ), endPos, portNumber ];
+            endPos = getInPortPos( portNumber ),
+            prevPos = endPos.copy().minus( matrix.nmul( new Vec2D(1,0) ).scale(15) );
+        return [ prevPos, endPos, portNumber ];
       }
     }
     this.getOutCoordinates = function( handler, isPortNumber ) {
@@ -137,8 +162,9 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         (!isPortNumber && handler >= 5 + inPorts.length) )
       {
         var portNumber = isPortNumber ? handler : handler - 5 - inPorts.length,
-            startPos = getOutPortPos( portNumber );
-        return [ startPos, startPos.copy().plus( new Vec2D( 10, 0 ) ), portNumber ];
+            startPos = getOutPortPos( portNumber ),
+            nextPos = startPos.copy().plus( matrix.nmul( new Vec2D(1,0) ).scale(5) );
+        return [ startPos, nextPos, portNumber ];
       }
     }
     this.getHandler = function() {
@@ -402,6 +428,8 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       
       // draw block itself
       context.save(); // make sure to leave the context alone
+      //matrix.copy().translate( p ).setTransform( context );
+      (new Mat2D()).translate( p ).mmul(matrix).setTransform( context );
       context.colorStyle = color;
       context.fillStyle  = fill;
       context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
@@ -410,8 +438,8 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         context.beginPath();
         mask.forEach( function( gE ){
           var 
-            x = p.x + gE.x * s.x, 
-            y = p.y + gE.y * s.y;
+            x = 0*p.x + gE.x * s.x, 
+            y = 0*p.y + gE.y * s.y;
           switch( gE.type ) {
             case 'arc':
               // todo: make scaling / radius independend of x and y
@@ -449,8 +477,10 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         });
         context.stroke(); 
       } else {
-        context.fillRect( p.x, p.y, s.x, s.y );
-        context.strokeRect( p.x, p.y, s.x, s.y );
+        //context.fillRect( p.x, p.y, s.x, s.y );
+        //context.strokeRect( p.x, p.y, s.x, s.y );
+        context.fillRect( 0, 0, s.x, s.y );
+        context.strokeRect( 0, 0, s.x, s.y );
       }
       
       context.fillStyle = '#000000';
@@ -462,20 +492,26 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         + (fontFamiliy ? fontFamiliy : thisGLE.settings.fontFamiliy) + ' '
         + (fontStyle   ? fontStyle   : thisGLE.settings.fontStyle) ;
       
-      context.fillText( name, p.x + s.x / 2, p.y + s.y + 2 );
+      //context.fillText( name, p.x + s.x / 2, p.y + s.y + 2 );
+      context.fillText( name, s.x / 2, s.y + 2 );
       
       context.textBaseline = 'middle';
       context.textAlign = 'left';
       var startIndex = 5;
       inPorts.forEach( function( thisPort, index ){
         var centerY = (s.y * (index+0.5) / inPorts.length) | 0;
-        context.fillText( thisPort.name, p.x + m, p.y + centerY );
+        //context.fillText( thisPort.name, p.x + m, p.y + centerY );
+        context.fillText( thisPort.name, m, centerY );
+        console.log( 'block', name, thisPort );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
-          context.moveTo( p.x - m, p.y - m + centerY );
-          context.lineTo( p.x    , p.y     + centerY );
-          context.lineTo( p.x - m, p.y + m + centerY );
+          //context.moveTo( p.x - m, p.y - m + centerY );
+          //context.lineTo( p.x    , p.y     + centerY );
+          //context.lineTo( p.x - m, p.y + m + centerY );
+          context.moveTo( -m, -m + centerY );
+          context.lineTo(  0,      centerY );
+          context.lineTo( -m,  m + centerY );
           context.stroke(); 
           isDrawFg || view.drawHandler( getInPortPos( index ).copy().scale( scale ).round(1), handlers[ startIndex + index ], focus );
         } else {
@@ -485,13 +521,17 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       startIndex += inPorts.length;
       outPorts.forEach( function( thisPort, index ){
         var centerY = (s.y * (index+0.5) / outPorts.length) | 0;
-        context.fillText( thisPort.name, p.x + s.x - m, p.y + centerY );
+        //context.fillText( thisPort.name, p.x + s.x - m, p.y + centerY );
+        context.fillText( thisPort.name, s.x - m, centerY );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
-          context.moveTo( p.x + s.x    , p.y - m + centerY );
-          context.lineTo( p.x + s.x + m, p.y     + centerY );
-          context.lineTo( p.x + s.x    , p.y + m + centerY );
+          //context.moveTo( p.x + s.x    , p.y - m + centerY );
+          //context.lineTo( p.x + s.x + m, p.y     + centerY );
+          //context.lineTo( p.x + s.x    , p.y + m + centerY );
+          context.moveTo( s.x    , -m + centerY );
+          context.lineTo( s.x + m,      centerY );
+          context.lineTo( s.x    ,  m + centerY );
           context.stroke(); 
           isDrawFg || view.drawHandler( getOutPortPos( index ).copy().scale( scale ).round(1), handlers[ startIndex + index ], focus );
         } else {

@@ -71,8 +71,14 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
               bottomRight = firstElement.getBottomRight();
               
             elements.forEach( function( thisElement ){
-              topLeft.cmin( thisElement.getTopLeft() );
-              bottomRight.cmax( thisElement.getBottomRight() );
+              if( undefined === topLeft )
+              {
+                topLeft     = thisElement.getTopLeft();
+                bottomRight = thisElement.getBottomRight();
+              } else {
+                topLeft.cmin( thisElement.getTopLeft() );
+                bottomRight.cmax( thisElement.getBottomRight() );
+              }
             });
             
             return [ topLeft, bottomRight ];
@@ -137,6 +143,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
          * Create and register a new connection.
          */
         this.addConnection = function( parameters ) {
+          console.log( 'GLE.addConnection ----------------------');
           var thisConnection = new Connection( self, parameters );
           blocks.push( thisConnection );
           view.invalidateContext();
@@ -620,6 +627,17 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           
           self.updateStateInfos();
         };
+        
+        /**
+         * Handle user interaction request with a element (i.e. double click
+         * on it.
+         */
+        this.elementInteraction = function( element ) {
+          if( element instanceof Block )
+          {
+            $('#main').trigger( 'blockInteraction', element );
+          }
+        }
         
         ///////////////////////////////////////////////////////////////////////////////////////////////////
         ///////////////////////////////////////////////////////////////////////////////////////////////////
