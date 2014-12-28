@@ -26,6 +26,119 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           Gesture,          Inputevent,           View ) {
   "use strict";
   
+  // private functions / classes:
+  
+  /**
+   * Class Bucket to quickly look up elements based on bounding boxes and their
+   * positions.
+   */
+  function Bucket()
+  {
+    var
+      container = [],
+      tileNumbers = new Vec2D( 10, 10 ),
+      tileSize = new Vec2D( 100, 100 ); // dummy values - will be updated later
+    
+    /**
+     * Look up Bucket ID by position.
+     * @param {Vec2D} position
+     */
+    function getBucketID2D( position ){
+      //console.log( 'Bucket - getBucketID2D', position );
+      return position.copy().cdiv( tileSize ).floor();
+    }
+    
+    /**
+     * Calculate one dimensional ID out of ID2D.
+     */
+    function getBucketID( ID2D )
+    {
+      //console.log( 'Bucket - getBucketID', ID2D, container );
+      if( ID2D.x < tileNumbers.x && ID2D.y < tileNumbers.y )
+        return ID2D.x + ID2D.y * tileNumbers.x;
+      
+      return container.length - 1;
+    }
+    
+    /**
+      * Empty the Bucket.
+      */
+    this.clear = function() {
+      //console.log( 'Bucket - clear' );
+      container.length = tileNumbers.x * tileNumbers.y + 1;
+      
+      for( var i = 0, len = container.length; i < len; i++ )
+      {
+        if( Array.isArray( container[i] ) )
+          container[i].length = 0;
+        else
+          container[i] = [];
+      };
+    };
+    
+    /**
+     * Debug function: draw tiles
+     */
+    this.draw = function( context, scale ) {
+      context.beginPath();
+      for( var x = 0; x < tileNumbers.x; x++ )
+      {
+        context.moveTo( scale * x * tileSize.x, 0 );
+        context.lineTo( scale * x * tileSize.x, scale * tileNumbers.y * tileSize.y );
+      }
+      for( var y = 0; y < tileNumbers.y; y++ )
+      {
+        context.moveTo( 0                         , scale * y * tileSize.y );
+        context.lineTo( scale * tileNumbers.x * tileSize.x, scale * y * tileSize.y );
+      }
+      context.stroke();
+      for( var x = 0; x < tileNumbers.x; x++ )
+      {
+        for( var y = 0; y < tileNumbers.y; y++ )
+        {
+          context.fillText( container[x+y*tileNumbers.x].length, (x+0.5)*tileSize.x, (y+0.5)*tileSize.y );
+        }
+      }
+    };
+    
+    /**
+     * Fill the Bucket based on a list of elements.
+     * @param list {Array}
+     * @param maxSize {Vec2D} the maximum size to care for
+     */
+    this.fill = function( list, maxSize ) {
+      this.clear();
+      tileSize.replace( maxSize ).cdiv( tileNumbers );
+      
+      list.forEach( this.insert );
+    };
+    
+    /**
+     * Look up elements in Bucket tile by position.
+     * @param {Vec2D} position
+     * @return {Array} List of elements
+     */
+    this.getElements = function( position ){
+      return container[ getBucketID( getBucketID2D( position ) ) ];
+    };
+    
+    /**
+     * Insert a single element in the Bucket
+     */
+    this.insert = function( element ){
+      var
+        tl = getBucketID2D( element.getTopLeft() ),
+        br = getBucketID2D( element.getBottomRight() );
+        
+      for( var pos = tl.copy(); pos.x <= br.x; pos.x++ )
+        for( pos.y = tl.y; pos.y <= br.y; pos.y++ )
+          container[ getBucketID( pos ) ].push( element );
+    };
+    
+    // Constructor:
+    this.clear();
+  }
+  
   /**
    * GrAF logic engine: graphical logic editor.
    * @exports GLE
@@ -39,8 +152,9 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
       scaleID       = 0,   // running number to make sure that no multiple animations are running
       scaleTarget   = 1,   // zoomlevel to animate to
       $canvasContainer,    // jQ object containing the canvases and the scroll bars
-      handlerList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
+      //handlerList = [[]],  // array of elements to draw, first element has to be empty as it corresponds to the background
       activeElements = [], // The active elements, i.e. the one on the Fg
+      bucket        = new Bucket(), // the 2D lookup structure
  
       /**
        * The GLE constructor
@@ -60,27 +174,32 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
            */
           getBoundingBox = function( elements ) {
             if( undefined === elements )
-              elements = handlerList.map( function(a){return a[0];} );
+              //elements = handlerList.map( function(a){return a[0];} );
+              elements = blocks;
             
-            var firstElement = elements.shift();
-            if( undefined === firstElement )  // when all elements are passed the fist is undefined as it is a placeholder for the background
-              firstElement = elements.shift();
+            if( 0 === elements.length )
+              return [ new Vec2D(0, 0), new Vec2D( 0, 0 ) ];
+            
+            //var firstElement = elements.shift();
+            //if( undefined === firstElement )  // when all elements are passed the fist is undefined as it is a placeholder for the background
+            //  firstElement = elements.shift();
             
             var
-              topLeft     = firstElement.getTopLeft(),
-              bottomRight = firstElement.getBottomRight();
+              topLeft    ,// = new Vec2D(Infinity,Infinity);//firstElement.getTopLeft(),
+              bottomRight;// = new Vec2D(-1,-1);//firstElement.getBottomRight();
               
             elements.forEach( function( thisElement ){
               if( undefined === topLeft )
               {
-                topLeft     = thisElement.getTopLeft();
-                bottomRight = thisElement.getBottomRight();
+                topLeft     = thisElement.getTopLeft().copy();
+                bottomRight = thisElement.getBottomRight().copy();
               } else {
                 topLeft.cmin( thisElement.getTopLeft() );
                 bottomRight.cmax( thisElement.getBottomRight() );
               }
             });
             
+            console.log( 'gle getBoundingBox', topLeft, bottomRight );
             return [ topLeft, bottomRight ];
           },
           dummy = true;
@@ -111,22 +230,30 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
          * Delete everything - clears the full drawing plane.
          */
         this.deleteEverything = function() {
+          console.warn( 'GLE.deleteEverything !!!!!!!!!!!!!!!');
+          //bucket.clear();
+          self.selection.clear();
+          
           blocks.forEach( function(block){
             block.delete();
           });
           blocks = [];
           
-          self.selection.clear();
-          view.invalidateContext();
+          //view.invalidateContext();
+          self.invalidateBBox();
         }
         
         /**
          * Create and register a new block.
          */
         this.addBlock = function() {
-          var thisBlock = new Block( self );
+          console.log( 'GLE.addBlock ----------------------');
+          var thisBlock = new Block( self, true );
           blocks.push( thisBlock );
+          bucket.insert( thisBlock );
+          self.invalidateBBox();
           view.invalidateContext();
+          console.log( 'blocks:', blocks );
           return thisBlock;
         }
         
@@ -134,6 +261,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
          * Lookup a block by its name.
          */
         this.getBlockByName = function( name ) {
+          console.log( 'getBlockByName', name, blocks );
           for( var i = 0, len = blocks.length; i < len; i++ )
             if( blocks[i].getName() === name )
               return blocks[i];
@@ -146,6 +274,8 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           console.log( 'GLE.addConnection ----------------------');
           var thisConnection = new Connection( self, parameters );
           blocks.push( thisConnection );
+          bucket.insert( thisConnection );
+          self.invalidateBBox();
           view.invalidateContext();
           return thisConnection;
         }
@@ -153,21 +283,22 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
         /**
          * Draw all blocks
          */
-        this.draw = function( ctxFn, ctxId, scale ) {
+        this.draw = function( ctxFn, scale ) {
           blocks.forEach( function drawBlocks_PROFILENAME( thisBlock, index ){
             var thisActive = activeElements.indexOf( thisBlock ) !== -1;//(thisBlock === activeElement);
             var thisSelected = self.selection.isSelected( thisBlock );
-            thisBlock.draw( ctxFn( thisActive ), ctxId, thisSelected, false, scale );
+            thisBlock.draw( ctxFn( thisActive ), thisSelected, false, scale );
           } );
+          bucket.draw( ctxFn( false ), scale );
         };
         
         /**
          * Draw only active blocks (i.e. the foreground)
          */
-        this.drawActive = function( ctx, ctxId, scale ) {
+        this.drawActive = function( ctx, scale ) {
           activeElements.forEach( function( thisActiveElement ) {
             var thisSelected = self.selection.isSelected( thisActiveElement );
-            thisActiveElement.draw( ctx, ctxId, thisSelected, true, scale );
+            thisActiveElement.draw( ctx, thisSelected, true, scale );
           } );
           self.showGesture(scale);
         }
@@ -192,17 +323,12 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
         /**
          * Handler object definition.
          */
+        /**
         this.Handler = function( id, element, data ) {
           this.id = id;
           this[0] = element;
           this[1] = data;
         };
-        /**
-         * Register a handler.
-         * @param element Object
-         * @param data    Object
-         * @return ID
-         */
         this.registerHandler = function( element, data ) {
           //handlerList.push( [ element, data ] );
           //return (handlerList.length - 1) | 0;
@@ -213,22 +339,28 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
         this.unregisterHandler = function( id ) {
           //console.log( 'unregisterHandler', id, handlerList );
         };
-        /**
-         * Mark all handlers invalid and force a reregistration.
          */
-        this.invalidateHandlers = function()
+        
+        /**
+         * Update Bucket list.
+         */
+        this.invaidateBucket = function()
         {
-          handlerList = [[]]; // empty list first
-          blocks.forEach( function( thisBlock, b ) {
-            thisBlock.reregisterHandlers();
-          } );
-          //view.invalidateContext();
-          view.invalidateIndex();
-        }
+          bucket.fill( blocks, contentSize );
+        };
+        
+        /**
+         * Call this when a bounding box has changed.
+         */
+        this.invalidateBBox = function()
+        {
+          self.updateContentSize();
+          self.invaidateBucket();
+        };
         
         this.invalidateContext = function(){
           // FIXME do that only when really required...:
-          self.updateContentSize();
+          //self.updateContentSize();
           
           view.invalidateContext();
         }
@@ -240,12 +372,22 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
         * Return true if the @parm mousePos doesn't belong to this handler
         */
         this.checkHandlerBadSelection = function( mousePos, handlerPos ) {
-          var halfSize = this.settings.toleranceHandle;
+          var halfSize = self.settings.toleranceHandle;
           return (handlerPos.x-halfSize) > mousePos.x ||
                  (handlerPos.y-halfSize) > mousePos.y || 
                  (handlerPos.x+halfSize) < mousePos.x ||
                  (handlerPos.y+halfSize) < mousePos.y;
         };
+        /**
+         * Return true if mousePos does belong to this handler
+         */
+        this.checkHandlerSelection = function( mousePos, handlerPos ) {
+          var halfSize = self.settings.toleranceHandle;
+          return (handlerPos.x-halfSize) <= mousePos.x &&
+                 (handlerPos.y-halfSize) <= mousePos.y && 
+                 (handlerPos.x+halfSize) >= mousePos.x &&
+                 (handlerPos.y+halfSize) >= mousePos.y;
+        }; 
         
         /**
          * Do a full search for maximum content size
@@ -383,11 +525,59 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
          */
         this.position2handler = function( thisScreenPos ) {
           var 
+            list = bucket.getElements( thisScreenPos ),
+            i = list.length;
+            
+          while( i-- )
+          {
+            var index = list[i].getSelection( thisScreenPos );
+            if( undefined !== index )
+            {
+              return [ list[i], index ];
+            }
+          }
+          /////////////////////////////////////
+          /*
+          var 
             index       = view.position2id( thisScreenPos ),
             validObject = (index > 0) && (index < handlerList.length);
             //console.log( 'p2h', index, validObject );
+          
+          console.log( 'GLE - position2handler', thisScreenPos, bucket.getElements( thisScreenPos ) );
           return validObject ? handlerList[ index ] : undefined;//[];
+          */
         };
+        /*
+        this.position2element = function( thisScreenPos ) {
+          var 
+            list = bucket.getElements( thisScreenPos ),
+            i = list.length;
+          console.log( 'GLE - position2element', thisScreenPos, list, i );
+          while( i-- )
+          {
+            var index = list[i].getSelection( thisScreenPos );
+            console.log( 'i',i,'index', index, list[i].getName() );
+            if( undefined !== index )
+            {
+              console.log( 'GLE - position2element - Found #'+i+':', list[i] );
+              return list[i];
+            }
+          }
+          console.log( 'GLE - position2element - Found nothing' );
+          return undefined;
+          */
+          /*
+              
+          list.forEach( function( element ){
+            var bs = element.checkBadSelection( thisScreenPos, 0, 0 );
+            console.log( element, bs );
+            if( !bs )
+              found = element;
+          });
+          console.log( 'GLE - position2element', thisScreenPos, bucket.getElements( thisScreenPos ), 'found:', found );
+          return found;
+          */
+        //};
         
         /**
          * Return screen position from absolute position (i.e. relative to the
@@ -576,6 +766,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           self.selection.forEach( function( thisElement ) {
             thisElement.update( undefined, undefined, direction );
           } );
+          self.invaidateBucket();
           self.invalidateContext(); // context to force index redraw
         };
         
@@ -590,6 +781,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
             thisElement.delete();
           } );
           self.selection.clear(); // elements were deleted -> remove them from the selection...
+          self.invaidateBucket();
           self.invalidateHandlers();
         };
         
@@ -654,7 +846,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
             console.log( 'FIXME - implement gesture.show' );  // FIXME TODO
         };
         this.scale = function(){ return scale; };
-        this.fixmeGetElementList = function(){ return handlerList; };
+        //this.fixmeGetElementList = function(){ return handlerList; };
         this.moveElementToTop = function( thisElement ) {
           blocks = blocks.filter( function( thisBlock ){
             return thisBlock != thisElement;

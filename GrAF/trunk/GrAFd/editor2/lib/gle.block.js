@@ -25,8 +25,9 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
    * @module GLE.Block
    * @title  GrAF logic engine: graphical logic editor
    * @constructor
+   * @param isLogicElement {Bool} normaly true, false when a library element
    */
-  var block = function( thisGLE ){
+  var block = function( thisGLE, isLogicElement ){
     if( !( this instanceof block ) )
       throw 'Error, use "new" operator for Block!';
     
@@ -61,14 +62,14 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         },
         getOutPortPos = function( index ){
           var centerY = (size.y * (index+0.5) / outPorts.length) | 0;
-          console.log( 'getOutPortPos', name, pos.copy().plus( new Vec2D( size.x, centerY ) ), matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) ), pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) ) );
+          //console.log( 'getOutPortPos', name, pos.copy().plus( new Vec2D( size.x, centerY ) ), matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) ), pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) ) );
           return pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) );
           //return matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) );
         };
     
     this.setName = function( newName ) {
       name = newName;
-      thisGLE.invalidateContext();
+      isLogicElement && thisGLE.invalidateContext();
       return this;
     };
     this.getName = function() {
@@ -81,7 +82,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           inPorts[ i ] = { name: entry };
       } );
       minHeight = 5 + Math.max( inPorts.length, outPorts.length ) * 10;
-      thisGLE.invalidateHandlers();
       return this;
     };
     this.setInConnection = function( theConnection, portNumber )
@@ -99,7 +99,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           outPorts[ i ] = { name: entry };
       } );
       minHeight = 5 + Math.max( inPorts.length, outPorts.length ) * 10;
-      thisGLE.invalidateHandlers();
       return this;
     };
     this.setOutConnection = function( theConnection, portNumber )
@@ -112,7 +111,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     };
     this.setTopLeft = function( coord ) {
       pos = coord.copy();
-      thisGLE.invalidateContext();
+      isLogicElement && thisGLE.invalidateBBox();
       return this;
     };
     this.getTopLeft = function() {
@@ -120,7 +119,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     };
     this.setBottomRight = function( coord ) {
       size = coord.minus( pos );
-      thisGLE.invalidateContext();
+      isLogicElement && thisGLE.invalidateBBox();
       return this;
     };
     this.getBottomRight = function() {
@@ -132,19 +131,19 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     this.setSize = function( coord_rel ) {
       size = coord_rel.copy();
       updateTransformationMatrix();
-      thisGLE.invalidateContext();
+      isLogicElement && thisGLE.invalidateBBox();
       return this;
     };
     this.setRotation = function( newAngle ) {
       rotation = newAngle;
       updateTransformationMatrix();
-      thisGLE.invalidateContext();
+      isLogicElement && thisGLE.invalidateBBox();
       return this;
     };
     this.setFlip = function( newFlip ) {
       flip = newFlip;
       updateTransformationMatrix();
-      thisGLE.invalidateContext();
+      isLogicElement && thisGLE.invalidateBBox();
       return this;
     };
     this.getInCoordinates = function( handler, isPortNumber ) {
@@ -221,6 +220,46 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       return thisGLE.checkHandlerBadSelection( mousePos, getOutPortPos( index - 5 - inPorts.length ) );
     };
     
+    /**
+     * Return the index of the mouse pos - or undefined when no active area was
+     * hit.
+     */
+    this.getSelection = function( mousePos )
+    {
+      console.log( 'getSelection', this.getName(), mousePos, pos, pos.copy().plus(size) );
+      if( (pos.x <= mousePos.x) && 
+          (pos.y <= mousePos.y) && 
+          (mousePos.x <= (pos.x+size.x)) && 
+          (mousePos.y <= (pos.y+size.y)) )
+        return 0;
+          
+      if( !thisGLE.checkHandlerBadSelection( mousePos, pos ) )
+        return 1;
+          
+      if( !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([1,0]) ) ) )
+        return 2;
+          
+      if( !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([0,1]) ) ) )
+        return 3;
+          
+      if( !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size ) ) )
+        return 4;
+      
+      for( var i = 0; i < inPorts.length; i++ )
+      {
+        if( !thisGLE.checkHandlerBadSelection( mousePos, getInPortPos( i ) ) )
+          return i + 5;
+      }
+      
+      for( var i = 0; i < outPorts.length; i++ )
+      {
+        if( !thisGLE.checkHandlerBadSelection( mousePos, getOutPortPos( i ) ) )
+          return i + 5 + inPorts.length;
+      }
+      
+      return undefined;
+    }
+    
     this.prepareUpdate = function( index, handler, mousePos, ctrlKey, shiftKey )
     {
       console.log( 'Block prepareUpdate', index, handler, ctrlKey, mousePos.print(), '['+pos.print()+']' );
@@ -236,7 +275,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
                   .setInPorts ( inPorts.map ( function(thisPort){ return thisPort.name} ) )
                   .setOutPorts( outPorts.map( function(thisPort){ return thisPort.name} ) )
                   .getHandler();
-          thisGLE.invalidateHandlers();
         }
       } else if( index < 5 )
       {
@@ -407,8 +445,9 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
      * Draw itself on the canvas @param context and it's shape on the
      * @param index context.
      */
-    this.draw = function( context, index, focus, isDrawFg, scale ) {
+    this.draw = function( context, focus, isDrawFg, scale ) {
       var 
+        index = undefined,
         view = thisGLE.view(),
         p    = pos.copy().scale( scale ).round(1),
         s    = size.copy().scale( scale ).round(1),
@@ -417,9 +456,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       // draw shape to index map
       if( !isDrawFg )
       {
-        view.prepareHandlerDrawing( handlers[ 0 ] );
-        index && index.fillRect( p.x, p.y, s.x, s.y );
-        
         view.drawHandler( p                                    , handlers[ 1 ], focus );
         view.drawHandler( p.copy().plus( s.copy().cmul([1,0]) ), handlers[ 2 ], focus );
         view.drawHandler( p.copy().plus( s.copy().cmul([0,1]) ), handlers[ 3 ], focus );
@@ -502,7 +538,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         var centerY = (s.y * (index+0.5) / inPorts.length) | 0;
         //context.fillText( thisPort.name, p.x + m, p.y + centerY );
         context.fillText( thisPort.name, m, centerY );
-        console.log( 'block', name, thisPort );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
@@ -543,6 +578,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     /**
      * Reregister all handlers, e.g. when they got invalid.
      */
+    /*
     this.reregisterHandlers = function(){
       handlers.length = 0; 
       // the first 5 handlers are for the element itself and the 4 handlers
@@ -551,9 +587,10 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         handlers.push( thisGLE.registerHandler( this, i ) );
       }
     }
+    */
     
     // constructor
-    this.reregisterHandlers(); // initial registering
+    //this.reregisterHandlers(); // initial registering
   };
   
   
