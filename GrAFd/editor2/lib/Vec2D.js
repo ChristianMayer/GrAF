@@ -1,5 +1,5 @@
 /**
- * Vec2D.js (c) 2013 by Christian Mayer [CometVisu at ChristianMayer dot de]
+ * Vec2D.js (c) 2013, 2014 by Christian Mayer [CometVisu at ChristianMayer dot de]
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -231,83 +231,4 @@ define( function( undefined ) {
   };
   
   return Vec2D;
-});
-  
-define( function(){
-  //////////////////////////////////////////////////////////////////////////////
-  // Line                                                                     //
-  //////////////////////////////////////////////////////////////////////////////
-  
-  var Line = function( start, end ) {
-    if( !( this instanceof Line ) )
-      throw 'Error, use "new" operator for Line!';
-
-    if( !( start instanceof Vec2D ) || !( end instanceof Vec2D ) )
-      throw 'Error, parameters has to be of type Vec2D!';
-    
-    this.start = start;
-    this.end   = end;
-  };
-    
-  // fill the prototype public methods of GLE:
-  Line.prototype.toString = function() { return '[object Line]'; };
-  
-  /**
-   * Calculate the intersection point of two lines.
-   * When the @retrurn value num1 or num2 is divided by det you have the
-   * intersection point in local coordinates.
-   */
-  Line.prototype.calcIntersection = function( otherLine )
-  {
-    var dir1 = this.end.copy().minus( this.start ),
-        dir2 = otherLine.end.copy().minus( otherLine.start ),
-        diff = this.start.copy().minus( otherLine.start ),
-        num1 = dir2.x * diff.y - dir2.y * diff.x,
-        num2 = dir1.x * diff.y - dir1.y * diff.x,
-        det  = dir2.y * dir1.x - dir2.x * dir1.y;
-    return [ num1, num2, det ];
-  };
-  
-  /**
-   * Return true if both line segments do intersect.
-   */
-  Line.prototype.checkSegmentIntersection = function( otherLine )
-  {
-    var intersection = this.calcIntersection( otherLine ),
-        num1 = intersection[0],
-        num2 = intersection[1],
-        det  = intersection[2];
-    
-    if( 0 === det ) return false; // lines parallel, probably identical...
-    
-    var t1 = num1 / det,
-        t2 = num2 / det;
-    console.log( num1, num2, det, t1, t2 );    
-    return (t1 >= 0) && (t1 <= 1) && (t2 >= 0) && (t2 <= 1); 
-  };
-  
-  /**
-   * Return true if the point is closer to the segment than the epsilon
-   */
-  Line.prototype.checkPointProximity = function( point, epsilon )
-  {
-    var ps = point.copy().minus( this.start ),
-        es = this.end.copy().minus( this.start ),
-        num = ps.sprod( es ),
-        det = es.sprod( es );
-      
-    if( (num < 0) || (num > det) )
-      return false; // point outside of segment
-      
-    var s = ( ps.x*es.y - ps.y*es.x ) / det;
-    
-    return Math.abs( s ) * Math.sqrt( det ) < epsilon;
-    /*    
-     (Cx-Ax)(Bx-Ax) + (Cy-Ay)(By-Ay)
-        r = -------------------------------
-                          L^2
-    */
-  }
-
-  return Line;
 });

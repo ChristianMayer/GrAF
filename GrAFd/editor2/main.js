@@ -174,7 +174,6 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       //GLE.addConnection( param );
       GLE.addConnection( con );
     });
-    GLE.invalidateHandlers();
     currentSystem = system;
   }
   
@@ -291,7 +290,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
         type  = $this.data('type'),
         ctx = $this.find('canvas')[0].getContext('2d'),
         block = getFromLib( type ),
-        b = new Block( GLE );
+        b = new Block( GLE, false );
         
       b.setName( type.split('/').pop() );
       b.setSize( new Vec2D( block.width, block.height ) );

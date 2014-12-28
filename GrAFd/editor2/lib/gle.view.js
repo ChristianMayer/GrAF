@@ -58,18 +58,14 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         canvasValid   = 0,   // Collect if canvas has to be redrawn
         canvasFgValid = 0,   // Collect if canvas has to be redrawn
         layersClamped = false, // True when the forground should also be painted on the background
-        idBuffer,            // ID map, i.e. 2D image of the indexList
-        idData,              // The data array of the ID map
-        idDataInvalid = true,// Collect if id data has to be fetched
-        ctxId,               // context of ID map
-        ctxIdInvalid  = true,// Collect if the ID map is valid for lazy evaluation
+        /*
         ctxDummy = {         // dummy context, can be passed as a context
           beginPath: function(){},
           moveTo: function(){},
           lineTo: function(){},
           stroke: function(){},
           fillRect: function(){}
-        },
+        },*/
         selectionCorner,     // draw a selection rectangle when defined
         selectionSize,
         showGrid = false,    // draw a grid for easier positioning and debugging
@@ -97,74 +93,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
             $canvasContainer.scrollLeft(),
             $canvasContainer.scrollTop()
           );
-        },
-        /**
-         * Create a indexBuffer value (i.e. color) out of the @param pos.
-         */
-        id2color = function( pos ) {
-          var base = (pos|0).toString( 16 );
-          return '#' + Array( 7 - base.length ).join( '0' ) + base;
-        },
-        /**
-         * Little helper function to make idData valid.
-         */
-        makeIdDataValid = function() {
-          if( ctxIdInvalid )
-            self.updateContext();
-          
-          if( idDataInvalid )
-          {
-            idData = ctxId.getImageData( 0, 0, drawSize.x, drawSize.y ).data;
-            idDataInvalid = false;
-          }
-        },
-        /**
-        * Retrieve the index out of screen coordinates.
-        * @param thisPos Vec2D
-        */
-        position2id = function( thisScreenPos ) {
-          makeIdDataValid();
-          var idxPos = (4*(Math.round(thisScreenPos.x*scaleInternal) + drawSize.x * Math.round(thisScreenPos.y*scaleInternal)))|0;
-          //console.log( idxPos, idData[ idxPos ], idData[ idxPos+1 ], idData[ idxPos+2 ] );
-          return ( (idData[ idxPos ] << 16) + (idData[ ++idxPos ] << 8) + idData[ ++idxPos ] )|0;
-        },
-        /**
-         * Retrieve all indices that are inside the screen area.
-         * The allowed index range is passed by minIndex and endIndex-1
-         */
-        area2id = function( pScreenMin, pScreenMax, minIndex, endIndex ) {
-          makeIdDataValid();
-          var 
-            minPos = pScreenMin.copy().scale(scaleInternal).round(1),
-            maxPos = pScreenMax.copy().scale(scaleInternal).round(1),
-            buffer = new ArrayBuffer( endIndex ),
-            idxSet = new Int8Array(buffer),
-            // preassign all loop variables for speed up
-            width  = drawSize.x,
-            y,
-            yMin   = 4*width*(minPos.y|0),
-            yMax   = 4*width*(maxPos.y|0),
-            yStep  = 4*width,
-            x,
-            xMin   = 4*(minPos.x|0),
-            xMax   = 4*(maxPos.x|0),
-            xy, thisIdx,   // cache variables
-            retVal = [];
-            
-          for( y = yMin; y <= yMax; y += yStep )
-          {
-            for( x = xMin; x <= xMax; x += 4 )
-            {
-              xy      = x + y,
-              thisIdx = ((idData[ xy++ ] << 16) + (idData[ xy++ ] << 8) + (idData[ xy ]))|0;
-              idxSet[ thisIdx ] = 1;
-            }
-          }
-          for( x = minIndex; x < endIndex; x++ )
-            if( idxSet[x] === 1 )
-              retVal.push( x );
-            
-          return retVal;
         },
         /**
           * Clear a canvas given by its context.
@@ -255,9 +183,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
  
         foo = 0;
     
-    this.position2id = position2id; // FIXME make visible
-    this.area2id     = area2id;     // FIXME make visible
-    
     this.getForeground = function() {
       return $canvasFg;
     };
@@ -297,14 +222,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     };
     
     /**
-      * Setup index buffer to allow objects to draw themselfes.
-      */
-    this.prepareHandlerDrawing = function( handler ) {
-      ctxId.fillStyle = ctxId.strokeStyle = id2color( handler.id | 0 );
-      ctxId.lineWidth = thisGLE.settings.toleranceLine;
-    };
-    
-    /**
       * Draw a handler at the given positions with the id. If @param active
       * is true the handler will be visible and at the foreground as well.
       * @param pos Vec2D
@@ -321,11 +238,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         ctxFg.fillRect( pos.x - halfSizeFg, pos.y - halfSizeFg, fullSizeFg, fullSizeFg );
         ctxFg.strokeRect( pos.x - halfSizeFg, pos.y - halfSizeFg, fullSizeFg, fullSizeFg );
       }
-      
-      ctxId.lineWidth = 1;
-      ctxId.fillStyle = id2color( handler.id | 0 );
-      ctxId.fillRect( pos.x - halfSizeId, pos.y - halfSizeId, fullSizeId, fullSizeId );
-      ctxId.strokeRect( pos.x - halfSizeId, pos.y - halfSizeId, fullSizeId, fullSizeId );
     }
     
     /**
@@ -345,13 +257,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       if( 0 === canvasValid )
         canvasValid = requestAnimationFrame( this.updateContext );
     };
-    /**
-     * Notify that the ID map is invalid.
-     */
-    this.invalidateIndex = function()
-    {
-      ctxIdInvalid = true;
-    }
     
     /**
      * Update - depending on necessity - the foreground or the foreground and
@@ -362,7 +267,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       if( self.updateBg )
       {
         self.draw();
-        ctxIdInvalid = false;
       }
       else
         self.drawFg();
@@ -372,9 +276,8 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
      * Redraw canvases.block
      */
     this.draw = function() {
-      clearCanvas( ctxId );
-      ctxId.setTransform( 1, 0, 0, 1, 0.5 - 1*viewOffset.x*scaleInternal, 0.5 - 1*viewOffset.y*scaleInternal );
       clearCanvas( ctxBg );
+      clearCanvas( ctxFg );
       //console.log( 'draw ---------------------------------------------' );
       //$('#extra').text( 'Draw:' +  (new Date().getTime()) );
       if( showGrid ) {
@@ -406,7 +309,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         ctxBg.restore();
       }
       
-      thisGLE.draw( function(isActive){ return isActive ? ctxFg : ctxBg; }, ctxId, scale * scaleInternal );
+      thisGLE.draw( function(isActive){ return isActive ? ctxFg : ctxBg; }, scale * scaleInternal );
       
       // show debug:
       ctxBg.save();
@@ -415,9 +318,8 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       ctxBg.fillRect( 0, 0, drawSize.x, drawSize.y );
       ctxBg.restore();
       self.updateBg = false;
-      self.drawFg(); // =>  canvasFgValid = 0;
-      
-      idDataInvalid = true;
+      //self.drawFg(); // =>  canvasFgValid = 0;
+      canvasValid = 0;
     };
     this.drawFg = function() {
       var thisCtx = layersClamped ? ctxBg : ctxFg;
@@ -425,7 +327,7 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       //$('#extra').text( 'DrawFg:' +  (new Date().getTime()) );
       clearCanvas( ctxFg );
       ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*viewOffset.x*scaleInternal, 0.5 - 1*viewOffset.y*scaleInternal );
-      thisGLE.drawActive( thisCtx, ctxDummy, scale * scaleInternal );
+      thisGLE.drawActive( thisCtx, scale * scaleInternal );
       
       // draw selection rectangle when defined
       if( selectionCorner !== undefined )
@@ -479,20 +381,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       ctxFg.lineWidth = 1;
       ctxFg.stroke();
       ctxFg.restore();
-      ctxId.beginPath();
-      ctxId.moveTo( pos.x-4, pos.y-4 );
-      ctxId.lineTo( pos.x-1, pos.y-1 );
-      ctxId.moveTo( pos.x+4, pos.y-4 );
-      ctxId.lineTo( pos.x+1, pos.y-1 );
-      ctxId.moveTo( pos.x+4, pos.y+4 );
-      ctxId.lineTo( pos.x+1, pos.y+1 );
-      ctxId.moveTo( pos.x-4, pos.y+4 );
-      ctxId.lineTo( pos.x-1, pos.y+1 );
-      ctxId.save();
-      ctxId.strokeStyle = '#ff0000';
-      ctxId.lineWidth = 1;
-      ctxId.stroke();
-      ctxId.restore();
     };
     
     /**
@@ -626,11 +514,6 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         applySize( $canvasFg[0], screenSize.copy().scale(scaleInternal).round(1) );
         applySize( $canvasFg[0].style, screenSize, 'px' );
         isFgViewResized = true;
-        
-        idBuffer.width  = $canvasFg[0].width;
-        idBuffer.height = $canvasFg[0].height;
-        idBuffer.style.width  = $canvasFg[0].style.width;  // for debug FIXME
-        idBuffer.style.height = $canvasFg[0].style.height; // for debug FIXME
       }
         
       // figure out if the container was moved, i.e. it's offset was changed
@@ -724,19 +607,10 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
     
     ctxFg       = $canvasFg[0].getContext('2d');
     ctxBg       = $canvasBg[0].getContext('2d');
-    idBuffer    = document.createElement('canvas');
-    ////
-    $('#drawArea').append( idBuffer ); // for debug FIXME
-    $('#drawArea canvas').css( 'border', 'solid green' );  // for debug FIXME
-    ////
     //$canvasFg[0].width  = ($canvasContainer[0].clientWidth * scaleInternal) | 0;
     //$canvasFg[0].height = ($canvasContainer[0].clientHeight * scaleInternal) | 0;
     
-    //idBuffer.style.width  = $canvasFg[0].style.width; // for debug FIXME
-    //idBuffer.style.height = $canvasFg[0].style.height; // for debug FIXME
-    ctxId       = idBuffer.getContext('2d');
     setSmoothingEnabled( ctxFg, false );
-    setSmoothingEnabled( ctxId, false );
     self.resizeView(); // sets also 'width' and 'height'
   };
   

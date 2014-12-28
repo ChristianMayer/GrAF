@@ -112,8 +112,8 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                 // ---------------
                 
                 dragHandler = thisGLE.position2handler( lastScreenPos );
-                    console.log( 'drag', dragHandler );
-                if( undefined === dragHandler || dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) )
+                    console.log( 'drag', dragHandler, dragHandler?dragHandler[1]:'-' ); //, dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) );
+                if( undefined === dragHandler ) //|| dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) )
                 {
                   selection.clear();
                   
@@ -123,7 +123,7 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                 
                 var index = undefined;
                 var newIndex = dragHandler[0].prepareUpdate( dragHandler[1], index, view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
-                var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO - nur hier um elementList zu aktuallisieren
+                //var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO - nur hier um elementList zu aktuallisieren
                 if( newIndex !== undefined )
                   //dragHandler = elementList[ newIndex ];
                   dragHandler = newIndex;
@@ -139,7 +139,7 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
               },
         
             move: function( mouseScreenPos, ctrlKey, shiftKey ) {
-                var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
+                //var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO
                 var 
                   thisPos       = view.screen2canvas(mouseScreenPos).round(1),
                   shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
@@ -170,6 +170,7 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
               
                 dragHandler = [];
                 thisGLE.updateContentSize(); // e.g. the boundary has to be updated
+                thisGLE.invaidateBucket();
                 view.invalidateContext(); // redraw to fix Id map
               }
           };
@@ -381,6 +382,7 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
           thisScreenPos = getMouseScreenPos( eventObject ),
           thisHandler   = thisGLE.position2handler( thisScreenPos ),
           thisElement   = thisHandler ? thisHandler[0] : undefined;
+          //thisElement   = thisGLE.position2element( thisScreenPos );
           if( undefined !== thisElement &&
               selection.isSelected( thisElement ) ) // already selected?
           {
@@ -402,6 +404,8 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
             thisScreenPos = getMouseScreenPos( eventObject ),
             thisHandler   = thisGLE.position2handler( thisScreenPos ),
             thisElement   = thisHandler ? thisHandler[0] : undefined;
+            //thisElement   = thisGLE.position2element( thisScreenPos );
+            
           if( eventObject.shiftKey )   // Shift = add to selection
           {
             if( undefined !== thisElement &&
