@@ -60,11 +60,14 @@
     }
   },
   "signals": [
-    { "source": "Sum1"     , "sourcePort": 0, "target": "Integral2", "targetPort": 0 },
+    { "source": "Sum1"     , "sourcePort": 0, "waypoints": [
+      { "target": "Integral2", "targetPort": 0 },
+      { "target": "Memory1"  , "targetPort": 0 }
+    ] },
     { "source": "Gain1"    , "sourcePort": 0, "target": "Sum1"     , "targetPort": 0 },
-    { "source": "Sum1"     , "sourcePort": 0, "target": "Memory1"  , "targetPort": 0 },
     { "source": "Memory1"  , "sourcePort": 0, "target": "Sum1"     , "targetPort": 1 },
-    { "source": "Integral2", "sourcePort": 0, "target": "Gain2"    , "targetPort": 0, "waypoints": [
+    { "source": "Integral2", "sourcePort": 0, "waypoints": [
+      { "target": "Gain2"    , "targetPort": 0 },
       { "target": "Display22", "targetPort": 0 }, 
       { "target": "Scope_2"  , "targetPort": 0 }
     ] },

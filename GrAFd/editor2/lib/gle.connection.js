@@ -33,10 +33,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
     
     // local helper function to recursively translate branch structure, e.g. to
     // convert to Vec2D
-    function translateSignal( signalElement ){
-      if( Array.isArray( signalElement ) )
-        return new Vec2D( signalElement[0], signalElement[1] );
-      
+    function translateSignal( signalElement, upperLastPoint ){
       var branch = {};
       if( signalElement.target ) {
         branch.target = {
@@ -53,7 +50,19 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
       
       if( signalElement.waypoints ) 
       {
-        branch.waypoints = signalElement.waypoints.map( translateSignal );
+        branch.waypoints = [];
+        signalElement.waypoints.forEach( function( wp ){
+          var newWp;
+          if( Array.isArray( wp ) )
+          {
+            newWp = new Vec2D( wp[0], wp[1] );
+            upperLastPoint.replace( newWp );
+          } else {
+            newWp = translateSignal( wp, upperLastPoint.copy() );
+            newWp.source = upperLastPoint.copy();
+          }
+          branch.waypoints.push( newWp );
+        });
       }
       
       if( !branch.isConnected && branch.waypoints && 
@@ -68,9 +77,6 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
       return branch;
     }
 
-    // local variables
-    var translatedSignal = translateSignal( signal );
-    
     // object elements:
     if( signal.source )
     {
@@ -82,6 +88,8 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
     } else {
       this.source = {};
     }
+    
+    var translatedSignal = translateSignal( signal, this.source.block ? this.source.block.getOutCoordinates( this.source.port, true )[1] : new Vec2D(-1,-1) );
     this.target      = translatedSignal.target;
     this.waypoints   = translatedSignal.waypoints || [];
     this.isEndpoint  = translatedSignal.isEndpoint;
@@ -630,6 +638,96 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
      */
     this.moveWaypoint = function( index, newPos, absolute )
     {
+      var
+        i = 0,
+        branch = this.branch;
+      for( ; i < index.length - 1; i++ )
+      {
+        branch = branch.waypoints[ index[i] ];
+      }
+      
+      var 
+        thisIndex = index[i],
+        waypoints = branch.waypoints;
+      
+      console.log( 'moveWaypoint', index, this.branch, branch, newPos, waypoints[ thisIndex ] );
+      
+      if( !absolute )
+        newPos = newPos.copy().plus( waypoints[ thisIndex ] );
+      
+      // handle waypoint prior to moved point:
+      if( thisIndex === 0 )
+      { // start point
+        // -> 3 options: start of connection without block, with block or just after branch
+        if( branch.source.block )
+        {
+          //console.log('have source', waypoints.length, branch.source.block.getOutCoordinates( branch.source.port, true )[1] );
+          waypoints.unshift( branch.source.block.getOutCoordinates( branch.source.port, true )[1] );
+          thisIndex = index[i] = 1;
+        } else {
+          if( i === 0 )
+            console.error('unconnected start - handle in update()?');
+          
+          // console.log('have branch');
+          waypoints.unshift( branch.source.copy() );
+          thisIndex = index[i] = 1;
+        }
+      }
+      
+      if( waypoints[ thisIndex-1 ].x === waypoints[ thisIndex ].x )
+        waypoints[ thisIndex-1 ].x = newPos.x;
+      else if( waypoints[ thisIndex-1 ].y === waypoints[ thisIndex ].y )
+        waypoints[ thisIndex-1 ].y = newPos.y;
+      
+      // handle waypoint after moved point:
+      if( thisIndex + 1 === waypoints.length && branch.target )
+        waypoints.push( branch.target.block.getInCoordinates( branch.target.port, true )[0] );
+      
+      // TODO: bewege alle unmittelbar folgenden branches und den danach folgenden Vec2D.; Auserdem Test ob nicht schon Ende und Block-Port dran hängt
+      for( var nextIndex = thisIndex + 1; nextIndex < waypoints.length; nextIndex++ )
+      {
+        var wp = waypoints[ nextIndex ];
+        console.log( '#### moveWp- next wp:', wp, wp.waypoints );
+        if( wp instanceof Vec2D )
+          nextIndex = Infinity; // trick for automatically causing a break at end of this iteration
+        else { // -> branch
+          if( wp.waypoints )
+          {
+            if( (wp.waypoints.length === 1 && undefined === wp.target) ||
+                !(wp.waypoints[1] instanceof Vec2D)
+            )
+              wp.waypoints.unshift( wp.waypoints[0].copy() );
+            
+            wp.source.replace( newPos );
+          } else {
+            wp.waypoints = [ wp.target.block.getInCoordinates( wp.target.port, true )[0] ];
+          }
+          wp = wp.waypoints[0];
+        }
+        
+        if( wp.x === waypoints[ thisIndex ].x )
+          wp.x = newPos.x;
+        else if( wp.y === waypoints[ thisIndex ].y )
+          wp.y = newPos.y;
+      }
+      /*
+      if( thisIndex+1 < waypoints.length )
+      {
+        if( waypoints[ thisIndex+1 ].x === waypoints[ thisIndex ].x )
+          waypoints[ thisIndex+1 ].x = newPos.x;
+        else if( waypoints[ thisIndex+1 ].y === waypoints[ thisIndex ].y )
+          waypoints[ thisIndex+1 ].y = newPos.y;
+      }*/
+      
+      // handle moved point itself
+      waypoints[ thisIndex ].replace( newPos );
+        
+      this.branch.updateListToDraw();
+      return index;
+      //////////////////////////////
+      //////////////////////////////
+      //////////////////////////////
+      //////////////////////////////
       var waypoints = self.waypoints, // speed up indirection
           minIdx = 'number' === typeof index ? index  : index[0],
           minPos = Array.isArray( newPos )   ? newPos[0] : newPos,
@@ -909,7 +1007,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
         } );
         return;
       }
-      
+      /*
       if( index === self.waypoints.length )
       {
         var thisPos = newPos.copy(),
@@ -917,7 +1015,6 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
             
         if( this.candidates.appendEnd )
         {
-          //console.log('appendEnd' /*,lowerHandler.length && lowerHandler[0].getInCoordinates, /*lowerHandler.length*/,lowerHandler, !!lowerHandler );
           if( lowerHandler && lowerHandler[0].getInCoordinates )
           {
             var res = lowerHandler[0].getInCoordinates(lowerHandler[1]);
@@ -948,7 +1045,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
         //console.log( 'move candidates', self.candidates.direction, thisPos, endPos, lowerHandler );
         self.getCandidate( thisPos, endPos, shiftKey );
         return;
-      }
+      }*/
       
       if( index < 0 ) // move segment
       {

@@ -368,7 +368,8 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         {
           var coords = self.getInCoordinates( i + 5 );
           var l = thisPort.connection.waypoints.length;
-          var res = thisPort.connection.moveWaypoint( [ l-2, l-1 ], [coords[0], coords[1]], true );
+          //var res = thisPort.connection.moveWaypoint( [ l-2, l-1 ], [coords[0], coords[1]], true );
+          thisPort.connection.branch.updateListToDraw();
           /*
           console.log( coords );
           var l = thisPort.connection.waypoints.length;
@@ -386,7 +387,8 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         if( undefined !== thisPort.connection )
         {
           var coords = self.getOutCoordinates( i + 5 + inPorts.length );
-          var res = thisPort.connection.moveWaypoint( [0,1], [coords[0], coords[1]], true );
+          // done implicitly now: var res = thisPort.connection.moveWaypoint( [0,1], [coords[0], coords[1]], true );
+          thisPort.connection.branch.updateListToDraw();
           /*
           var l = thisPort.connection.waypoints.length;
           thisPort.connection.waypoints[ 0 ].protected = false;
