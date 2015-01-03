@@ -121,8 +121,7 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                   return false; // no object found
                 }
                 
-                var index = undefined;
-                var newIndex = dragHandler[0].prepareUpdate( dragHandler[1], index, view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
+                var newIndex = dragHandler[0].prepareUpdate( dragHandler[1], view.screen2canvas(lastScreenPos), ctrlKey, shiftKey );
                 //var elementList = thisGLE.fixmeGetElementList(); // FIXME TODO - nur hier um elementList zu aktuallisieren
                 if( newIndex !== undefined )
                   //dragHandler = elementList[ newIndex ];
@@ -152,7 +151,7 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                 var newIndex = (dragHandler[0]).update( dragHandler[1], thisPos, shortDeltaPos, lowerHandler, shiftKey );
                 // check if the handler might have been changed during the update
                 //console.log( 'drag move', dragHandler, newIndex );
-                if( newIndex !== undefined && newIndex !== dragHandler[1] )
+                if( false && newIndex !== undefined && newIndex !== dragHandler[1] )
                 {
                   //dragHandler[1] = elementList[newIndex][1];
                   //dragHandler = elementList[newIndex];

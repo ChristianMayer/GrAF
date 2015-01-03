@@ -260,15 +260,15 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       return undefined;
     }
     
-    this.prepareUpdate = function( index, handler, mousePos, ctrlKey, shiftKey )
+    this.prepareUpdate = function( index, mousePos, ctrlKey, shiftKey )
     {
-      console.log( 'Block prepareUpdate', index, handler, ctrlKey, mousePos.print(), '['+pos.print()+']' );
+      console.log( 'Block prepareUpdate', index, ctrlKey, mousePos.print(), '['+pos.print()+']' );
       if( 0 === index )
       {
         if( ctrlKey )
         {
           console.log( 'Duplicate Block' );
-          handler = thisGLE.addBlock()
+          return thisGLE.addBlock()
                   .setTopLeft( pos )
                   .setBottomRight( pos.copy().plus( size ) )
                   .setName( thisGLE.getNextName( name ) )
@@ -294,8 +294,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         return outPorts[ thisIndex ].connection.prepareUpdate( 1 );
         //return outPorts[ thisIndex ].connection.waypoints[1].handler;
       }
-      
-      return handler;
     };
     
     /**
