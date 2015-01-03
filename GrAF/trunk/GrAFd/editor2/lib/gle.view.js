@@ -173,7 +173,11 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
           {
             drawSize = clientSize.copy().scale(scaleInternal).round(1);
             
-            applySize( $drawingPl[0].style, contentSize.copy().scale(scale), 'px' );
+            // TODO: was: 
+            //applySize( $drawingPl[0].style, contentSize.copy().scale(scale), 'px' );
+            // FIXME: quick fix now:
+            applySize( $drawingPl[0].style, drawSize, 'px' );
+            
             //applySize( $drawingPl[0].style, clientSize, 'px' );
             applySize( $canvasBg[0], drawSize );
             applySize( $canvasBg[0].style, clientSize, 'px' );

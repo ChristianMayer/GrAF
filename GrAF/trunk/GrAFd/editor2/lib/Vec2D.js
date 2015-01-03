@@ -28,7 +28,7 @@
  * If the source mustn't be changed, use the copy() method.
  * @module Vec2D
  */ 
-define( function( undefined ) {
+define( function() {
   "use strict";
 
   /**
