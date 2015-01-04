@@ -775,14 +775,16 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
          */
         this.selectionDelete = function() {
           self.selection.forEach( function( thisElement ) {
-            blocks = blocks.filter( function( thisBlock ){
-              return thisBlock != thisElement;
-            } );
-            thisElement.delete();
+            if( thisElement.delete() )
+            {
+              blocks = blocks.filter( function( thisBlock ){
+                return thisBlock != thisElement;
+              } );
+            }
           } );
           self.selection.clear(); // elements were deleted -> remove them from the selection...
           self.invaidateBucket();
-          self.invalidateHandlers();
+          //self.invalidateHandlers();
         };
         
         /*

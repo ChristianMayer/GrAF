@@ -409,6 +409,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     
     /**
      * Delete itself, i.e. cancel references to it in the connections.
+     * @retrun true when this block can be deleted completely
      */
     this.delete = function()
     {
@@ -421,6 +422,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           thisPort.connection.start = undefined;
       } );
       name = '### Deleted Block! ###'; // Help debuging the GC
+      return true;
     };
     
     /**
