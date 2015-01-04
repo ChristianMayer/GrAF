@@ -1,5 +1,5 @@
 /**
- * autorouter.js (c) 2013 by Christian Mayer [CometVisu at ChristianMayer dot de]
+ * autorouter.js (C) 2013-2015 by Christian Mayer [CometVisu at ChristianMayer dot de]
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free

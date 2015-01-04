@@ -1,5 +1,5 @@
 /**
- * gle.js (c) 2013 by Christian Mayer [CometVisu at ChristianMayer dot de]
+ * gle.js (C) 2013-2015 by Christian Mayer [CometVisu at ChristianMayer dot de]
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -321,27 +321,6 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
         };
         
         /**
-         * Handler object definition.
-         */
-        /**
-        this.Handler = function( id, element, data ) {
-          this.id = id;
-          this[0] = element;
-          this[1] = data;
-        };
-        this.registerHandler = function( element, data ) {
-          //handlerList.push( [ element, data ] );
-          //return (handlerList.length - 1) | 0;
-          var newHandler = new self.Handler( handlerList.length, element, data );
-          handlerList.push( newHandler );
-          return newHandler;
-        };
-        this.unregisterHandler = function( id ) {
-          //console.log( 'unregisterHandler', id, handlerList );
-        };
-         */
-        
-        /**
          * Update Bucket list.
          */
         this.invaidateBucket = function()
@@ -536,48 +515,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
               return [ list[i], index ];
             }
           }
-          /////////////////////////////////////
-          /*
-          var 
-            index       = view.position2id( thisScreenPos ),
-            validObject = (index > 0) && (index < handlerList.length);
-            //console.log( 'p2h', index, validObject );
-          
-          console.log( 'GLE - position2handler', thisScreenPos, bucket.getElements( thisScreenPos ) );
-          return validObject ? handlerList[ index ] : undefined;//[];
-          */
         };
-        /*
-        this.position2element = function( thisScreenPos ) {
-          var 
-            list = bucket.getElements( thisScreenPos ),
-            i = list.length;
-          console.log( 'GLE - position2element', thisScreenPos, list, i );
-          while( i-- )
-          {
-            var index = list[i].getSelection( thisScreenPos );
-            console.log( 'i',i,'index', index, list[i].getName() );
-            if( undefined !== index )
-            {
-              console.log( 'GLE - position2element - Found #'+i+':', list[i] );
-              return list[i];
-            }
-          }
-          console.log( 'GLE - position2element - Found nothing' );
-          return undefined;
-          */
-          /*
-              
-          list.forEach( function( element ){
-            var bs = element.checkBadSelection( thisScreenPos, 0, 0 );
-            console.log( element, bs );
-            if( !bs )
-              found = element;
-          });
-          console.log( 'GLE - position2element', thisScreenPos, bucket.getElements( thisScreenPos ), 'found:', found );
-          return found;
-          */
-        //};
         
         /**
          * Return screen position from absolute position (i.e. relative to the
@@ -784,7 +722,6 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           } );
           self.selection.clear(); // elements were deleted -> remove them from the selection...
           self.invaidateBucket();
-          //self.invalidateHandlers();
         };
         
         /*

@@ -1,5 +1,5 @@
 /**
- * gle.block.js (c) 2013 by Christian Mayer [CometVisu at ChristianMayer dot de]
+ * gle.block.js (C) 2013-2015 by Christian Mayer [CometVisu at ChristianMayer dot de]
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
@@ -576,20 +576,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       });
       context.restore();
     };
-    
-    /**
-     * Reregister all handlers, e.g. when they got invalid.
-     */
-    /*
-    this.reregisterHandlers = function(){
-      handlers.length = 0; 
-      // the first 5 handlers are for the element itself and the 4 handlers
-      for( var i = 0, l = 5 + inPorts.length + outPorts.length; i < l; i++ )
-      {
-        handlers.push( thisGLE.registerHandler( this, i ) );
-      }
-    }
-    */
     
     // constructor
     //this.reregisterHandlers(); // initial registering
