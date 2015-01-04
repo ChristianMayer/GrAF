@@ -1,5 +1,5 @@
 /**
- * Vec2D.js (c) 2013, 2014 by Christian Mayer [CometVisu at ChristianMayer dot de]
+ * Vec2D.js (C) 2013-2015 by Christian Mayer [CometVisu at ChristianMayer dot de]
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
