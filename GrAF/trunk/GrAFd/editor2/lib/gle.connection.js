@@ -48,45 +48,21 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
     
     // private:
     var self     = this,
-        //worker   = (typeof Worker !== 'undefined') ? new Worker("lib/autorouter.js") : undefined,
-        //topLeftPos,     // bounding box
-        //bottomRightPos, // bounding box
       moveObject = { x: [], y: [], relative: [] }, // hold all points that must be moved
       lastInterestFullfillment, // stores the last object that was found under the cursor during movement
       lookingForSource, // true when current interaction is looking for a new source
-      lookingForTarget, // true when current interaction is looking for a new target
-      updateBoundingBox = function() {
-        console.error( 'connection updateBoundingBox is deprectiated' );
-        //self.branch.updateBoundingBox();
-        //topLeftPos = self.branch.topLeft;
-        //bottomRightPos = self.branch.bottomRight;
-      };
+      lookingForTarget; // true when current interaction is looking for a new target
         
     this.name      = parameters.name;
-    this.start     = parameters.start; // object where the connection begins
-    this.end       = parameters.end;   // object where the connection ends
-    this.waypoints = [];
     this.branch    = undefined;//new Branch( thisGLE );
     this.candidates = { waypoints: [], direction: 5 };
     this.GLE       = thisGLE;
     
     this.getTopLeft = function() {
-      /*
-      if( undefined === topLeftPos )
-        updateBoundingBox();
-      
-      return topLeftPos;
-      */
       return this.branch.getTopLeft();
     };
     
     this.getBottomRight = function() {
-      /*
-      if( undefined === bottomRightPos )
-        updateBoundingBox();
-      
-      return bottomRightPos;
-      */
       return this.branch.getBottomRight();
     }
 
@@ -732,6 +708,22 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
     };
     
     /**
+     * 
+     */
+    this.prepareUpdateStart = function() {
+      console.log( 'prepareUpdateStart', this );
+      lastInterestFullfillment = [];
+    };
+    
+    /**
+     * 
+     */
+    this.prepareUpdateEnd = function( block ) {
+      console.log( 'prepareUpdateEnd', block, this );
+      lastInterestFullfillment = [];
+    };
+    
+    /**
       * Update the position of the index.
       */
     this.update = function( index, newPos, shortDeltaPos, lowerHandler, shiftKey )
@@ -853,44 +845,12 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
     }
     
     // constructor
-    /*
-    if( parameters.start )
-    {
-      parameters.start.block.setOutConnection( this, parameters.start.portNumber );
-      var pos = parameters.start.block.getOutCoordinates( parameters.start.portNumber, true );
-      this.waypoints.push( pos[0] );
-      this.waypoints.push( pos[1] );
-    }*/
-    
       console.log( parameters );
     if( true || parameters.waypoints && parameters.waypoints.length > 0 )
     {
       //self.waypoints = self.waypoints.concat( parseWaypointsBranch( parameters.waypoints ) );
       self.branch = new Branch( thisGLE, parameters, this );
-      self.waypoints = self.branch.waypoints;
-      /*
-      parameters.waypoints.forEach( function(w){ 
-        if( Array.isArray( w ) )
-        { 
-          // a waypoint
-          self.waypoints.push( new Vec2D( w[0], w[1] ) ); 
-        } else {
-          // a branch
-          return; // TODO FIXME
-        }
-      });*/
     }
-    /*
-    if( parameters.end )
-    {
-      parameters.end.block.setInConnection( this, parameters.end.portNumber );
-      var pos = parameters.end.block.getInCoordinates( parameters.end.portNumber, true );
-      this.waypoints.push( pos[0] );
-      this.waypoints.push( pos[1] );
-    }
-    */
-    //self.branch = new Branch( self.waypoints );
-    console.log( self.waypoints );
     
     //######################################################################
     //######################################################################
@@ -926,20 +886,5 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
     return this.name;
   }
 
-  /**
-   * Inderxst a new waypoint.
-   * @param {Vec2D}   pos       Postion of the new point
-   * @param {Integer} index     Index of the new point, when undefined the new
-   *                            point is appended.
-   */
-  Connection.prototype.insertWaypoint = function( pos, index ){
-    if( undefined === index )
-      index = this.waypoints.length;
-    this.waypoints.splice( index, 0, pos );
-    this.branch = new Branch( thisGLE, this.waypoints, this );
-    this.GLE.invalidateHandlers();
-    return this;
-  };
-  
   return Connection;
 });
