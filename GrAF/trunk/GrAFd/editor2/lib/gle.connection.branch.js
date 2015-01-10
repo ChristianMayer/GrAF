@@ -143,7 +143,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
      * Return array with path to the selected element or undefined.
      */
     getSelection: function( pos, checkFn, interest, InterestMap ) {
-      console.log( 'Branch getSelection', this );
+      //console.log( 'Branch getSelection', this );
       var
         isEndSelectedConnected = false,
         isEndSelectedOpen      = false,
@@ -233,6 +233,30 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
         )
           return returnList;
       }
+    },
+    /**
+     * Walk the branch tree and return the last sub branch where block is the 
+     * target.
+     */
+    getSubBranchForBlock: function( block )
+    {
+      function recGetSubBranchForBlock( branch )
+      {
+        if( branch.target && branch.target.block === block )
+          return branch;
+        
+        for( var i = 0, len = branch.waypoints ? branch.waypoints.length : 0; i < len; i++ )
+        {
+          if( !(branch.waypoints[i] instanceof Vec2D) )
+          {
+            var ret = recGetSubBranchForBlock( branch.waypoints[i] );
+            if( ret )
+              return ret;
+          }
+        }
+        return false;
+      }
+      return recGetSubBranchForBlock( this );
     },
     moveSelected: function( delta )
     {

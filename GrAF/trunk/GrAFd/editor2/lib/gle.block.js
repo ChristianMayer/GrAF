@@ -242,7 +242,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
      */
     this.getSelection = function( mousePos, interest )
     {
-      console.log( 'getSelection', interest, this.getName(), mousePos, pos, pos.copy().plus(size) );
+      //console.log( 'getSelection', interest, this.getName(), mousePos, pos, pos.copy().plus(size) );
       if( interest & thisGLE.InterestMap.Block &&
           (pos.x <= mousePos.x) && 
           (pos.y <= mousePos.y) && 
@@ -339,7 +339,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     /**
      * Update the position of the index.
      */
-    this.update = function( index, newPos, shortDeltaPos )
+    this.update = function( index, newPos, shortDeltaPos, totalDeltaPos )
     {
       index = index | 0;
       //console.log( 'block update', index, newPos.print(), shortDeltaPos.print(), '['+pos.print()+']' );
@@ -414,6 +414,14 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     this.finishUpdate = function( index )
     {
       console.log( 'Block finishUpdate', index, '['+pos.print()+']' );
+      inPorts.forEach( function moveInPortConnection_PROFILENAME( thisPort, i ) {
+        if( undefined !== thisPort.connection )
+          thisPort.connection.finishUpdate();
+      } );
+      outPorts.forEach( function moveOutPortConnection_PROFILENAME( thisPort, i ) {
+        if( undefined !== thisPort.connection )
+          thisPort.connection.finishUpdate();
+      } );
     }
     
     /**
