@@ -143,16 +143,22 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
     /**
      * Return array with path to the selected element or undefined.
      */
-    getSelection: function( pos, checkFn ) {
+    getSelection: function( pos, checkFn, interest, InterestMap ) {
       console.log( 'Branch getSelection', this );
       var
+        isEndSelectedConnected = false,
+        isEndSelectedOpen      = false,
         startPoint,
         returnList = [];
       if( this.source && this.source.block )
       {
         var p = this.source.block.getOutCoordinates( this.source.port, true );
         if( checkFn( pos, p[0] ) || checkFn( pos, p[1] ) )
-          return [];
+          if( interest & InterestMap.Connection || 
+              interest & InterestMap.ConnectionStartConnected )
+            return [];
+          else
+            return;
         startPoint = p[1];
       }
       
@@ -172,6 +178,9 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
               if( checkFn( pos, wpts[i] ) )
               {
                 returnList.push( i );
+                if( i + 1 === len && (!branch.target || !branch.target.block) )
+                  isEndSelectedOpen = true;
+                  
                 return true;
               }
               //console.log( 'getSelection', returnList, i, startPoint, wp );
@@ -204,6 +213,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
           if( checkFn( pos, p[1] ) )
           {
             returnList.push( wpts ? wpts.length+1 : 1 );
+            isEndSelectedConnected = true;
             return true;
           }
           if( (new Line( startPoint, p[0] )).checkPointProximity( pos, 5 ) )
@@ -215,7 +225,15 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
       }
       
       if( recursiveGetSelection( this ) )
-        return returnList;
+      {
+        if(
+          (interest & InterestMap.ConnectionStart && returnList.length === 1 && returnList[0] === 0) ||
+          (interest & InterestMap.Connection) ||
+          (interest & InterestMap.ConnectionEndConnected && isEndSelectedConnected) ||
+          (interest & InterestMap.ConnectionEndOpen      && isEndSelectedOpen     )
+        )
+          return returnList;
+      }
     },
     moveSelected: function( delta )
     {
@@ -266,6 +284,11 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
       recPrint( this );
       console.log( str + ']' );
     },
+    removeSource: function( index ) {
+      if( this.source.block )
+        this.source.block.setOutConnection( undefined, this.source.port );
+      this.source = {};
+    },
     removeTarget: function( index ) {
       function recursiveTargetRemove( branch ) {
         var
@@ -277,12 +300,48 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
           if( !branch.waypoints.some(function(wp){return wp.isConnected;}) )
             branch.isConnected = false;
         } else {
-          branch.target.block.setInConnection( undefined, branch.target.port );
+          if( branch.target && branch.target.block )
+            branch.target.block.setInConnection( undefined, branch.target.port );
           branch.target = undefined;
           branch.isConnected = false;
         }
       }
+      
+      index = index.slice(); // deep copy
       recursiveTargetRemove( this );
+    },
+    setSource: function( index, connection, block, handler ) {
+      console.log( 'setSource', index, connection, block, handler );
+      // remove old source if it is set
+      if( this.source.block )
+        this.source.block.setOutConnection( undefined, this.source.port );
+      
+      this.source = { block: block, port: block.getOutPortFromHandler( handler ) };
+      block.setOutConnection( connection, this.source.port );
+    },
+    setTarget: function( index, connection, block, handler ) {
+      console.log( 'setTarget', index, connection, block, handler );
+      function recursiveTargetSet( branch ) {
+        var
+          i = index.shift();
+          
+        if( index.length ) 
+        {
+          recursiveTargetSet( branch.waypoints[i] );
+          branch.isConnected = true;
+        } else {
+          // remove old target if it is set
+          if( branch.target && branch.target.block )
+            branch.target.block.setInConnection( undefined, branch.target.port );
+          
+          branch.target = { block: block, port: block.getInPortFromHandler( handler ) };
+          block.setInConnection( connection, branch.target.port );
+          branch.isConnected = true;
+        }
+      }
+      
+      index = index.slice(); // deep copy
+      recursiveTargetSet( this );
     },
     /**
      * Select a branch.
@@ -521,6 +580,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
         //topLeftPos,     // bounding box
         //bottomRightPos, // bounding box
       moveObject = { x: [], y: [], relative: [] }, // hold all points that must be moved
+      lastInterestFullfillment, // stores the last object that was found under the cursor during movement
       lookingForSource, // true when current interaction is looking for a new source
       lookingForTarget, // true when current interaction is looking for a new target
       updateBoundingBox = function() {
@@ -807,24 +867,26 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
      * Return the index of the mouse pos - or undefined when no active area was
      * hit.
      */
-    this.getSelection = function( mousePos )
+    this.getSelection = function( mousePos, interest )
     {
-      return self.branch.getSelection( mousePos, thisGLE.checkHandlerSelection );
+      return self.branch.getSelection( mousePos, thisGLE.checkHandlerSelection, interest, thisGLE.InterestMap );
     }
     
     this.prepareUpdate = function( index, mousePos, ctrlKey, shiftKey )
     {
-      console.log( 'Connection prepareUpdate:', this, index, mousePos.print());
+      console.log( 'Connection prepareUpdate:', this, index );
       this.branch.print();
       
       this.branch.selectMarking( index );
       lookingForSource = false;
       lookingForTarget = false;
+      lastInterestFullfillment = [];
       
       var
+        isBlockStart = undefined === index, // true when new connection starting out of a block
         waypoints = this.branch.waypoints;
         
-      if( index.length === 0 )
+      if( !isBlockStart && index.length === 0 )
       { // case: remove source connection
         var 
           branch = this.branch,
@@ -865,19 +927,19 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
         branch.source.block.setOutConnection( undefined, branch.source.port );
         branch.source = {};
         lookingForSource = true;
-        return;
+        return [ this, index, thisGLE.InterestMap.OutPortOpen | thisGLE.InterestMap.ConnectionEndOpen ];
       } // End: case: remove source connection
       
       var
         i = 0,
         branch = this.branch;
-      for( ; i < index.length - 1; i++ )
+      for( ; !isBlockStart && i < index.length - 1; i++ )
       {
         branch = branch.waypoints[ index[i] ];
       }
       
       var 
-        thisIndex = index[i];
+        thisIndex = isBlockStart ? -1 : index[i];
       waypoints = branch.waypoints;
 
       // helper functions
@@ -949,7 +1011,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
         waypoints.push( branch.target.block.getInCoordinates( branch.target.port, true )[0] );
         thisIndex = -thisIndex-1;
       }
-      if( thisIndex < 0 )
+      if( !isBlockStart && thisIndex < 0 )
       { // case: move whole edge
         thisIndex = -thisIndex; // convert to normal ordering
         
@@ -990,22 +1052,35 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
           // case: a branch follows
           waypoints.splice( thisIndex, 0, waypoints[ thisIndex - 1].copy() );
         }
-        return;
+        return [ this, index ];
       }
       
       // very special cases: append end:
       if( thisIndex + 1 === waypoints.length && (!branch.target || !branch.target.block) )
       {
-        waypoints.push( waypoints[ thisIndex ].copy() );
-        waypoints.push( waypoints[ thisIndex ].copy() );
+        lookingForTarget = true;
+        if( isBlockStart )
+        {
+          var p = branch.source.block.getOutCoordinates( branch.source.port, true );
+          waypoints.push( p[1].copy() );
+          waypoints.push( p[1].copy() );
+          if( p[0].y === p[1].y )
+            moveObject.y.push( waypoints[0] );
+          else
+            moveObject.x.push( waypoints[0] );
+          movePoint( 1 );
+          return [ this, [1], thisGLE.InterestMap.InPort | thisGLE.InterestMap.ConnectionStart ];
+        } else {
+          waypoints.push( waypoints[ thisIndex ].copy() );
+          waypoints.push( waypoints[ thisIndex ].copy() );
+        }
         if( thisIndex === 0 )
           // case: directly after branch
           movePointConditionallyPoint( thisIndex + 1, thisIndex, branch.source );
         else
           movePointConditionally( thisIndex + 1, thisIndex, thisIndex - 1 );
         movePoint( thisIndex + 2 );
-        lookingForTarget = true;
-        return;
+        return [ this, index, thisGLE.InterestMap.InPortOpen | thisGLE.InterestMap.ConnectionStartOpen ];
         // TODO: test for #-1
       }
       /*
@@ -1053,7 +1128,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
           movePoint( 0 );
           movePointConditionally( 1, 2, 3 );
           // TODO: test for #3
-          return;
+          return [ this, index ];
         }
       } else
       if( 1 === thisIndex )
@@ -1131,7 +1206,7 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
       
       
       // case: selected is 
-      return;
+      return [ this, index ];
       ////////////////////////////////////////
       ////////////////////////////////////////
       ////////////////////////////////////////
@@ -1197,13 +1272,37 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
         return;
       }
       
+      ////////////
       var mo = '';
       moveObject.x.forEach( function(p){ mo += ((p instanceof Vec2D) ? p.print() : '(-)') + ';'; } ); mo += '//';
       moveObject.y.forEach( function(p){ mo += ((p instanceof Vec2D) ? p.print() : '(-)') + ';'; } ); mo += '//';
       moveObject.relative.forEach( function(p){ mo += ((p instanceof Vec2D) ? p.print() : '(-)') + ';'; } );
       console.log( 'Connection Update:', this, index, newPos && newPos.print(), shortDeltaPos && shortDeltaPos.print(), mo );
       this.branch.print();
-      console.log( 'Connection Update: lookingForSource / lookingForTarget:', lookingForSource, lookingForTarget, lowerHandler  );
+      console.log( 'Connection Update: lookingForSource / lookingForTarget:', lookingForSource, lookingForTarget, lowerHandler, lastInterestFullfillment  );
+      ////////////
+      if( undefined === lowerHandler )
+        lowerHandler = [];
+      
+      if( lastInterestFullfillment[0] !== lowerHandler[0] ||
+          lastInterestFullfillment[1] !== lowerHandler[1] )
+      {
+        console.warn( 'lastInterestFullfillment CHANGED!!!', lastInterestFullfillment, lowerHandler );
+        if( lookingForSource )
+        {
+          this.branch.removeSource( index ); // remove current target, just in case
+          if( lowerHandler.length )
+            this.branch.setSource( index, this, lowerHandler[0], lowerHandler[1] );
+        } else
+        if( lookingForTarget )
+        {
+          this.branch.removeTarget( index ); // remove current target, just in case
+          if( lowerHandler.length )
+            this.branch.setTarget( index, this, lowerHandler[0], lowerHandler[1] );
+        }
+        lastInterestFullfillment = lowerHandler;
+      }
+      
       moveObject.x.forEach( function(p){ p.x = newPos.x; } );
       moveObject.y.forEach( function(p){ p.y = newPos.y; } );
       moveObject.relative.forEach( function(p){ p.plus( shortDeltaPos ); } );
