@@ -708,25 +708,58 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
     };
     
     /**
-     * 
+     * This method gets called when the connected source block gets moved.
      */
     this.prepareUpdateStart = function() {
-      console.log( 'prepareUpdateStart', this );
       lastInterestFullfillment = [];
+      
+      if( !this.branch.waypoints )
+        this.branch.waypoints = [];
+      
+      var
+        p = this.branch.source.block.getOutCoordinates( this.branch.source.port, true )[1],
+        waypoints = this.branch.waypoints,
+        pNext = (waypoints.length > 0) ? waypoints[0] : this.branch.target.block.getInCoordinates( this.branch.target.port, true )[0],
+        moveX = p.x === pNext.x,
+        moveY = p.y === pNext.y;
+        
+      if( !moveX && !moveY )
+        return;
+      
+      waypoints.unshift( p );
+      
+      moveX && moveObject.y.push( waypoints[0] );
+      moveY && moveObject.x.push( waypoints[0] );
     };
     
     /**
-     * 
+     * This method gets called when the connected target block gets moved.
      */
     this.prepareUpdateEnd = function( block ) {
-      console.log( 'prepareUpdateEnd', block, this );
       lastInterestFullfillment = [];
+      var
+        branch = this.branch.getSubBranchForBlock( block ),
+        p = branch.target.block.getInCoordinates( branch.target.port, true )[0],
+        waypoints = (!branch.waypoints) ? (branch.waypoints = []) : branch.waypoints,
+        pPrev = waypoints.length > 0 
+          ? waypoints[ waypoints.length - 1 ] 
+          : ((branch.source instanceof Vec2D) ? branch.source : branch.source.block.getOutCoordinates( branch.source.port, true )[1]),
+        moveX = p.x === pPrev.x,
+        moveY = p.y === pPrev.y;
+      
+      if( !moveX && !moveY )
+        return;
+      
+      waypoints.push( p );
+      
+      moveX && moveObject.y.push( p );
+      moveY && moveObject.x.push( p );
     };
     
     /**
       * Update the position of the index.
       */
-    this.update = function( index, newPos, shortDeltaPos, lowerHandler, shiftKey )
+    this.update = function( index, newPos, shortDeltaPos, totalDeltaPos, lowerHandler, shiftKey )
     {
       if( undefined === index )
       {
@@ -737,13 +770,15 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
       }
       
       ////////////
-      var mo = '';
-      moveObject.x.forEach( function(p){ mo += ((p instanceof Vec2D) ? p.print() : '(-)') + ';'; } ); mo += '//';
-      moveObject.y.forEach( function(p){ mo += ((p instanceof Vec2D) ? p.print() : '(-)') + ';'; } ); mo += '//';
+      /*
+      var mo = 'mo: x:';
+      moveObject.x.forEach( function(p){ mo += ((p instanceof Vec2D) ? p.print() : '(-)') + ';'; } ); mo += '//y:';
+      moveObject.y.forEach( function(p){ mo += ((p instanceof Vec2D) ? p.print() : '(-)') + ';'; } ); mo += '//r:';
       moveObject.relative.forEach( function(p){ mo += ((p instanceof Vec2D) ? p.print() : '(-)') + ';'; } );
       console.log( 'Connection Update:', this, index, newPos && newPos.print(), shortDeltaPos && shortDeltaPos.print(), mo );
       this.branch.print();
-      console.log( 'Connection Update: lookingForSource / lookingForTarget:', lookingForSource, lookingForTarget, lowerHandler, lastInterestFullfillment  );
+      console.log( 'Connection Update: lookingForSource / lookingForTarget:', lookingForSource, lookingForTarget, lowerHandler, lastInterestFullfillment );
+      */
       ////////////
       if( undefined === lowerHandler )
         lowerHandler = [];
@@ -751,7 +786,7 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
       if( lastInterestFullfillment[0] !== lowerHandler[0] ||
           lastInterestFullfillment[1] !== lowerHandler[1] )
       {
-        console.warn( 'lastInterestFullfillment CHANGED!!!', lastInterestFullfillment, lowerHandler );
+        //console.warn( 'lastInterestFullfillment CHANGED!!!', lastInterestFullfillment, lowerHandler );
         if( lookingForSource )
         {
           this.branch.removeSource( index ); // remove current target, just in case
@@ -767,8 +802,10 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
         lastInterestFullfillment = lowerHandler;
       }
       
-      moveObject.x.forEach( function(p){ p.x = newPos.x; } );
-      moveObject.y.forEach( function(p){ p.y = newPos.y; } );
+      //moveObject.x.forEach( function(p){ p.x = newPos.x; } );
+      //moveObject.y.forEach( function(p){ p.y = newPos.y; } );
+      moveObject.x.forEach( function(p){ p.x += shortDeltaPos.x; } );
+      moveObject.y.forEach( function(p){ p.y += shortDeltaPos.y; } );
       moveObject.relative.forEach( function(p){ p.plus( shortDeltaPos ); } );
       this.branch.updateListToDraw( index );
       return index;

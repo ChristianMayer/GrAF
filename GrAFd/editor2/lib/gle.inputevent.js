@@ -145,13 +145,14 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                 var 
                   thisPos       = view.screen2canvas(mouseScreenPos).round(1),
                   shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
+                  totalDeltaPos = thisPos.copy().minus( view.screen2canvas( lastScreenPos ) ),
                   lowerHandler  = thisGLE.position2handler( mouseScreenPos, dragHandler[2] );
                   
                 if( (!lowerHandler) ||
                     (lowerHandler.length && lowerHandler[0].checkBadSelection( thisPos, lowerHandler[1], 2 ) ) )
                         lowerHandler = undefined;//[];
                       
-                var newIndex = (dragHandler[0]).update( dragHandler[1], thisPos, shortDeltaPos, lowerHandler, shiftKey );
+                var newIndex = (dragHandler[0]).update( dragHandler[1], thisPos, shortDeltaPos, totalDeltaPos, lowerHandler, shiftKey );
                 // check if the handler might have been changed during the update
                 //console.log( 'drag move', dragHandler, newIndex );
                 if( false && newIndex !== undefined && newIndex !== dragHandler[1] )
