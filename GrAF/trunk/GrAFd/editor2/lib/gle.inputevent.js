@@ -127,8 +127,11 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                   //dragHandler = elementList[ newIndex ];
                   dragHandler = newIndex;
                 
+                if( dragHandler.length < 3 )
+                  dragHandler[2] = thisGLE.InterestMap.None; // no interest in any other element
+                
                 // move activeElement to the end of the array to draw it on the top
-                console.log( dragHandler, newIndex );
+                console.log( 'dragHandler', dragHandler, 'newIndex', newIndex );
                 thisGLE.moveElementToTop( dragHandler[0] );
                 selection.clear( true );
                 selection.doSelection( dragHandler[0], true );
@@ -142,7 +145,7 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                 var 
                   thisPos       = view.screen2canvas(mouseScreenPos).round(1),
                   shortDeltaPos = thisPos.copy().minus( view.screen2canvas(prevScreenPos) ),
-                  lowerHandler  = thisGLE.position2handler( mouseScreenPos );
+                  lowerHandler  = thisGLE.position2handler( mouseScreenPos, dragHandler[2] );
                   
                 if( (!lowerHandler) ||
                     (lowerHandler.length && lowerHandler[0].checkBadSelection( thisPos, lowerHandler[1], 2 ) ) )

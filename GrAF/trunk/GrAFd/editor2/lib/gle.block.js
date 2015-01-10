@@ -166,6 +166,22 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         return [ startPos, nextPos, portNumber ];
       }
     }
+    /**
+     * Look up port number from given handler / index.
+     */
+    this.getInPortFromHandler = function( handler ) {
+      if( (5 <= handler) && (handler < 5 + inPorts.length) )
+        return handler - 5;
+      throw 'Handler ' + handler + ' is not a valid InPort!';
+    };
+    /**
+     * Look up port number from given handler / index.
+     */
+    this.getOutPortFromHandler = function( handler ) {
+      if( handler >= 5 + inPorts.length )
+        return handler - 5 - inPorts.length;
+      throw 'Handler ' + handler + ' is not a valid OutPort!';
+    };
     this.getHandler = function() {
       return handlers[0];
     };
@@ -224,38 +240,51 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
      * Return the index of the mouse pos - or undefined when no active area was
      * hit.
      */
-    this.getSelection = function( mousePos )
+    this.getSelection = function( mousePos, interest )
     {
-      console.log( 'getSelection', this.getName(), mousePos, pos, pos.copy().plus(size) );
-      if( (pos.x <= mousePos.x) && 
+      console.log( 'getSelection', interest, this.getName(), mousePos, pos, pos.copy().plus(size) );
+      if( interest & thisGLE.InterestMap.Block &&
+          (pos.x <= mousePos.x) && 
           (pos.y <= mousePos.y) && 
           (mousePos.x <= (pos.x+size.x)) && 
           (mousePos.y <= (pos.y+size.y)) )
         return 0;
           
-      if( !thisGLE.checkHandlerBadSelection( mousePos, pos ) )
+      if( interest & thisGLE.InterestMap.Block &&
+          !thisGLE.checkHandlerBadSelection( mousePos, pos ) )
         return 1;
           
-      if( !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([1,0]) ) ) )
+      if( interest & thisGLE.InterestMap.Block &&
+          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([1,0]) ) ) )
         return 2;
           
-      if( !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([0,1]) ) ) )
+      if( interest & thisGLE.InterestMap.Block &&
+          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([0,1]) ) ) )
         return 3;
           
-      if( !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size ) ) )
+      if( interest & thisGLE.InterestMap.Block &&
+          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size ) ) )
         return 4;
       
-      for( var i = 0; i < inPorts.length; i++ )
-      {
-        if( !thisGLE.checkHandlerBadSelection( mousePos, getInPortPos( i ) ) )
-          return i + 5;
-      }
+      if( interest & thisGLE.InterestMap.InPort )
+        for( var i = 0; i < inPorts.length; i++ )
+          if( !thisGLE.checkHandlerBadSelection( mousePos, getInPortPos( i ) ) &&
+            (
+              (undefined === inPorts[ i ].connection) && (interest & thisGLE.InterestMap.InPortOpen) ||
+              (undefined !== inPorts[ i ].connection) && (interest & thisGLE.InterestMap.InPortConnected)
+            )
+          )
+            return i + 5;
       
-      for( var i = 0; i < outPorts.length; i++ )
-      {
-        if( !thisGLE.checkHandlerBadSelection( mousePos, getOutPortPos( i ) ) )
-          return i + 5 + inPorts.length;
-      }
+      if( interest & thisGLE.InterestMap.OutPort )
+        for( var i = 0; i < outPorts.length; i++ )
+          if( !thisGLE.checkHandlerBadSelection( mousePos, getOutPortPos( i ) ) &&
+            (
+              (undefined === outPorts[ i ].connection) && (interest & thisGLE.InterestMap.OutPortOpen) ||
+              (undefined !== outPorts[ i ].connection) && (interest & thisGLE.InterestMap.OutPortConnected)
+            )
+          )
+            return i + 5 + inPorts.length;
       
       return undefined;
     }
@@ -285,13 +314,14 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         var thisIndex = index - 5 - inPorts.length,
             coords    = this.getOutCoordinates( index );
         outPorts[ thisIndex ].connection = thisGLE
-          .addConnection( { start: { block: this, portNumber: thisIndex }, name: name + '_Out#' + thisIndex } )
+          .addConnection( { "source": this.getName(), "sourcePort": thisIndex } );//, "waypoints": [ [mousePos.x, mousePos.y] ] } );
+          //.addConnection( { start: { block: this, portNumber: thisIndex }, name: name + '_Out#' + thisIndex } )
           //.insertWaypoint( getOutPortPos( thisIndex ).setQualifier( 'protected', true ) )
           //.insertWaypoint( getOutPortPos( thisIndex ).plus( new Vec2D( 10, 0 ) ).setQualifier( 'protected', true ) );
-          .insertWaypoint( coords[0].setQualifier( 'protected', true ) )
-          .insertWaypoint( coords[1].setQualifier( 'protected', true ) );
+          //.insertWaypoint( coords[0].setQualifier( 'protected', true ) )
+          //.insertWaypoint( coords[1].setQualifier( 'protected', true ) );
           //.insertWaypoint( getOutPortPos( thisIndex ).setQualifier( 'protected', false ) );
-        return outPorts[ thisIndex ].connection.prepareUpdate( 1 );
+        return outPorts[ thisIndex ].connection.prepareUpdate();
         //return outPorts[ thisIndex ].connection.waypoints[1].handler;
       }
     };

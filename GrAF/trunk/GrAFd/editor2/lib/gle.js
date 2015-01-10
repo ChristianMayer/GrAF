@@ -205,6 +205,29 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           dummy = true;
           
         /**
+         * Constants to define mask to look for element types during interaction
+         */
+        this.InterestMap = {
+          Block:                    1<<0,
+          InPortOpen:               1<<1,
+          InPortConnected:          1<<2,
+          InPort:                   1<<2|1<<1,
+          OutPortOpen:              1<<3,
+          OutPortConnected:         1<<4,
+          OutPort:                  1<<4|1<<3,
+          Connection:               1<<5,
+          ConnectionStartOpen:      1<<6,
+          ConnectionStartConnected: 1<<7,
+          ConnectionStart:          1<<7|1<<6,
+          ConnectionEndOpen:        1<<8,
+          ConnectionEndConnected:   1<<9,
+          ConnectionEnd:            1<<9|1<<8,
+          /////////////////////////////////////////////////////////
+          None:                     0,        // universal selector
+          Any:                      (1<<16)-1 // universal selector
+        };
+        
+        /**
          * Update the state information that the user can see
          */
         this.updateStateInfos = (function(){
@@ -501,15 +524,18 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
          * Return the handler at the given screen position.
          * When it is empty (i.e. the background) undefined will be returned.
          * @param {Vec2D} thisScreenPos
+         * @param {InterestMap} interest
          */
-        this.position2handler = function( thisScreenPos ) {
+        this.position2handler = function( thisScreenPos, interest ) {
           var 
             list = bucket.getElements( thisScreenPos ),
             i = list.length;
-            
+          if( undefined === interest )
+            interest = this.InterestMap.Any;
+          
           while( i-- )
           {
-            var index = list[i].getSelection( thisScreenPos );
+            var index = list[i].getSelection( thisScreenPos, interest );
             if( undefined !== index )
             {
               return [ list[i], index ];
