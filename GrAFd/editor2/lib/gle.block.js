@@ -304,6 +304,16 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
                   .setInPorts ( inPorts.map ( function(thisPort){ return thisPort.name} ) )
                   .setOutPorts( outPorts.map( function(thisPort){ return thisPort.name} ) )
                   .getHandler();
+        } else {
+          console.log( 'move', inPorts, outPorts );
+          inPorts.forEach( function( thisPort ) {
+            if( undefined !== thisPort.connection )
+              thisPort.connection.prepareUpdateEnd( self );
+          });
+          outPorts.forEach( function( thisPort ) {
+            if( undefined !== thisPort.connection )
+              thisPort.connection.prepareUpdateStart();
+          });
         }
       } else if( index < 5 )
       {
@@ -391,43 +401,12 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       pos.cmax( new Vec2D( 0, 0 ) );
       
       inPorts.forEach( function moveInPortConnection_PROFILENAME( thisPort, i ) {
-        //console.log( thisPort, i, undefined !== thisPort.connection );
         if( undefined !== thisPort.connection )
-        {
-          var coords = self.getInCoordinates( i + 5 );
-          var l = thisPort.connection.waypoints.length;
-          //var res = thisPort.connection.moveWaypoint( [ l-2, l-1 ], [coords[0], coords[1]], true );
-          thisPort.connection.branch.updateListToDraw();
-          /*
-          console.log( coords );
-          var l = thisPort.connection.waypoints.length;
-          //thisPort.connection.waypoints[ l - 2 ].replace( coords[0] );
-          thisPort.connection.waypoints[ l - 1 ].protected = false;
-          thisPort.connection.moveWaypoint( l - 2, coords[0].copy(), true );
-          l = thisPort.connection.waypoints.length;
-          thisPort.connection.waypoints[ l - 1 ].replace( coords[1] );
-          thisPort.connection.waypoints[ l - 1 ].protected = true;
-          */
-        }
+          thisPort.connection.update(index, newPos, shortDeltaPos, [] );
       } );
       outPorts.forEach( function moveOutPortConnection_PROFILENAME( thisPort, i ) {
-        //console.log( thisPort, i, undefined !== thisPort.connection );
         if( undefined !== thisPort.connection )
-        {
-          var coords = self.getOutCoordinates( i + 5 + inPorts.length );
-          // done implicitly now: var res = thisPort.connection.moveWaypoint( [0,1], [coords[0], coords[1]], true );
-          thisPort.connection.branch.updateListToDraw();
-          /*
-          var l = thisPort.connection.waypoints.length;
-          thisPort.connection.waypoints[ 0 ].protected = false;
-          //thisPort.connection.waypoints[ 1 ] = coords[1];
-          var res = thisPort.connection.moveWaypoint( 1, coords[1].copy(), true );
-          thisPort.connection.waypoints[ 0 ].replace( coords[0] );
-          thisPort.connection.waypoints[ 0 ].protected = true;
-          
-          console.log( coords, res, handlers );
-          */
-        }
+          thisPort.connection.update(index, newPos, shortDeltaPos, [] );
       } );
       return handlers[ index ]; // return handler again as it might have been renumbered by the connection move
     }
