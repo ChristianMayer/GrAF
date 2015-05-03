@@ -77,7 +77,7 @@ define( ['lib/Vec2D'], function( Vec2D ){
     
     var t1 = num1 / det,
         t2 = num2 / det;
-    console.log( num1, num2, det, t1, t2 );    
+    
     return (t1 >= 0) && (t1 <= 1) && (t2 >= 0) && (t2 <= 1); 
   };
   
@@ -103,6 +103,33 @@ define( ['lib/Vec2D'], function( Vec2D ){
                           L^2
     */
   }
+  
+  /**
+   * Return true when the line segment hits a rectangular area defined
+   * by the top left and bottom right point.
+   */
+  Line.prototype.checkRectangleIntersection = function( topLeft, bottomRight )
+  {
+    // intersection is happening when at least one point is in the area:
+    if( topLeft.x <= this.start.x && this.start.x <= bottomRight.x &&
+        topLeft.y <= this.start.y && this.start.y <= bottomRight.y )
+      return true;
+    
+    // or when the line crosses any of the borders of the area
+    var
+      top    = new Line( topLeft,     new Vec2D( bottomRight.x, topLeft.y     ) ),
+      right  = new Line( bottomRight, new Vec2D( bottomRight.x, topLeft.y     ) ),
+      bottom = new Line( bottomRight, new Vec2D( topLeft.x,     bottomRight.y ) ),
+      left   = new Line( topLeft,     new Vec2D( topLeft.x,     bottomRight.y ) );
+      
+    // TODO: this can be done faster...
+    return (
+      this.checkSegmentIntersection( top    ) ||
+      this.checkSegmentIntersection( right  ) ||
+      this.checkSegmentIntersection( bottom ) ||
+      this.checkSegmentIntersection( left   ) 
+    );
+  };
 
   return Line;
 });

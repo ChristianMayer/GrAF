@@ -258,6 +258,40 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
       }
       return recGetSubBranchForBlock( this );
     },
+    /**
+     * Is any part of the connection within the defined area?
+     * That's relevant to figure out if it was area selected.
+     */
+    isInArea: function( topLeft, bottomRight )
+    {
+      // helper function
+      function checkPolygon( waypoints )
+      {
+        var 
+          p0 = waypoints[0],
+          p1 = waypoints[1],
+          i = 1,
+          len = waypoints.length;
+        for(; i < len;)
+        {
+          var
+            l = new Line( p0, p1 );
+          
+          if( l.checkRectangleIntersection( topLeft, bottomRight ) )
+            return true;
+          
+          p0 = p1;
+          p1 = waypoints[++i];
+        }
+        return false;
+      }
+      
+      // assume this.listToDraw is current.
+      return (
+        this.listToDraw.unconnected.some( checkPolygon ) ||
+        this.listToDraw.connected.some( checkPolygon )
+      );
+    },
     moveSelected: function( delta )
     {
       function recMoveSelectedBranch( branch )

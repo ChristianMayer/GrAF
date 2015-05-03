@@ -123,6 +123,32 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
     };
     
     /**
+     * Look up all elements within an area.
+     * @param {Vec2D} topLeft
+     * @param {Vec2D} bottomRight
+     * @return {Array} List of elements
+     */
+    this.getElementsInArea = function( topLeft, bottomRight ) {
+      var
+        tl = getBucketID2D( topLeft ),
+        br = getBucketID2D( bottomRight ),
+        ret_array = [];
+        
+      for( var x = tl.x; x <= br.x; x++ )
+      {
+        for( var y = tl.y; y <= br.y; y++ )
+        {
+          container[ x + y * tileNumbers.x ].forEach( function( element ){
+            if( -1 === ret_array.indexOf( element ) )
+              ret_array.push( element );
+          });
+        }
+      }
+        
+      return ret_array;
+    };
+    
+    /**
      * Insert a single element in the Bucket
      */
     this.insert = function( element ){
@@ -507,17 +533,13 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           }
           pos1screen = view.screen2canvas( minScreenPos ),
           pos2screen = view.screen2canvas( maxScreenPos );
-          indices = view.area2id( minScreenPos, maxScreenPos, 1, handlerList.length );
-          for( var i = 0; i < indices.length; i++ )
-          {
-            var thisElement = handlerList[ indices[i] ][0];
-            
+          bucket.getElementsInArea( pos1screen, pos2screen ).forEach( function( thisElement ){
             // Set() type of insert:
             if( !thisElement.checkAreaBadSelection( pos1screen, pos2screen ) &&
                 elementContainer.indexOf( thisElement ) === -1 ) {
               elementContainer.push( thisElement );
             }
-          }
+          });
         };
         
         /**

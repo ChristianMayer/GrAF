@@ -270,6 +270,8 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
      * belong to this object.
      */
     this.checkAreaBadSelection = function( minPos, maxPos ) {
+      return !self.branch.isInArea( minPos, maxPos );
+      
       // only a rough check...
       var bbMin = self.waypoints[0].copy(), // bounding box
           bbMax = bbMin.copy();

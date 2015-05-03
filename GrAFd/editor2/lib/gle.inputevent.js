@@ -425,6 +425,11 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                             eventObject.ctrlKey, 
                             eventObject.shiftKey ) )
               mouseState = mouseStateDrag;
+            else {
+              mouseState = mouseStateSelectDrag;
+              prevScreenPos = getMouseScreenPos( eventObject );
+              gesture.start( getMouseScreenPos( eventObject ), thisGLE.scale() );
+            }
           }
         }
         //view.showKlick( view.screen2canvas( prevScreenPos ) );
