@@ -108,10 +108,11 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                 lastScreenPos = mouseScreenPos.round(1);
                 prevScreenPos = lastScreenPos;
                 // ---------------
+                console.log( 'drag.start', mouseScreenPos.print(), view.screen2canvas( lastScreenPos ).print() );
                 view.showMarker( view.screen2canvas( lastScreenPos ) );
                 // ---------------
                 
-                dragHandler = thisGLE.position2handler( lastScreenPos );
+                dragHandler = thisGLE.position2handler( view.screen2canvas( lastScreenPos ) );
                     console.log( 'drag', dragHandler, dragHandler?dragHandler[1]:'-' ); //, dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) );
                 if( undefined === dragHandler ) //|| dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) )
                 {
