@@ -464,9 +464,11 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
      * Draw itself on the canvas @param context and it's shape on the
      * @param index context.
      */
-    this.draw = function( context, focus, isDrawFg, scale ) {
+    this.draw = function( ctx, focus, isDrawFg, scale ) {
       var 
         index = undefined,
+        context = ctx[0],
+        transform = ctx[1],
         view = thisGLE.view(),
         p    = pos.copy().scale( scale ).round(1),
         s    = size.copy().scale( scale ).round(1),
@@ -484,7 +486,9 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       // draw block itself
       context.save(); // make sure to leave the context alone
       //matrix.copy().translate( p ).setTransform( context );
-      (new Mat2D()).translate( p ).mmul(matrix).setTransform( context );
+      //context.transformMatrix.copy().mmul( (new Mat2D()).translate( p ).mmul(matrix) ).setTransform( context );
+      transform.copy().mmul( (new Mat2D()).translate( p ).mmul(matrix) ).setTransform( context );
+      //(new Mat2D()).translate( p ).mmul(matrix).setTransform( context );
       context.colorStyle = color;
       context.fillStyle  = fill;
       context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness

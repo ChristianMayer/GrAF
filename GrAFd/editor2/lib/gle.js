@@ -79,7 +79,11 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
     /**
      * Debug function: draw tiles
      */
-    this.draw = function( context, scale ) {
+    this.draw = function( ctx, scale ) {
+      var 
+        context = ctx[0],
+        transform = ctx[1];
+        
       context.beginPath();
       for( var x = 0; x < tileNumbers.x; x++ )
       {
@@ -96,7 +100,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
       {
         for( var y = 0; y < tileNumbers.y; y++ )
         {
-          context.fillText( container[x+y*tileNumbers.x].length, (x+0.5)*tileSize.x, (y+0.5)*tileSize.y );
+          context.fillText( container[x+y*tileNumbers.x].length, scale * (x+0.5)*tileSize.x, scale * (y+0.5)*tileSize.y );
         }
       }
     };

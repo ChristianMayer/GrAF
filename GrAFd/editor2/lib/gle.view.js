@@ -19,7 +19,7 @@
  */
  
 // create a local context:
-define( ['lib/Vec2D'], function( Vec2D, undefined ) {
+define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
   "use strict";
   
   /**
@@ -54,7 +54,9 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         $canvasFg,           // jQ object with the foreground canvas DOM element
         $canvasBg,           // jQ object with the background canvas DOM element
         ctxFg,               // foreground canvas context
+        transformFg = new Mat2D(), // transformation matrix
         ctxBg,               // background canvas context
+        transformBg = new Mat2D(), // transformation matrix
         canvasValid   = 0,   // Collect if canvas has to be redrawn
         canvasFgValid = 0,   // Collect if canvas has to be redrawn
         layersClamped = false, // True when the forground should also be painted on the background
@@ -103,7 +105,9 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         {
           ctx.setTransform( 1, 0, 0, 1, 0, 0 );
           ctx.clearRect( 0, 0, drawSize.x, drawSize.y );
-          ctx.setTransform( 1, 0, 0, 1, 0.5 - drawOffset.x*scaleInternal, 0.5 - drawOffset.y*scaleInternal );
+          ( ctx === ctxFg ? transformFg : transformBg ).replace( 
+            1, 0.0, 0.0, 1, 0.5 - drawOffset.x*scaleInternal, 0.5 - drawOffset.y*scaleInternal 
+          ).setTransform( ctx );
         },
         /**
         * Seems to be a good idea to handle anti-aliasing - but can't prevent
@@ -313,7 +317,8 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
         ctxBg.restore();
       }
       
-      thisGLE.draw( function(isActive){ return isActive ? ctxFg : ctxBg; }, scale * scaleInternal );
+      transformFg.replace( 1, 0.0, 0.0, 1, 0.5 - 1*viewOffset.x*scaleInternal, 0.5 - 1*viewOffset.y*scaleInternal ).setTransform( ctxFg );
+      thisGLE.draw( function(isActive){ return isActive ? [ctxFg, transformFg] : [ctxBg, transformBg]; }, scale * scaleInternal );
       
       // show debug:
       ctxBg.save();
@@ -326,11 +331,11 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
       canvasValid = 0;
     };
     this.drawFg = function() {
-      var thisCtx = layersClamped ? ctxBg : ctxFg;
+      var thisCtx = layersClamped ? [ctxBg, transformBg] : [ctxFg, transformFg];
       //console.log( 'drawFg -------------------------------------------' );
       //$('#extra').text( 'DrawFg:' +  (new Date().getTime()) );
       clearCanvas( ctxFg );
-      ctxFg.setTransform( 1, 0, 0, 1, 0.5 - 1*viewOffset.x*scaleInternal, 0.5 - 1*viewOffset.y*scaleInternal );
+      transformFg.replace( 1, 0.0, 0.0, 1, 0.5 - 1*viewOffset.x*scaleInternal, 0.5 - 1*viewOffset.y*scaleInternal ).setTransform( ctxFg );
       thisGLE.drawActive( thisCtx, scale * scaleInternal );
       
       // draw selection rectangle when defined

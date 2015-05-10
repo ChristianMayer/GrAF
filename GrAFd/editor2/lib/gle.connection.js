@@ -70,7 +70,7 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
      * Draw itself on the canvas @param context and it's shape on the
      * @param index context.
      */
-    this.draw = function( context, focus, isDrawFg, scale ) {
+    this.draw = function( ctx, focus, isDrawFg, scale ) {
       //var
       //  lineWidth = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
       //console.log( self.branch.getListToDraw() );
@@ -78,6 +78,8 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
       //return;
       ////////////////////////////////////////77
       var 
+        context = ctx[0],
+        transform = ctx[1],
         view = thisGLE.view(),
         listToDraw =  self.branch.listToDraw, //getListToDraw(),
         noStart = undefined === this.start,
@@ -88,7 +90,7 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
       //console.log( listToDraw );
       
       // draw lines themself
-      context.save(); // make sure to leave the context alone
+      //###context.save(); // make sure to leave the context alone
       context.fillStyle = '#000000';
       /*
       if( noStart || noEnd )
@@ -174,7 +176,7 @@ define( ['lib/Vec2D', 'lib/Line2D', 'lib/gle.connection.branch'], function( Vec2
       });
       context.fill();
       
-      context.restore();
+      //###context.restore();
     }
     
     this.prepareCandidate = function( startPos, direction, appendEnd, endPos )

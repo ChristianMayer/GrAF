@@ -69,9 +69,9 @@ require.config({
 //  Main:
 //
 
-require([ 'i18n!nls/strings', 'jquery', 'lib/gle', 'lib/Vec2D', 'lib/gle.block','jquery-i18n','jquery-ui', 'jstree', 
+require([ 'i18n!nls/strings', 'jquery', 'lib/gle', 'lib/Vec2D', 'lib/Mat2D', 'lib/gle.block','jquery-i18n','jquery-ui', 'jstree', 
           'superfish'],
-function( i18nStrings,        $, GLE,Vec2D,Block,a1,a2,a3,a4,a5,a6,a7,a8 ) {
+function( i18nStrings,        $, GLE,Vec2D,Mat2D,Block,a1,a2,a3,a4,a5,a6,a7,a8 ) {
   "use strict";
 console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   // load relevant language ressource
@@ -269,7 +269,9 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
   function addLib( name, content )
   {
     console.log( 'addLib', name, content );
-    var $lib = $('#lib');
+    var 
+      $lib = $('#lib'),
+      transform = new Mat2D();
     
     for( var libName in content )
     {
@@ -297,7 +299,7 @@ console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);
       b.setInPorts(  block.inPorts.map(  function(p){ return p.name; } ) );
       b.setOutPorts( block.outPorts.map( function(p){ return p.name; } ) );
       b.setMask( block.mask );
-      b.draw( ctx, undefined, undefined, true, 1 );
+      b.draw( [ctx, transform], undefined, undefined, true, 1 );
     });
     
     $('.libBlock').draggable( {

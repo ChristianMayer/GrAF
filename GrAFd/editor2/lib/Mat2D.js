@@ -88,6 +88,21 @@ define( ['lib/Vec2D'], function( Vec2D, undefined ) {
   };
   
   /**
+   * Replace a matrix with new values
+   * @returns {Mat2D} the current matrix itself
+   */
+  Mat2D.prototype.replace = function( optA, optB, optC, optD, optE, optF ) {
+    this.a = +optA;
+    this.b = +optB;
+    this.c = +optC;
+    this.d = +optD;
+    this.e = +optE;
+    this.f = +optF;
+    
+    return this;
+  };
+  
+  /**
    * Multiply a scale matrix
    */
   Mat2D.prototype.scale = function( x, y ) {
