@@ -116,7 +116,7 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
                     console.log( 'drag', dragHandler, dragHandler?dragHandler[1]:'-' ); //, dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) );
                 if( undefined === dragHandler ) //|| dragHandler[0].checkBadSelection( view.screen2canvas(lastScreenPos ), dragHandler[1], 2 ) )
                 {
-                  selection.clear();
+                  selection.clear( true );
                   
                   dragHandler = [];
                   return false; // no object found

@@ -640,7 +640,7 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
             */
             clear: function( resetActiveElements ) {
               var redraw = false;
-              
+
               if( resetActiveElements )
               {
                 if( 0 < activeElements.length )
