@@ -373,6 +373,9 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
       if( this.source.block )
         this.source.block.setOutConnection( undefined, this.source.port );
       
+      if( !('getOutPortFromHandler' in block) )
+        return;
+      
       this.source = { block: block, port: block.getOutPortFromHandler( handler ) };
       block.setOutConnection( connection, this.source.port );
     },
@@ -396,6 +399,9 @@ define( ['lib/Vec2D', 'lib/Line2D'], function( Vec2D, Line, undefined ) {
           branch.isConnected = true;
         }
       }
+    
+      if( !('getInPortFromHandler' in block) )
+        return;
       
       index = index.slice(); // deep copy
       recursiveTargetSet( this );
