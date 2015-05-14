@@ -776,6 +776,20 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           self.invaidateBucket();
         };
         
+        /**
+         * Flip selected elements
+         */
+        this.selectionFlip = function() {
+          // TODO: this is currently just flipping each element individually
+          // it would be better if the selection is flipped on its whole though
+          self.selection.forEach( function( thisElement ) {
+            if( thisElement instanceof Block )
+            {
+              thisElement.setFlip();
+            }
+          });
+        };
+        
         /*
         this.blob = function() { 
           ctxBg.save();

@@ -285,7 +285,11 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
             break;
             
           case 70: // key: f - zoom to fit
-            thisGLE.zoomElements( selection.getElements() ); // fit to selection
+            if( eventObject.ctrlKey ) // ctrl + f - flip block
+            {
+              thisGLE.selectionFlip();
+            } else
+              thisGLE.zoomElements( selection.getElements() ); // fit to selection
             break;
             
           default:

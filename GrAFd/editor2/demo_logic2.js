@@ -26,6 +26,12 @@
       "x": 250, "y": 150, "width": 50, "height": 50,
       "parameters": { "inital_value": 0.0 }
     },
+    "IntegralX": {
+      "type": "mathLib/integral",
+      "x": 250, "y": 250, "width": 50, "height": 50,
+      "parameters": { "inital_value": 0.0 },
+      "rotation": 90
+    },
     "Gain2": {
       "type": "mathLib/gain",
       "x": 150, "y": 50, "width": 50, "height": 50,

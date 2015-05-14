@@ -52,18 +52,37 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         handlers = [],
         updateTransformationMatrix = function(){
           var center = size.copy().scale( 0.5 );
-          matrix = (new Mat2D()).translate(center).scale(flip?-1:1,1).rotate(rotation*Math.PI/180).translate(center.scale(-1));
+          //matrix = (new Mat2D()).translate(center).scale(flip?-1:1,1).rotate(rotation*Math.PI/180).translate(center.scale(-1));
+          matrix = (new Mat2D()).translate(center).rotate(rotation*Math.PI/180).translate(center.scale(-1));
           console.log( 'uTM', name, rotation, flip, matrix.print());
+        },
+        updateConnections = function() { // function to fix connections to match block after modification
+          inPorts.forEach( function moveInPortConnection_PROFILENAME( thisPort, i ) {
+            if( undefined !== thisPort.connection )
+            {
+              thisPort.connection.prepareUpdateEnd( self );
+              thisPort.connection.finishUpdate();
+            }
+          } );
+          outPorts.forEach( function moveOutPortConnection_PROFILENAME( thisPort, i ) {
+            if( undefined !== thisPort.connection )
+            {
+              thisPort.connection.prepareUpdateStart();
+              thisPort.connection.finishUpdate();
+            }
+          } );
         },
         getInPortPos = function( index ){
           var centerY = (size.y * (index+0.5) / inPorts.length) | 0;
-          return pos.copy().plus( matrix.mul( new Vec2D( 0     , centerY ) ) );
+          return pos.copy().plus( matrix.mul( new Vec2D( flip ? size.x : 0, centerY ) ) );
+          //return pos.copy().plus( matrix.mul( new Vec2D( 0     , centerY ) ) );
           //return matrix.mul( pos.copy().plus( new Vec2D( 0     , centerY ) ) );
         },
         getOutPortPos = function( index ){
           var centerY = (size.y * (index+0.5) / outPorts.length) | 0;
           //console.log( 'getOutPortPos', name, pos.copy().plus( new Vec2D( size.x, centerY ) ), matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) ), pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) ) );
-          return pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) );
+          return pos.copy().plus( matrix.mul( new Vec2D( flip ? 0 : size.x, centerY ) ) );
+          //return pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) );
           //return matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) );
         };
     
@@ -141,9 +160,10 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       return this;
     };
     this.setFlip = function( newFlip ) {
-      flip = newFlip;
+      flip = newFlip === undefined ? (!flip) : newFlip;
       updateTransformationMatrix();
-      isLogicElement && thisGLE.invalidateBBox();
+      updateConnections();
+      isLogicElement && thisGLE.invalidateContext();
       return this;
     };
     this.getInCoordinates = function( handler, isPortNumber ) {
@@ -152,7 +172,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       {
         var portNumber = isPortNumber ? handler : handler - 5,
             endPos = getInPortPos( portNumber ),
-            prevPos = endPos.copy().minus( matrix.nmul( new Vec2D(1,0) ).scale(15) );
+            prevPos = endPos.copy().minus( matrix.nmul( new Vec2D(flip?-1:1,0) ).scale(15) );
         return [ prevPos, endPos, portNumber ];
       }
     }
@@ -162,7 +182,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       {
         var portNumber = isPortNumber ? handler : handler - 5 - inPorts.length,
             startPos = getOutPortPos( portNumber ),
-            nextPos = startPos.copy().plus( matrix.nmul( new Vec2D(1,0) ).scale(5) );
+            nextPos = startPos.copy().plus( matrix.nmul( new Vec2D(flip?-1:1,0) ).scale(5) );
         return [ startPos, nextPos, portNumber ];
       }
     }
@@ -399,6 +419,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       //size.y = Math.max( size.y, minHeight );
       size.cmax( new Vec2D( minWidth, minHeight ) );
       pos.cmax( new Vec2D( 0, 0 ) );
+      updateTransformationMatrix();
       
       inPorts.forEach( function moveInPortConnection_PROFILENAME( thisPort, i ) {
         if( undefined !== thisPort.connection )
@@ -477,10 +498,23 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       // draw shape to index map
       if( !isDrawFg )
       {
+        /*
         view.drawHandler( p                                    , handlers[ 1 ], focus );
         view.drawHandler( p.copy().plus( s.copy().cmul([1,0]) ), handlers[ 2 ], focus );
         view.drawHandler( p.copy().plus( s.copy().cmul([0,1]) ), handlers[ 3 ], focus );
         view.drawHandler( p.copy().plus( s )                   , handlers[ 4 ], focus );
+        */
+        /*
+        view.drawHandler( matrix.mul( p                                     ), handlers[ 1 ], focus );
+        view.drawHandler( matrix.mul( p.copy().plus( s.copy().cmul([1,0]) ) ), handlers[ 2 ], focus );
+        view.drawHandler( matrix.mul( p.copy().plus( s.copy().cmul([0,1]) ) ), handlers[ 3 ], focus );
+        view.drawHandler( matrix.mul( p.copy().plus( s )                    ), handlers[ 4 ], focus );
+        */
+        var trM = (new Mat2D()).translate( p ).mmul(matrix);
+        view.drawHandler( trM.mul( new Vec2D(0,0)       ), handlers[ 1 ], focus );
+        view.drawHandler( trM.mul( s.copy().cmul([1,0]) ), handlers[ 2 ], focus );
+        view.drawHandler( trM.mul( s.copy().cmul([0,1]) ), handlers[ 3 ], focus );
+        view.drawHandler( trM.mul( s                    ), handlers[ 4 ], focus );
       }
       
       // draw block itself
@@ -555,12 +589,12 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       context.fillText( name, s.x / 2, s.y + 2 );
       
       context.textBaseline = 'middle';
-      context.textAlign = 'left';
+      context.textAlign = flip ? 'right' : 'left';
       var startIndex = 5;
       inPorts.forEach( function( thisPort, index ){
         var centerY = (s.y * (index+0.5) / inPorts.length) | 0;
         //context.fillText( thisPort.name, p.x + m, p.y + centerY );
-        context.fillText( thisPort.name, m, centerY );
+        context.fillText( thisPort.name, flip ? (s.x - m) : m, centerY );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
@@ -571,16 +605,17 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           context.lineTo(  0,      centerY );
           context.lineTo( -m,  m + centerY );
           context.stroke(); 
-          isDrawFg || view.drawHandler( getInPortPos( index ).copy().scale( scale ).round(1), handlers[ startIndex + index ], focus );
+          //isDrawFg || view.drawHandler( getInPortPos( index ).copy().scale( scale ).round(1), handlers[ startIndex + index ], focus );
+          isDrawFg || view.drawHandler( getInPortPos( index ).copy().minus(p).scale( 1+0*scale ).round(1), handlers[ startIndex + index ], focus );
         } else {
         }
       });
-      context.textAlign = 'right';
+      context.textAlign = flip ? 'left' : 'right';
       startIndex += inPorts.length;
       outPorts.forEach( function( thisPort, index ){
         var centerY = (s.y * (index+0.5) / outPorts.length) | 0;
         //context.fillText( thisPort.name, p.x + s.x - m, p.y + centerY );
-        context.fillText( thisPort.name, s.x - m, centerY );
+        context.fillText( thisPort.name, flip ? m : (s.x - m), centerY );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
