@@ -70,7 +70,7 @@ require.config({
 //
 
 require([ 'i18n!nls/strings', 'jquery', 'lib/gle', 'lib/Vec2D', 'lib/Mat2D', 'lib/gle.block','jquery-i18n','jquery-ui', 'jstree', 
-          'superfish'],
+          'superfish', 'lib/compatability' ],
 function( i18nStrings,        $, GLE,Vec2D,Mat2D,Block,a1,a2,a3,a4,a5,a6,a7,a8 ) {
   "use strict";
 console.log(GLE,a1,a2,a3,a4,a5,a6,a7,a8);

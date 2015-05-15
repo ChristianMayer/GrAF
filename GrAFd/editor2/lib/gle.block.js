@@ -586,7 +586,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
               var
                 sA = doFlip ? Math.PI - sAngle : sAngle,
                 eA = doFlip ? Math.PI - eAngle : eAngle;
-              context.arc( (doFlip?(1-x):x)*s.x, y*s.y, r*s.x, sA, eA, doFlip ? !counterclockwise : counterclockwise );
+              context.ellipse( (doFlip?(1-x):x)*s.x, y*s.y, r*s.x, r*s.y, 0, sA, eA, doFlip ? !counterclockwise : counterclockwise );
             },
             function close() {
               context.closePath(); 
