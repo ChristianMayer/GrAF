@@ -21,13 +21,25 @@
 define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
   "use strict";
   
+  var
+    defaultMaskOptions = {
+      'showLabel': true,
+      'showBorder': true,
+      'transparent': false,
+      'unit': 'block', 
+      // 'block' - (0,0)-(1,1)
+      // 'screen' - (0,0)-(size.x,size.y)
+      // 'content' - min(mask elements)-max(mask elements)
+      'imageFixed': false,
+      'portReorder': true
+    },
   /**
    * @module GLE.Block
    * @title  GrAF logic engine: graphical logic editor
    * @constructor
    * @param isLogicElement {Bool} normaly true, false when a library element
    */
-  var block = function( thisGLE, isLogicElement ){
+  block = function( thisGLE, isLogicElement ){
     if( !( this instanceof block ) )
       throw 'Error, use "new" operator for Block!';
     
@@ -42,7 +54,9 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         flip     = false,
         color    = '#000000',          // how to display
         fill     = '#ffffff',
-        mask     = undefined,
+        mask     = undefined,          // code for generating mask image
+        maskFn   = undefined,          // parsed code for mask image
+        maskOptions = defaultMaskOptions,
         name     = '',
         fontSize,     // undefined --> use global
         fontFamiliy,  // undefined --> use global
@@ -205,9 +219,20 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     this.getHandler = function() {
       return handlers[0];
     };
-    this.setMask = function( newMask )
+    this.setMask = function( newMask, newMaskOptions )
     {
       mask = newMask;
+      maskFn = undefined;
+      
+      if( newMask )
+      {
+        try {
+          maskFn = new Function( 'maskOptions', 'maskParameters', 'arc', 'close', 'line', 'move', 'newPath', 'text', newMask.join('') );
+        } catch( e ) {
+          console.error( 'Invalid mask image code!', e );
+        }
+      }
+      maskOptions = newMaskOptions || defaultMaskOptions;
     };
     
     /**
@@ -491,10 +516,27 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         context = ctx[0],
         transform = ctx[1],
         view = thisGLE.view(),
+        doFlip = maskOptions.imageFixed ? false : flip,
         p    = pos.copy().scale( scale ).round(1),
         s    = size.copy().scale( scale ).round(1),
         m    = (5 * scale)|0; // the port marker (half-)size
       
+      // Maks Options:
+      /*
+        "showLabel": false,
+        "showBorder": true,
+        "transparent": false,
+        "unit": 
+          "block" - (0,0)-(1,1)
+          "screen" - (0,0)-(size.x,size.y)
+          "content" - min(mask elements)-max(mask elements)
+        "imageFixed": 
+          true - only rotate the ports
+        "portReorder":
+          false - rotate the port position together with the block
+          true - port numbers are allways starting on the top and the left
+      */
+
       // draw shape to index map
       if( !isDrawFg )
       {
@@ -526,55 +568,53 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       context.colorStyle = color;
       context.fillStyle  = fill;
       context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
-      if( mask !== undefined )
+      
+      if( maskOptions.showBorder )
       {
-        context.beginPath();
-        mask.forEach( function( gE ){
-          var 
-            x = 0*p.x + gE.x * s.x, 
-            y = 0*p.y + gE.y * s.y;
-          switch( gE.type ) {
-            case 'arc':
-              // todo: make scaling / radius independend of x and y
-              context.arc( x, y, gE.r * s.x, gE.sAngle, gE.eAngle, gE.counterclockwise );
-              break;
-              
-            case 'close':
-              context.closePath(); 
-              context.stroke(); 
-              break;
-              
-            case 'line':
-              context.lineTo( x, y );
-              break;
-              
-            case 'move':
-              context.moveTo( x, y );
-              break;
-              
-            case 'new':
-              context.beginPath();
-              break;
-              
-            case 'text':
-              if( gE.styling )
-                context.font = gE.styling;
-              context.fillStyle = color;
-              context.fillText( gE.text, x, y );
-              context.fillStyle = fill;
-              break;
-              
-            default:
-              console.log( 'mask with unknown gE:', gE );
-          };
-        });
-        context.stroke(); 
-      } else {
         //context.fillRect( p.x, p.y, s.x, s.y );
         //context.strokeRect( p.x, p.y, s.x, s.y );
         context.fillRect( 0, 0, s.x, s.y );
         context.strokeRect( 0, 0, s.x, s.y );
       }
+      
+      if( maskFn !== undefined )
+      {
+        context.beginPath();
+        try {
+          maskFn( maskOptions, {},
+            function arc( x, y, r, sAngle, eAngle, counterclockwise ) {
+              var
+                sA = doFlip ? Math.PI - sAngle : sAngle,
+                eA = doFlip ? Math.PI - eAngle : eAngle;
+              context.arc( (doFlip?(1-x):x)*s.x, y*s.y, r*s.x, sA, eA, doFlip ? !counterclockwise : counterclockwise );
+            },
+            function close() {
+              context.closePath(); 
+              context.stroke(); 
+            },
+            function line( x, y ) {
+              context.lineTo( (doFlip?(1-x):x)*s.x, y*s.y );
+            },
+            function move( x, y ) {
+              context.moveTo( (doFlip?(1-x):x)*s.x, y*s.y );
+            },
+            function newPath() {
+              context.beginPath();
+            },
+            function text( x, y, text, styling ) {
+              if( styling )
+                context.font = styling;
+              context.fillStyle = color;
+              context.fillText( text, (doFlip?(1-x):x)*s.x, y*s.y );
+              context.fillStyle = fill;
+            }
+          );
+        } catch( e ) {
+          console.error( 'Invalid mask image code!', e );
+          maskFn = undefined; // don't try again during this run
+        }
+        context.stroke(); 
+      } 
       
       context.fillStyle = '#000000';
       context.textAlign = 'center';

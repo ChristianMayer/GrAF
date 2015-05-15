@@ -156,15 +156,22 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "mask": [
-      { "type": "move", "x": 0.999, "y": 0.5   },
-      { "type": "line", "x": 0    , "y": 0.999 },
-      { "type": "line", "x": 0    , "y": 0     },
-      { "type": "close" },
-      { "type": "new", "fill": "none" },
-      { "type": "text", "x": 0.4, "y": 0.55, "text": "$gain" }
+        "console.log('gain',maskOptions,this);",
+        "move( 0.999, 0.5   );",
+        "line( 0    , 0.999 );",
+        "line( 0    , 0     );",
+        "close();",
+        "newPath();",
+        "text( 0.4, 0.55, maskParameters.gain );"
       ],
       "maskOptions": {
         "showLabel": false
+      },
+      "maskParameters": {
+        "gain": {
+          "type": "float",
+          "default": "1.0"
+        }
       },
       "inPorts": [
         { 
@@ -221,12 +228,9 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "mask": [
-      { "type": "move", "x": 1    , "y": 0.5  }, 
-      { "type": "arc" , "x": 0.5    , "y": 0.5   , 
-        "r": 0.5, "sAngle":0, "eAngle":6.28, "counterclockwise": false,
-        "relative": true
-      },
-      { "type": "close" }
+        "move( 1  , 0.5 );", 
+        "arc(  0.5, 0.5, 0.5, 0, 6.28, false, true );",
+        "close();"
       ],
       "maskOptions": {
         "showLabel": true,
@@ -265,27 +269,20 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "mask": [
-      { "type": "move", "x": 0    , "y": 0     },
-      { "type": "line", "x": 0    , "y": 0.999 },
-      { "type": "line", "x": 0.999, "y": 0.999 },
-      { "type": "line", "x": 0.999, "y": 0     },
-      { "type": "close" },
-      { "type": "new", "fill": "none" },
-      { "type": "move", "x": 0.575 , "y": 0.1   }, 
-      { "type": "arc" , "x": 0.55  , "y": 0.1    , 
-        "r": 0.025, "sAngle":0, "eAngle":3.14, "counterclockwise": true,
-        "relative": false
-      },
-      { "type": "line", "x": 0.525  , "y": 0.9   },
-      { "type": "arc" , "x": 0.5 , "y": 0.9    , 
-        "r": 0.025, "sAngle":0, "eAngle":3.14, "counterclockwise": false,
-        "relative": false
-      },
-      { "type": "text", "x": 0.6, "y": 0.5, "text": "d" },
-      { "type": "text", "x": 0.6, "y": 0.5, "text": "\u2002t", "styling":"italic 10px sans-serif" }
+        "move( 0.575, 0.1   );",
+        "arc ( 0.55 , 0.1   , 0.025, 0, Math.PI, true );",
+        "line( 0.525, 0.9   );",
+        "arc ( 0.5  , 0.9   , 0.025, 0, Math.PI, false);",
+        "text( 0.6  , 0.5, 'd' );",
+        "text( 0.6  , 0.5, '\u2002t', 'italic 10px sans-serif' );"
       ],
       "maskOptions": {
-        "showLabel": false
+        "showLabel": false,
+        "showBorder": true,
+        "transparent": false,
+        "unit": "block",
+        "imageFixed": true,
+        "portReorder": false
       },
       "inPorts": [
       { 
