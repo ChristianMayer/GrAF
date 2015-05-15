@@ -156,11 +156,10 @@
       "color": [0.0, 0.0, 0.0],
       "background": [1.0, 1.0, 1.0],
       "mask": [
-        "console.log('gain',maskOptions,this);",
         "move( 0.999, 0.5   );",
         "line( 0    , 0.999 );",
         "line( 0    , 0     );",
-        "close();",
+        "fill();",
         "newPath();",
         "text( 0.4, 0.55, maskParameters.gain );"
       ],
@@ -230,7 +229,7 @@
       "mask": [
         "move( 1  , 0.5 );", 
         "arc(  0.5, 0.5, 0.5, 0, 6.28, false, true );",
-        "close();"
+        "fill();"
       ],
       "maskOptions": {
         "showLabel": true,
@@ -274,7 +273,7 @@
         "line( 0.525, 0.9   );",
         "arc ( 0.5  , 0.9   , 0.025, 0, Math.PI, false);",
         "text( 0.6  , 0.5, 'd' );",
-        "text( 0.6  , 0.5, '\u2002t', 'italic 10px sans-serif' );"
+        "text( 0.6  , 0.5, '\u2002t', {'style':'italic'} );"
       ],
       "maskOptions": {
         "showLabel": false,

@@ -227,7 +227,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       if( newMask )
       {
         try {
-          maskFn = new Function( 'maskOptions', 'maskParameters', 'arc', 'close', 'line', 'move', 'newPath', 'text', newMask.join('') );
+          maskFn = new Function( 'maskOptions', 'maskParameters', 'arc', 'close', 'fill', 'line', 'move', 'newPath', 'text', newMask.join('') );
         } catch( e ) {
           console.error( 'Invalid mask image code!', e );
         }
@@ -592,6 +592,11 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
               context.closePath(); 
               context.stroke(); 
             },
+            function fill() {
+              context.fill();
+              context.closePath(); 
+              context.stroke(); 
+            },
             function line( x, y ) {
               context.lineTo( (doFlip?(1-x):x)*s.x, y*s.y );
             },
@@ -601,9 +606,14 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
             function newPath() {
               context.beginPath();
             },
-            function text( x, y, text, styling ) {
-              if( styling )
-                context.font = styling;
+            function text( x, y, text, font ) {
+              if( font === undefined ) font = {};
+              
+              context.font = ''
+                + (font.style  ? font.style  : (fontStyle   ? fontStyle   : thisGLE.settings.fontStyle)) + ' '
+                + (font.size   ? font.size   : (fontSize    ? fontSize    : thisGLE.settings.fontSize ))*scale + 'px '
+                + (font.family ? font.family : (fontFamiliy ? fontFamiliy : thisGLE.settings.fontFamiliy));
+                
               context.fillStyle = color;
               context.fillText( text, (doFlip?(1-x):x)*s.x, y*s.y );
               context.fillStyle = fill;
