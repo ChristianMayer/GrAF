@@ -86,6 +86,23 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
             }
           } );
         },
+        getCornerPos = function( index ){
+          switch( index )
+          {
+            default:
+            case 1:
+              return pos.copy().plus( matrix.mul( new Vec2D( 0, 0 ) ) );
+              
+            case 2:
+              return pos.copy().plus( matrix.mul( size.copy().cmul([1,0]) ) );
+              
+            case 3:
+              return pos.copy().plus( matrix.mul( size.copy().cmul([0,1]) ) );
+              
+            case 4:
+              return pos.copy().plus( matrix.mul( size ) );
+          }
+        },
         getInPortPos = function( index ){
           var centerY = (size.y * (index+0.5) / inPorts.length) | 0;
           return pos.copy().plus( matrix.mul( new Vec2D( flip ? size.x : 0, centerY ) ) );
@@ -261,6 +278,11 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
                  ((pos.y+size.y) < mousePos.y);
           
         case 1:
+        case 2:
+        case 3:
+        case 4:
+          return thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( index ) );
+      /*
           return thisGLE.checkHandlerBadSelection( mousePos, pos );
           
         case 2:
@@ -271,6 +293,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           
         case 4:
           return thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size ) );
+*/
       }
       
       if( index < 5 + inPorts.length )
@@ -296,19 +319,23 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         return 0;
           
       if( interest & thisGLE.InterestMap.Block &&
-          !thisGLE.checkHandlerBadSelection( mousePos, pos ) )
+//          !thisGLE.checkHandlerBadSelection( mousePos, pos ) )
+          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 1 ) ) )
         return 1;
           
       if( interest & thisGLE.InterestMap.Block &&
-          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([1,0]) ) ) )
+          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 2 ) ) )
+//          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([1,0]) ) ) )
         return 2;
           
       if( interest & thisGLE.InterestMap.Block &&
-          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([0,1]) ) ) )
+          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 3 ) ) )
+//          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([0,1]) ) ) )
         return 3;
           
       if( interest & thisGLE.InterestMap.Block &&
-          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size ) ) )
+          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 4 ) ) )
+//          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size ) ) )
         return 4;
       
       if( interest & thisGLE.InterestMap.InPort )
@@ -606,7 +633,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
             function newPath() {
               context.beginPath();
             },
-            function text( x, y, text, font ) {
+            function text( x, y, str, font ) {
               if( font === undefined ) font = {};
               
               context.font = ''
@@ -615,7 +642,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
                 + (font.family ? font.family : (fontFamiliy ? fontFamiliy : thisGLE.settings.fontFamiliy));
                 
               context.fillStyle = color;
-              context.fillText( text, (doFlip?(1-x):x)*s.x, y*s.y );
+              context.fillText( str, (doFlip?(1-x):x)*s.x, y*s.y );
               context.fillStyle = fill;
             }
           );
