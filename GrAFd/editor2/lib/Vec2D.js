@@ -93,6 +93,19 @@ define( function() {
     return this;
   };
   /**
+   * Reverse the order, i.e. swap x and y
+   * @param condition Reverse when condition is true or undefined (i.e. empty)
+   */
+  Vec2D.prototype.reverse = function( condition ) {
+    if( condition === undefined || condition )
+    {
+      var tmp = this.x;
+      this.x = this.y;
+      this.y = tmp;
+    }
+    return this;
+  }
+  /**
    * multiplication with scalar
    */
   Vec2D.prototype.scale = function( scalar ) {

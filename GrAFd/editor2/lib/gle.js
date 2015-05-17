@@ -790,6 +790,20 @@ define( ['lib/Vec2D', 'lib/gle.settings', 'lib/gle.block', 'lib/gle.connection',
           });
         };
         
+        /**
+         * Rotate selected elements
+         */
+        this.selectionRotate = function( deltaAngle ) {
+          // TODO: this is currently just rotating each element individually
+          // it would be better if the selection is rotated on its whole though
+          self.selection.forEach( function( thisElement ) {
+            if( thisElement instanceof Block )
+            {
+              thisElement.setRotationDelta( deltaAngle );
+            }
+          });
+        };
+        
         /*
         this.blob = function() { 
           ctxBg.save();

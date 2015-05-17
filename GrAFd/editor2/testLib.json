@@ -51,6 +51,45 @@
         }
       ],
       "parameters":{}
+    },
+    "source3": {
+      "width": 100,
+      "height": 100,
+      "rotation": 0,
+      "flip": false,
+      "color": [0.0, 0.0, 1.0],
+      "background": [1.0, 1.0, 0.5],
+      "mask": [
+        "move( 0.1, 0.1 );",
+        "line( 0.9, 0.9 );",
+        "line( 0.9, 0.5 );",
+        "line( 0.5, 0.5 );"
+      ],
+      "maskOptions": {
+        "imageFixed": true,
+        "portReorder": false
+      },
+      "inPorts": [
+        { 
+          "name": "in1",
+          "type": "event"
+        },
+        { 
+          "name": "in2",
+          "type": "event"
+        }
+      ],
+      "outPorts": [
+        { 
+          "name": "out1",
+          "type": "event"
+        },
+        { 
+          "name": "out2",
+          "type": "event"
+        }
+      ],
+      "parameters":{}
     }
   },
   "sinkLib": {

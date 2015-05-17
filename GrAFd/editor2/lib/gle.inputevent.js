@@ -277,7 +277,14 @@ define( ['lib/Vec2D', 'lib/gle.gesture'], function( Vec2D, Gesture, undefined ) 
             break;
             
           case 82: // key: r - zoom in
-            thisGLE.zoomIn();
+            if( eventObject.ctrlKey ) // ctrl + r - rotate block
+            {
+              if( eventObject.shiftKey ) // ctrl + shift + r: ccw
+                thisGLE.selectionRotate( -90 );
+              else                       // ctrl + r: cw
+                thisGLE.selectionRotate( 90 );
+            } else
+              thisGLE.zoomIn();
             break;
             
           case 86: // key: v - zoom out

@@ -45,18 +45,19 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     
     // private:
     var self     = this,
-        pos      = new Vec2D( 0, 0 ),  // geometry
-        size     = new Vec2D( 100, 100 ),
+        pos      = new Vec2D( 0, 0 ),     // position in screen coordinates
+        size     = new Vec2D( 100, 100 ), // size in screen coordinates
         minWidth = 5,
         minHeight = 5,
         matrix   = new Mat2D(),  // transformation matrix of unpositioned block
+        mirror   = false,        // mirror axis after tranformation matrix
         rotation = 0,
         flip     = false,
         color    = '#000000',          // how to display
         fill     = '#ffffff',
         mask     = undefined,          // code for generating mask image
         maskFn   = undefined,          // parsed code for mask image
-        maskOptions = defaultMaskOptions,
+        maskOptions = {},//defaultMaskOptions,
         name     = '',
         fontSize,     // undefined --> use global
         fontFamiliy,  // undefined --> use global
@@ -65,10 +66,29 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         outPorts = [],
         handlers = [],
         updateTransformationMatrix = function(){
-          var center = size.copy().scale( 0.5 );
-          //matrix = (new Mat2D()).translate(center).scale(flip?-1:1,1).rotate(rotation*Math.PI/180).translate(center.scale(-1));
-          matrix = (new Mat2D()).translate(center).rotate(rotation*Math.PI/180).translate(center.scale(-1));
-          console.log( 'uTM', name, rotation, flip, matrix.print());
+          switch( rotation )
+          {
+            default:
+            case 0:
+              matrix = new Mat2D();
+              mirror = false;
+              break;
+              
+            case 90:
+              matrix = new Mat2D( 0,-1, 1, 0,   0, size.y);
+              mirror = false;
+              break;
+              
+            case 180:
+              matrix = new Mat2D();
+              mirror = true;
+              break;
+              
+            case 270:
+              matrix = new Mat2D( 0,-1, 1, 0,   0, size.y);
+              mirror = true;
+              break;
+          }
         },
         updateConnections = function() { // function to fix connections to match block after modification
           inPorts.forEach( function moveInPortConnection_PROFILENAME( thisPort, i ) {
@@ -87,34 +107,41 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           } );
         },
         getCornerPos = function( index ){
+          //var matri = matrix;//new Mat2D();
+          var matri = new Mat2D();
           switch( index )
           {
             default:
             case 1:
-              return pos.copy().plus( matrix.mul( new Vec2D( 0, 0 ) ) );
+              return pos.copy().plus( matri.mul( new Vec2D( 0, 0 ) ) );
               
             case 2:
-              return pos.copy().plus( matrix.mul( size.copy().cmul([1,0]) ) );
+              return pos.copy().plus( matri.mul( size.copy().cmul([1,0]) ) );
               
             case 3:
-              return pos.copy().plus( matrix.mul( size.copy().cmul([0,1]) ) );
+              return pos.copy().plus( matri.mul( size.copy().cmul([0,1]) ) );
               
             case 4:
-              return pos.copy().plus( matrix.mul( size ) );
+              return pos.copy().plus( matri.mul( size ) );
           }
         },
         getInPortPos = function( index ){
-          var centerY = (size.y * (index+0.5) / inPorts.length) | 0;
-          return pos.copy().plus( matrix.mul( new Vec2D( flip ? size.x : 0, centerY ) ) );
-          //return pos.copy().plus( matrix.mul( new Vec2D( 0     , centerY ) ) );
-          //return matrix.mul( pos.copy().plus( new Vec2D( 0     , centerY ) ) );
+          var
+            width = (rotation%180===90?size.y:size.x),
+            height = (rotation%180===90?size.x:size.y),
+            thisIndex = maskOptions.portReorder ? index : ((rotation<180)?index:(inPorts.length - 1 - index)),
+            centerY = (height * (thisIndex+0.5) / inPorts.length) | 0;
+            
+          return pos.copy().plus( matrix.mul( new Vec2D( (mirror?!flip:flip) ? width : 0, centerY ) ) );
         },
         getOutPortPos = function( index ){
-          var centerY = (size.y * (index+0.5) / outPorts.length) | 0;
-          //console.log( 'getOutPortPos', name, pos.copy().plus( new Vec2D( size.x, centerY ) ), matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) ), pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) ) );
-          return pos.copy().plus( matrix.mul( new Vec2D( flip ? 0 : size.x, centerY ) ) );
-          //return pos.copy().plus( matrix.mul( new Vec2D( size.x, centerY ) ) );
-          //return matrix.mul( pos.copy().plus( new Vec2D( size.x, centerY ) ) );
+          var 
+            width = (rotation%180===90?size.y:size.x),
+            height = (rotation%180===90?size.x:size.y),
+            thisIndex = maskOptions.portReorder ? index : ((rotation<180)?index:(inPorts.length - 1 - index)),
+            centerY = (height * (thisIndex+0.5) / outPorts.length) | 0;
+            
+          return pos.copy().plus( matrix.mul( new Vec2D( (mirror?!flip:flip) ? 0 : width, centerY ) ) );
         };
     
     this.setName = function( newName ) {
@@ -161,7 +188,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     };
     this.setTopLeft = function( coord ) {
       pos = coord.copy();
-      isLogicElement && thisGLE.invalidateBBox();
+      isLogicElement && (thisGLE.invalidateBBox(), thisGLE.invalidateContext());
       return this;
     };
     this.getTopLeft = function() {
@@ -169,7 +196,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     };
     this.setBottomRight = function( coord ) {
       size = coord.minus( pos );
-      isLogicElement && thisGLE.invalidateBBox();
+      isLogicElement && (thisGLE.invalidateBBox(), thisGLE.invalidateContext());
       return this;
     };
     this.getBottomRight = function() {
@@ -184,17 +211,24 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       isLogicElement && thisGLE.invalidateBBox();
       return this;
     };
-    this.setRotation = function( newAngle ) {
+    this.setRotation = function( newAngle, keepAspectRatio ) {
+      var
+        needFlip = keepAspectRatio && ((newAngle - rotation + 360)%180 === 90);
+        
       rotation = newAngle;
+      size.reverse( needFlip );
       updateTransformationMatrix();
-      isLogicElement && thisGLE.invalidateBBox();
+      isLogicElement && (thisGLE.invalidateBBox(), thisGLE.invalidateContext());
       return this;
+    };
+    this.setRotationDelta = function( deltaAngle ) {
+      this.setRotation( (rotation + deltaAngle + 360)%360, true );
     };
     this.setFlip = function( newFlip ) {
       flip = newFlip === undefined ? (!flip) : newFlip;
       updateTransformationMatrix();
       updateConnections();
-      isLogicElement && thisGLE.invalidateContext();
+      isLogicElement && (thisGLE.invalidateBBox(), thisGLE.invalidateContext());
       return this;
     };
     this.getInCoordinates = function( handler, isPortNumber ) {
@@ -203,7 +237,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       {
         var portNumber = isPortNumber ? handler : handler - 5,
             endPos = getInPortPos( portNumber ),
-            prevPos = endPos.copy().minus( matrix.nmul( new Vec2D(flip?-1:1,0) ).scale(15) );
+            prevPos = endPos.copy().minus( matrix.nmul( new Vec2D((mirror?!flip:flip)?-1:1,0) ).scale(15) );
         return [ prevPos, endPos, portNumber ];
       }
     }
@@ -213,7 +247,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       {
         var portNumber = isPortNumber ? handler : handler - 5 - inPorts.length,
             startPos = getOutPortPos( portNumber ),
-            nextPos = startPos.copy().plus( matrix.nmul( new Vec2D(flip?-1:1,0) ).scale(5) );
+            nextPos = startPos.copy().plus( matrix.nmul( new Vec2D((mirror?!flip:flip)?-1:1,0) ).scale(5) );
         return [ startPos, nextPos, portNumber ];
       }
     }
@@ -249,7 +283,14 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           console.error( 'Invalid mask image code!', e );
         }
       }
-      maskOptions = newMaskOptions || defaultMaskOptions;
+      
+      if( newMaskOptions )
+        for( var key in defaultMaskOptions )
+          maskOptions[ key ] = newMaskOptions[ key ] !== undefined ? newMaskOptions[ key ] : defaultMaskOptions[ key ];
+      else
+        for( var key in defaultMaskOptions )
+          maskOptions[ key ] = defaultMaskOptions[ key ];
+        //maskOptions = defaultMaskOptions;
     };
     
     /**
@@ -282,18 +323,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         case 3:
         case 4:
           return thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( index ) );
-      /*
-          return thisGLE.checkHandlerBadSelection( mousePos, pos );
-          
-        case 2:
-          return thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([1,0]) ) );
-          
-        case 3:
-          return thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([0,1]) ) );
-          
-        case 4:
-          return thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size ) );
-*/
       }
       
       if( index < 5 + inPorts.length )
@@ -310,7 +339,22 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
      */
     this.getSelection = function( mousePos, interest )
     {
-      //console.log( 'getSelection', interest, this.getName(), mousePos, pos, pos.copy().plus(size) );
+      if( interest & thisGLE.InterestMap.Block &&
+          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 1 ) ) )
+        return 1;
+          
+      if( interest & thisGLE.InterestMap.Block &&
+          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 2 ) ) )
+        return 2;
+          
+      if( interest & thisGLE.InterestMap.Block &&
+          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 3 ) ) )
+        return 3;
+          
+      if( interest & thisGLE.InterestMap.Block &&
+          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 4 ) ) )
+        return 4;
+      
       if( interest & thisGLE.InterestMap.Block &&
           (pos.x <= mousePos.x) && 
           (pos.y <= mousePos.y) && 
@@ -318,26 +362,6 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           (mousePos.y <= (pos.y+size.y)) )
         return 0;
           
-      if( interest & thisGLE.InterestMap.Block &&
-//          !thisGLE.checkHandlerBadSelection( mousePos, pos ) )
-          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 1 ) ) )
-        return 1;
-          
-      if( interest & thisGLE.InterestMap.Block &&
-          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 2 ) ) )
-//          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([1,0]) ) ) )
-        return 2;
-          
-      if( interest & thisGLE.InterestMap.Block &&
-          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 3 ) ) )
-//          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size.copy().cmul([0,1]) ) ) )
-        return 3;
-          
-      if( interest & thisGLE.InterestMap.Block &&
-          !thisGLE.checkHandlerBadSelection( mousePos, getCornerPos( 4 ) ) )
-//          !thisGLE.checkHandlerBadSelection( mousePos, pos.copy().plus( size ) ) )
-        return 4;
-      
       if( interest & thisGLE.InterestMap.InPort )
         for( var i = 0; i < inPorts.length; i++ )
           if( !thisGLE.checkHandlerBadSelection( mousePos, getInPortPos( i ) ) &&
@@ -414,7 +438,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
     this.update = function( index, newPos, shortDeltaPos, totalDeltaPos )
     {
       index = index | 0;
-      //console.log( 'block update', index, newPos.print(), shortDeltaPos.print(), '['+pos.print()+']' );
+      console.log( 'block update', index, newPos.print(), shortDeltaPos.print(), '['+pos.print()+']' );
       switch( index )
       {
         case 0: // main
@@ -543,63 +567,36 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         context = ctx[0],
         transform = ctx[1],
         view = thisGLE.view(),
-        doFlip = maskOptions.imageFixed ? false : flip,
+        flipH = maskOptions.imageFixed ? false : (mirror ? !flip : flip),
+        flipV = maskOptions.imageFixed ? false : mirror,
         p    = pos.copy().scale( scale ).round(1),
-        s    = size.copy().scale( scale ).round(1),
+        s    = size.copy().reverse( maskOptions.imageFixed ? false : (rotation%180 === 90) ).scale( scale ).round(1),
         m    = (5 * scale)|0; // the port marker (half-)size
-      
-      // Maks Options:
-      /*
-        "showLabel": false,
-        "showBorder": true,
-        "transparent": false,
-        "unit": 
-          "block" - (0,0)-(1,1)
-          "screen" - (0,0)-(size.x,size.y)
-          "content" - min(mask elements)-max(mask elements)
-        "imageFixed": 
-          true - only rotate the ports
-        "portReorder":
-          false - rotate the port position together with the block
-          true - port numbers are allways starting on the top and the left
-      */
 
+      // draw block itself
+      context.save(); // make sure to leave the context alone
+      var matrix2 = matrix.copy(); matrix2.f *= scale;
+      if( maskOptions.imageFixed )
+        transform.copy().mmul( (new Mat2D()).translate( p ) ).setTransform( context );
+      else
+        transform.copy().mmul( (new Mat2D()).translate( p ).mmul(matrix2) ).setTransform( context );
+      
       // draw shape to index map
       if( !isDrawFg )
       {
-        /*
-        view.drawHandler( p                                    , handlers[ 1 ], focus );
-        view.drawHandler( p.copy().plus( s.copy().cmul([1,0]) ), handlers[ 2 ], focus );
-        view.drawHandler( p.copy().plus( s.copy().cmul([0,1]) ), handlers[ 3 ], focus );
-        view.drawHandler( p.copy().plus( s )                   , handlers[ 4 ], focus );
-        */
-        /*
-        view.drawHandler( matrix.mul( p                                     ), handlers[ 1 ], focus );
-        view.drawHandler( matrix.mul( p.copy().plus( s.copy().cmul([1,0]) ) ), handlers[ 2 ], focus );
-        view.drawHandler( matrix.mul( p.copy().plus( s.copy().cmul([0,1]) ) ), handlers[ 3 ], focus );
-        view.drawHandler( matrix.mul( p.copy().plus( s )                    ), handlers[ 4 ], focus );
-        */
-        var trM = (new Mat2D()).translate( p ).mmul(matrix);
-        view.drawHandler( trM.mul( new Vec2D(0,0)       ), handlers[ 1 ], focus );
-        view.drawHandler( trM.mul( s.copy().cmul([1,0]) ), handlers[ 2 ], focus );
-        view.drawHandler( trM.mul( s.copy().cmul([0,1]) ), handlers[ 3 ], focus );
-        view.drawHandler( trM.mul( s                    ), handlers[ 4 ], focus );
+        view.drawHandler( (new Vec2D(0,0))                             , handlers[ 1 ], focus );
+        view.drawHandler( (new Vec2D(0,0)).plus( s.copy().cmul([1,0]) ), handlers[ 2 ], focus );
+        view.drawHandler( (new Vec2D(0,0)).plus( s.copy().cmul([0,1]) ), handlers[ 3 ], focus );
+        view.drawHandler( (new Vec2D(0,0)).plus( s                    ), handlers[ 4 ], focus );
       }
       
-      // draw block itself
-      context.save(); // make sure to leave the context alone
-      //matrix.copy().translate( p ).setTransform( context );
-      //context.transformMatrix.copy().mmul( (new Mat2D()).translate( p ).mmul(matrix) ).setTransform( context );
-      transform.copy().mmul( (new Mat2D()).translate( p ).mmul(matrix) ).setTransform( context );
-      //(new Mat2D()).translate( p ).mmul(matrix).setTransform( context );
+      
       context.colorStyle = color;
       context.fillStyle  = fill;
       context.lineWidth  = ((thisGLE.settings.drawSizeBlock * scale * 0.5)|0)*2+1; // make sure it's uneven to prevent antialiasing unsharpness
       
       if( maskOptions.showBorder )
       {
-        //context.fillRect( p.x, p.y, s.x, s.y );
-        //context.strokeRect( p.x, p.y, s.x, s.y );
         context.fillRect( 0, 0, s.x, s.y );
         context.strokeRect( 0, 0, s.x, s.y );
       }
@@ -611,9 +608,9 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
           maskFn( maskOptions, {},
             function arc( x, y, r, sAngle, eAngle, counterclockwise ) {
               var
-                sA = doFlip ? Math.PI - sAngle : sAngle,
-                eA = doFlip ? Math.PI - eAngle : eAngle;
-              context.ellipse( (doFlip?(1-x):x)*s.x, y*s.y, r*s.x, r*s.y, 0, sA, eA, doFlip ? !counterclockwise : counterclockwise );
+                sA = flipH ? Math.PI - sAngle : sAngle,
+                eA = flipH ? Math.PI - eAngle : eAngle;
+              context.ellipse( (flipH?(1-x):x)*s.x, (flipV?(1-y):y)*s.y, r*s.x, r*s.y, 0, sA, eA, flipH ? !counterclockwise : counterclockwise );
             },
             function close() {
               context.closePath(); 
@@ -625,10 +622,10 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
               context.stroke(); 
             },
             function line( x, y ) {
-              context.lineTo( (doFlip?(1-x):x)*s.x, y*s.y );
+              context.lineTo( (flipH?(1-x):x)*s.x, (flipV?(1-y):y)*s.y );
             },
             function move( x, y ) {
-              context.moveTo( (doFlip?(1-x):x)*s.x, y*s.y );
+              context.moveTo( (flipH?(1-x):x)*s.x, (flipV?(1-y):y)*s.y );
             },
             function newPath() {
               context.beginPath();
@@ -642,7 +639,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
                 + (font.family ? font.family : (fontFamiliy ? fontFamiliy : thisGLE.settings.fontFamiliy));
                 
               context.fillStyle = color;
-              context.fillText( str, (doFlip?(1-x):x)*s.x, y*s.y );
+              context.fillText( str, (flipH?(1-x):x)*s.x, (flipV?(1-y):y)*s.y );
               context.fillStyle = fill;
             }
           );
@@ -665,49 +662,46 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
       //context.fillText( name, p.x + s.x / 2, p.y + s.y + 2 );
       context.fillText( name, s.x / 2, s.y + 2 );
       
+      context.restore();
       context.textBaseline = 'middle';
-      context.textAlign = flip ? 'right' : 'left';
+      context.textAlign = rotation%180===90 ? 'center' : ((mirror?!flip:flip) ? 'right' : 'left');
       var startIndex = 5;
       inPorts.forEach( function( thisPort, index ){
-        var centerY = (s.y * (index+0.5) / inPorts.length) | 0;
-        //context.fillText( thisPort.name, p.x + m, p.y + centerY );
-        context.fillText( thisPort.name, flip ? (s.x - m) : m, centerY );
+        var 
+          coords = self.getInCoordinates( index, true ),
+          coord  = coords[1].copy().scale( scale ),
+          direction = coords[1].copy().minus( coords[0] ).toLength( m ),
+          normal = direction.copy().reverse(); // a fake normal but good enough for us
+        context.fillText( thisPort.name, coord.x + direction.x, coord.y + direction.y );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
-          //context.moveTo( p.x - m, p.y - m + centerY );
-          //context.lineTo( p.x    , p.y     + centerY );
-          //context.lineTo( p.x - m, p.y + m + centerY );
-          context.moveTo( -m, -m + centerY );
-          context.lineTo(  0,      centerY );
-          context.lineTo( -m,  m + centerY );
+          context.moveTo( coord.x - direction.x - normal.x, coord.y - direction.y - normal.y );
+          context.lineTo( coord.x                         , coord.y                          );
+          context.lineTo( coord.x - direction.x + normal.x, coord.y - direction.y + normal.y );
           context.stroke(); 
-          //isDrawFg || view.drawHandler( getInPortPos( index ).copy().scale( scale ).round(1), handlers[ startIndex + index ], focus );
-          isDrawFg || view.drawHandler( getInPortPos( index ).copy().minus(p).scale( 1+0*scale ).round(1), handlers[ startIndex + index ], focus );
         } else {
         }
       });
-      context.textAlign = flip ? 'left' : 'right';
+      context.textAlign = rotation%180===90 ? 'center' : ((mirror?!flip:flip) ? 'left' : 'right');
       startIndex += inPorts.length;
       outPorts.forEach( function( thisPort, index ){
-        var centerY = (s.y * (index+0.5) / outPorts.length) | 0;
-        //context.fillText( thisPort.name, p.x + s.x - m, p.y + centerY );
-        context.fillText( thisPort.name, flip ? m : (s.x - m), centerY );
+        var 
+          coords = self.getOutCoordinates( index, true ),
+          coord  = coords[0].copy().scale( scale ),
+          direction = coords[0].copy().minus( coords[1] ).toLength( m ),
+          normal = direction.copy().reverse(); // a fake normal but good enough for us
+        context.fillText( thisPort.name, coord.x + direction.x, coord.y + direction.y );
         if( undefined === thisPort.connection ) 
         {
           context.beginPath();
-          //context.moveTo( p.x + s.x    , p.y - m + centerY );
-          //context.lineTo( p.x + s.x + m, p.y     + centerY );
-          //context.lineTo( p.x + s.x    , p.y + m + centerY );
-          context.moveTo( s.x    , -m + centerY );
-          context.lineTo( s.x + m,      centerY );
-          context.lineTo( s.x    ,  m + centerY );
+          context.moveTo( coord.x               - normal.x, coord.y               - normal.y );
+          context.lineTo( coord.x - direction.x           , coord.y - direction.y            );
+          context.lineTo( coord.x               + normal.x, coord.y               + normal.y );
           context.stroke(); 
-          isDrawFg || view.drawHandler( getOutPortPos( index ).copy().scale( scale ).round(1), handlers[ startIndex + index ], focus );
         } else {
         }
       });
-      context.restore();
     };
     
     // constructor
