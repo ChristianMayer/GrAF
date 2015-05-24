@@ -90,6 +90,19 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
               break;
           }
         },
+        updateMinSize = function(){
+          var
+            inLetters = 0,
+            outLetters = 0;
+          inPorts.forEach( function(thisPort){
+            inLetters = Math.max( inLetters, thisPort.name.length );
+          });
+          outPorts.forEach( function(thisPort){
+            outLetters = Math.max( outLetters, thisPort.name.length );
+          });
+          minWidth = 5 + 5*(inLetters + outLetters); // reserve 5px per letter
+          minHeight = 5 + Math.max( inPorts.length, outPorts.length ) * 10;
+        },
         updateConnections = function() { // function to fix connections to match block after modification
           inPorts.forEach( function moveInPortConnection_PROFILENAME( thisPort, i ) {
             if( undefined !== thisPort.connection )
@@ -158,7 +171,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         if( 'string' === typeof entry )
           inPorts[ i ] = { name: entry };
       } );
-      minHeight = 5 + Math.max( inPorts.length, outPorts.length ) * 10;
+      updateMinSize();
       return this;
     };
     this.setInConnection = function( theConnection, portNumber )
@@ -175,7 +188,7 @@ define( ['lib/Vec2D', 'lib/Mat2D'], function( Vec2D, Mat2D, undefined ) {
         if( 'string' === typeof entry )
           outPorts[ i ] = { name: entry };
       } );
-      minHeight = 5 + Math.max( inPorts.length, outPorts.length ) * 10;
+      updateMinSize();
       return this;
     };
     this.setOutConnection = function( theConnection, portNumber )
